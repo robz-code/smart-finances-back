@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+*.log
+*.sqlite3
+*.db
+
+# Virtual environments
+venv/
+.env/
+.env
+.venv/
+
+# FastAPI/Starlette
+instance/
+
+# Byte-compiled / optimized / DLL files
+*.so
+
+# Distribution / packaging
+.Python
+dist/
+build/
+.eggs/
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# Cursor
+.cursor/
+
+# macOS
+.DS_Store
+
+# Test and coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Pylint
+pylint.log
+
+# Other
+*.swp
+*.swo
+
+# Local database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Backup files
+*~
+*.bak
+
+# Ignore docs build
+/docs/_build/
+
