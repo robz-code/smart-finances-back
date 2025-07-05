@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
 from app.config.database import engine, Base
+from app.routes import (
+    user_route
+)
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -11,7 +14,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     description="A FastAPI application for smart finances management",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
 # Set up CORS
@@ -25,7 +28,11 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 
+# Include routers
+app.include_router(user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 
+
+# Root endpoint
 @app.get("/")
 def read_root():
     """Root endpoint."""
