@@ -1,0 +1,17 @@
+from sqlalchemy import Column, DateTime, Text, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID, NUMERIC
+from app.config.database import Base
+import datetime
+import uuid
+
+class UserDebt(Base):
+    __tablename__ = 'user_debts'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    transaction_id = Column(UUID(as_uuid=True), ForeignKey('transactions.id'))
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    to_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    amount = Column(NUMERIC, nullable=False)
+    type = Column(Text, nullable=False)
+    note = Column(Text)
+    date = Column(DateTime, default=datetime.datetime.utcnow) 
