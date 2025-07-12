@@ -1,5 +1,5 @@
 -- Users
-CREATE TABLE users (
+CREATE TABLE profiles (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
   email TEXT,
@@ -87,6 +87,7 @@ CREATE TABLE installments (
   id UUID PRIMARY KEY,
   transaction_id UUID REFERENCES transactions(id),
   installment_number INT,
+  due_date DATE,
   amount NUMERIC NOT NULL
 );
 
@@ -166,4 +167,16 @@ CREATE TABLE budget_categories (
   budget_id UUID REFERENCES budgets(id),
   category_id UUID REFERENCES categories(id),
   PRIMARY KEY (budget_id, category_id)
+);
+
+
+
+
+-- Supabase Mock Tables
+
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    hashed_password TEXT NOT NULL,
+    name TEXT
 );
