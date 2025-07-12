@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config.settings import settings
+from supabase import create_client, Client
 from app.config.database import engine, Base
 from app.routes import (
     user_route
@@ -16,6 +17,8 @@ app = FastAPI(
     description="A FastAPI application for smart finances management",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
+supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 # Set up CORS
 if settings.BACKEND_CORS_ORIGINS:

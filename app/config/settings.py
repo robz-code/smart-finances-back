@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     # Database settings
     DATABASE_URL: Optional[str] = "sqlite:///./smart_finances.db"
     
+    # Supabase settings
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    JWT_SECRET_KEY: str
+    
     # CORS settings
     BACKEND_CORS_ORIGINS: List[str]
     
