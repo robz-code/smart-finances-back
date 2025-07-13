@@ -1,5 +1,5 @@
 from uuid import UUID
-
+from fastapi import HTTPException
 class BaseService:
     def __init__(self, db):
         self.db = db
@@ -9,7 +9,11 @@ class BaseService:
         return self.repository.get_all()
 
     def get(self, id: UUID):
-        return self.repository.get(id)
+        object = self.repository.get(id) 
+        if object is None:
+            raise HTTPException(status_code=404, detail="Object not found")
+        else:
+            return object
 
     def delete(self, id: UUID):
         return self.repository.delete(id)

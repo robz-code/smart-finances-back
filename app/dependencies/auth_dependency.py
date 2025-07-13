@@ -3,11 +3,15 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from app.config.settings import settings
 
-bearer_scheme = HTTPBearer()
+bearer_scheme = HTTPBearer(
+    description="Enter your JWT token in the format: Bearer <token>",
+    auto_error=True
+)
 
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    print(f"verify_token called with credentials: {credentials.credentials}")
     try:
         payload = jwt.decode(
             credentials.credentials,
@@ -15,8 +19,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             algorithms=["HS256"],
             options={"verify_aud": False}
         )
+        print(f"Token payload: {payload}")
         return payload
     except jwt.ExpiredSignatureError:
+        print("Token expired")
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
+        print("Invalid token")
         raise HTTPException(status_code=401, detail="Invalid token")
