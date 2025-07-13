@@ -7,12 +7,28 @@ from app.entities.user import User
 
 router = APIRouter()
 
-@router.get("")
+@router.get("", 
+            summary="Get all users",
+            description="Retrieve a list of all users. Requires a valid JWT token in the Authorization header.")
 async def read_users_list(service: UserService = Depends(get_user_service)):
+    """
+    Get a list of all users.
+    
+    This endpoint requires authentication via JWT token.
+    Include the token in the Authorization header as: `Bearer <your_token>`
+    """
     return service.get_all()
 
-@router.post("", response_model=UserBase, )
+@router.post("", response_model=UserBase, 
+             summary="Create a new user",
+             description="Create a new user with the provided data. Requires a valid JWT token in the Authorization header.")
 async def create_user(user_data: UserCreate, service: UserService = Depends(get_user_service)):
+    """
+    Create a new user.
+    
+    This endpoint requires authentication via JWT token.
+    Include the token in the Authorization header as: `Bearer <your_token>`
+    """
     return service.add(user_data.to_model())
 
 @router.get("/me", response_model=UserBase, 
