@@ -2,6 +2,7 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, UTC
 from app.entities.user import User
+from uuid import UUID
 
 class UserBase(BaseModel):
     
@@ -17,13 +18,13 @@ class UserBase(BaseModel):
         from_attributes = True
 
 class UserCreate(UserBase):
-    password: str
 
     class Config:
         from_attributes = True
 
-    def to_model(self):
+    def to_model(self, current_user_id: UUID):
         return User(
+            id=current_user_id,
             name=self.name,
             email=self.email,
             phone_number=self.phone_number,
