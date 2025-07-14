@@ -12,6 +12,9 @@ class BaseRepository():
 
     def get(self, id: UUID):
         return self.db.query(self.model).filter(self.model.id == id).first()
+    
+    def get_by_user_id(self, user_id: UUID):
+        return self.db.query(self.model).filter(self.model.user_id == user_id).all()
 
     def delete(self, id: UUID):
         obj = self.get(id)

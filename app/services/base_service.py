@@ -15,6 +15,9 @@ class BaseService:
         else:
             return object
 
+    def get_by_user_id(self, user_id: UUID):
+        return self.repository.get_by_user_id(user_id)
+
     def delete(self, id: UUID):
         return self.repository.delete(id)
 
