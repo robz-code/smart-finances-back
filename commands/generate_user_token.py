@@ -1,6 +1,8 @@
 import httpx
 import os
 import dotenv
+import argparse
+import sys
 
 dotenv.load_dotenv()
 
@@ -8,18 +10,19 @@ dotenv.load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-EMAIL = "test@example.com"
-PASSWORD = "testing123"
+# Remove hardcoded EMAIL and PASSWORD
+# EMAIL = "test@example.com"
+# PASSWORD = "testing123"
 
-def get_token():
+def get_token(email, password):
     url = f"{SUPABASE_URL}/auth/v1/token?grant_type=password"
     headers = {
         "apikey": SUPABASE_KEY,
         "Content-Type": "application/json",
     }
     payload = {
-        "email": EMAIL,
-        "password": PASSWORD,
+        "email": email,
+        "password": password,
     }
 
     response = httpx.post(url, json=payload, headers=headers)
@@ -40,4 +43,9 @@ def get_token():
 
 
 if __name__ == "__main__":
-    get_token()
+    if len(sys.argv) != 3:
+        print("Usage: python generate_user_token.py <email> <password>")
+        sys.exit(1)
+    email = sys.argv[1]
+    password = sys.argv[2]
+    get_token(email, password)
