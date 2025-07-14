@@ -11,7 +11,6 @@ bearer_scheme = HTTPBearer(
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    print(f"verify_token called with credentials: {credentials.credentials}")
     try:
         payload = jwt.decode(
             credentials.credentials,
@@ -19,7 +18,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_sche
             algorithms=["HS256"],
             options={"verify_aud": False}
         )
-        print(f"Token payload: {payload}")
         return payload
     except jwt.ExpiredSignatureError:
         print("Token expired")

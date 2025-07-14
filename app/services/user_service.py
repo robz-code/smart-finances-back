@@ -2,7 +2,6 @@ from app.services.base_service import BaseService
 from app.repository.user_repository import UserRepository
 
 
-
 class UserService(BaseService):
     def __init__(self, db):
         super().__init__(db)
