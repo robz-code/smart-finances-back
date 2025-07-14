@@ -8,7 +8,7 @@ class Budget(Base):
     __tablename__ = 'budgets'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     account_id = Column(UUID(as_uuid=True), ForeignKey('accounts.id'))
     name = Column(Text, nullable=False)
     recurrence = Column(Text, nullable=False)

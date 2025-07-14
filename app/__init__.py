@@ -4,7 +4,10 @@ from app.config.settings import settings
 from supabase import create_client, Client
 from app.config.database import engine, Base
 from app.routes import (
-    user_route
+    user_route,
+    account_route,
+    transaction_route,
+    category_route,
 )
 
 # Create database tables
@@ -32,7 +35,10 @@ if settings.BACKEND_CORS_ORIGINS:
 
 
 # Include routers
-app.include_router(user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
+app.include_router(user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"])
+app.include_router(account_route.router, prefix=f"{settings.API_V1_STR}/accounts", tags=["Accounts"])
+app.include_router(category_route.router, prefix=f"{settings.API_V1_STR}/categories", tags=["Categories"])
+app.include_router(transaction_route.router, prefix=f"{settings.API_V1_STR}/transactions", tags=["Transactions"])
 
 
 # Root endpoint
