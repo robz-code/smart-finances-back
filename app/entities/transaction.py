@@ -8,7 +8,7 @@ class Transaction(Base):
     __tablename__ = 'transactions'
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     account_id = Column(UUID(as_uuid=True), ForeignKey('accounts.id'))
     category_id = Column(UUID(as_uuid=True), ForeignKey('categories.id'))
     group_id = Column(UUID(as_uuid=True), ForeignKey('groups.id'))

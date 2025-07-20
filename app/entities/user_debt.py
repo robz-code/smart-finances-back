@@ -9,8 +9,8 @@ class UserDebt(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     transaction_id = Column(UUID(as_uuid=True), ForeignKey('transactions.id'))
-    from_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
-    to_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
+    to_user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     amount = Column(NUMERIC, nullable=False)
     type = Column(Text, nullable=False)
     note = Column(Text)

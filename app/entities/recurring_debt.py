@@ -9,8 +9,8 @@ class RecurringDebt(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     recurring_transaction_id = Column(UUID(as_uuid=True), ForeignKey('recurring_transactions.id'))
-    from_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
-    to_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'))
+    from_user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
+    to_user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     amount = Column(NUMERIC, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow) 
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
