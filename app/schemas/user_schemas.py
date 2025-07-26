@@ -46,3 +46,33 @@ class UserCreate(UserBase):
             "profile_image": self.profile_image,
             "created_at": datetime.now(UTC),
         }
+
+class UserUpdate(UserBase):
+
+    class Config:
+        from_attributes = True
+
+    def to_model(self, current_user_id: UUID):
+        return User(
+            id=current_user_id,
+            name=self.name,
+            email=self.email,
+            phone_number=self.phone_number,
+            is_registered=self.is_registered,
+            currency=self.currency,
+            language=self.language,
+            profile_image=self.profile_image,
+            created_at=datetime.now(UTC),
+        )
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "email": self.email,
+            "phone_number": self.phone_number,
+            "is_registered": self.is_registered,
+            "currency": self.currency,
+            "language": self.language,
+            "profile_image": self.profile_image,
+            "created_at": datetime.now(UTC),
+        }
