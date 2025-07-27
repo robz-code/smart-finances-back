@@ -69,7 +69,8 @@ CREATE TABLE tags (
   name TEXT NOT NULL,
   color TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  user_id UUID REFERENCES users(id) NOT NULL
 );
 
 -- Transaction Tags (Association table)
