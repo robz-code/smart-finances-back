@@ -13,6 +13,8 @@ import app.entities.group
 import app.entities.group_member
 import app.entities.budget
 import app.entities.budget_category
+import app.entities.tags
+import app.entities.transaction_tag
 
 def create_all_tables():
     Base.metadata.create_all(bind=engine)
