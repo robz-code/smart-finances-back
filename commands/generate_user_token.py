@@ -1,7 +1,7 @@
 import httpx
 import os
 import dotenv
-import argparse
+import clipboard
 import sys
 
 dotenv.load_dotenv()
@@ -37,8 +37,9 @@ def get_token(email, password):
     user = data.get("user", {})
     
     print("✅ Access Token:")
+    clipboard.copy(access_token)
     print(access_token)
-    print("🧑 User ID:", user.get("id"))
+    print("El acces token se ha copiado para el 🧑 User ID:", user.get("id"))
     return access_token
 
 
