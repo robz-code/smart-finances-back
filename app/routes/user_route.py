@@ -8,7 +8,7 @@ from app.dependencies.auth_dependency import verify_token
 
 router = APIRouter()
 
-@router.get("", 
+@router.get("/list", 
             summary="Get all users",
             description="Retrieve a list of all users. Requires a valid JWT token in the Authorization header.")
 async def read_users_list(service: UserService = Depends(get_user_service)):
@@ -33,7 +33,7 @@ async def create_user(user_data: UserCreate, service: UserService = Depends(get_
     
     return service.add(user_data.to_model(token_payload.get("sub")))
 
-@router.get("/me", response_model=UserBase, 
+@router.get("/", response_model=UserBase, 
            summary="Get current user profile",
            description="Retrieve the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.")
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -45,8 +45,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
     """
     return current_user
 
-@router.put("/me", response_model=UserBase,
-
+@router.put("/", response_model=UserBase,
            summary="Update current user profile",
            description="Update the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.")
 async def update_curent_user(user_data: UserUpdate, current_user: User = Depends(get_current_user), user_service: UserService = Depends(get_user_service)):
@@ -57,3 +56,20 @@ async def update_curent_user(user_data: UserUpdate, current_user: User = Depends
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
     return user_service.update(current_user.id, user_data.to_model(current_user.id))
+
+@router.delete("/",
+               response_model=UserBase,
+               summary="Delete current user",
+               description="Delete the currently authenticated user. Requires a valid JWT token in the Authorization header.")
+async def soft_delete_current_user(
+    current_user: User = Depends(get_current_user),
+    service: UserService = Depends (get_user_service)):
+    """
+    Soft Delete the current user.
+    
+    This endpoint requires authentication via JWT token.
+    Include the token in the Authorization header as: `Bearer <your_token>`
+    """
+
+    return service.delete(current_user.id)
+
