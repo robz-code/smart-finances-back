@@ -14,12 +14,11 @@ router = APIRouter()
 
 @router.get("/", response_model=TagListResponse)
 def get_user_tags(
-    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service)
 ):
     """Get all tags for the current user"""
-    tags = tag_service.get_user_tags(db, current_user.id)
+    tags = tag_service.get_by_user_id(current_user.id)
     return TagListResponse(tags=tags, total=len(tags))
 
 @router.post("/", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
@@ -75,4 +74,4 @@ def delete_tag(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Tag not found or does not belong to user"
-        ) 
+        )

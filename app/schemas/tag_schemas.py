@@ -26,3 +26,7 @@ class TagResponse(TagBase):
 class TagListResponse(BaseModel):
     tags: List[TagResponse]
     total: int 
+
+    def __init__(self, tags: List[TagResponse]):
+        self.tags = tags
+        self.total = len(tags)

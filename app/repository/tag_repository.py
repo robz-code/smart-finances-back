@@ -7,5 +7,5 @@ from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 
 class TagRepository(BaseRepository):
-    def __init__(self):
-        super().__init__(Tag)
+    def __init__(self, db: Session):
+        super().__init__(db ,Tag)

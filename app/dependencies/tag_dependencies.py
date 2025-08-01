@@ -1,4 +1,4 @@
-import app.services.tag_service as TagService
+from  app.services.tag_service import TagService
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.config.database import get_db
