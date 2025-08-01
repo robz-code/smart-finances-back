@@ -4,7 +4,7 @@ from app.entities.user import User
 from typing import Optional
 
 
-class UserRepository(BaseRepository):
+class UserRepository(BaseRepository[User]):
     def __init__(self, db: Session):
         super().__init__(db, User)
 

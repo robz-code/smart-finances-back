@@ -1,45 +1,138 @@
 from uuid import UUID
 from fastapi import HTTPException
-from typing import List, Optional, Any
+from typing import List, Optional, TypeVar, Generic, Type
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+import logging
 
-class BaseService:
-    def __init__(self, db):
+T = TypeVar('T', bound=DeclarativeBase)
+
+logger = logging.getLogger(__name__)
+
+class BaseService(Generic[T]):
+    def __init__(self, db, repository, entity: Type[T]):
         self.db = db
-        self.repository = None
-        self.entity = None
+        self.repository = repository
+        self.entity = entity
 
-    def get_all(self) -> List[Any]:
-        """Get all objects"""
-        return self.repository.get_all()
+    def get_all(self) -> List[T]:
+        """Get all entities with error handling"""
+        try:
+            return self.repository.get_all()
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in get_all for {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error in get_all for {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get(self, id: UUID) -> Any:
-        """Get object by ID with error handling"""
-        obj = self.repository.get(id) 
-        if obj is None:
-            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
-        return obj
-
-    def get_by_user_id(self, user_id: UUID) -> List[Any]:
-        """Get objects by user ID"""
-        return self.repository.get_by_user_id(user_id)
-
-    def delete(self, id: UUID) -> Any:
-        """Delete object by ID with error handling"""
-        obj = self.repository.get(id)
-        if obj is None:
-            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+    def get(self, id: UUID) -> T:
+        """Get entity by ID with error handling"""
+        if not id:
+            raise HTTPException(status_code=400, detail="Invalid ID provided")
         
-        deleted_obj = self.repository.delete(id)
-        return deleted_obj
+        try:
+            obj = self.repository.get(id) 
+            if obj is None:
+                logger.warning(f"{self.entity.__name__} not found with ID: {id}")
+                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+            return obj
+        except HTTPException:
+            raise
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in get for {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error in get for {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-    def add(self, obj_in: Any) -> Any:
-        """Add new object"""
-        return self.repository.add(obj_in)
-
-    def update(self, id: UUID, obj_in: Any) -> Any:
-        """Update object by ID with error handling"""
-        obj = self.repository.get(id)
-        if obj is None:
-            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+    def get_by_user_id(self, user_id: UUID) -> List[T]:
+        """Get entities by user ID with error handling"""
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Invalid user ID provided")
         
-        return self.repository.update(id, obj_in)
+        try:
+            return self.repository.get_by_user_id(user_id)
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in get_by_user_id for {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error in get_by_user_id for {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def delete(self, id: UUID) -> T:
+        """Delete entity by ID with error handling"""
+        if not id:
+            raise HTTPException(status_code=400, detail="Invalid ID provided")
+        
+        try:
+            obj = self.repository.get(id)
+            if obj is None:
+                logger.warning(f"Attempt to delete non-existent {self.entity.__name__} with ID: {id}")
+                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+            
+            deleted_obj = self.repository.delete(id)
+            logger.info(f"Successfully deleted {self.entity.__name__} with ID: {id}")
+            return deleted_obj
+        except HTTPException:
+            raise
+        except IntegrityError as e:
+            logger.error(f"Integrity error deleting {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=409, detail="Cannot delete due to existing references")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error deleting {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error deleting {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def add(self, obj_in: T) -> T:
+        """Add new entity with error handling"""
+        if not obj_in:
+            raise HTTPException(status_code=400, detail="Invalid entity data provided")
+        
+        try:
+            result = self.repository.add(obj_in)
+            logger.info(f"Successfully created {self.entity.__name__} with ID: {result.id}")
+            return result
+        except IntegrityError as e:
+            logger.error(f"Integrity error creating {self.entity.__name__}: {str(e)}")
+            if "unique" in str(e).lower():
+                raise HTTPException(status_code=409, detail="Entity already exists")
+            raise HTTPException(status_code=400, detail="Invalid data provided")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error creating {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error creating {self.entity.__name__}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def update(self, id: UUID, obj_in: T) -> T:
+        """Update entity by ID with error handling"""
+        if not id:
+            raise HTTPException(status_code=400, detail="Invalid ID provided")
+        if not obj_in:
+            raise HTTPException(status_code=400, detail="Invalid entity data provided")
+        
+        try:
+            obj = self.repository.get(id)
+            if obj is None:
+                logger.warning(f"Attempt to update non-existent {self.entity.__name__} with ID: {id}")
+                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+            
+            result = self.repository.update(id, obj_in)
+            logger.info(f"Successfully updated {self.entity.__name__} with ID: {id}")
+            return result
+        except HTTPException:
+            raise
+        except IntegrityError as e:
+            logger.error(f"Integrity error updating {self.entity.__name__} ID {id}: {str(e)}")
+            if "unique" in str(e).lower():
+                raise HTTPException(status_code=409, detail="Update would violate unique constraint")
+            raise HTTPException(status_code=400, detail="Invalid data provided")
+        except SQLAlchemyError as e:
+            logger.error(f"Database error updating {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logger.error(f"Unexpected error updating {self.entity.__name__} ID {id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
