@@ -6,6 +6,7 @@ class BaseService:
     def __init__(self, db):
         self.db = db
         self.repository = None
+        self.entity = None
 
     def get_all(self) -> List[Any]:
         """Get all objects"""
@@ -15,7 +16,7 @@ class BaseService:
         """Get object by ID with error handling"""
         obj = self.repository.get(id) 
         if obj is None:
-            raise HTTPException(status_code=404, detail="Object not found")
+            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
         return obj
 
     def get_by_user_id(self, user_id: UUID) -> List[Any]:
@@ -26,7 +27,7 @@ class BaseService:
         """Delete object by ID with error handling"""
         obj = self.repository.get(id)
         if obj is None:
-            raise HTTPException(status_code=404, detail="Object not found")
+            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
         
         deleted_obj = self.repository.delete(id)
         return deleted_obj
@@ -39,6 +40,6 @@ class BaseService:
         """Update object by ID with error handling"""
         obj = self.repository.get(id)
         if obj is None:
-            raise HTTPException(status_code=404, detail="Object not found")
+            raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
         
         return self.repository.update(id, obj_in)

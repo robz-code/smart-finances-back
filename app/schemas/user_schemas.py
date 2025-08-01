@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional
+from pydantic import BaseModel, EmailStr, field_validator, HttpUrl
+from typing import Optional, Literal
 from datetime import datetime, UTC
 from app.entities.user import User
 from uuid import UUID
@@ -9,9 +9,9 @@ class UserBase(BaseModel):
     name: str
     email: EmailStr
     phone_number: Optional[str] = None
-    currency: Optional[str] = None
-    language: Optional[str] = None
-    profile_image: Optional[str] = None
+    currency: Optional[Literal["USD", "EUR", "MXN" ]] = None
+    language: Optional[Literal["en", "es"]] = None
+    profile_image: Optional[HttpUrl] = None
 
     @field_validator('phone_number')
     @classmethod
@@ -36,7 +36,20 @@ class UserBase(BaseModel):
             raise ValueError('Name must be at least 2 characters long')
         if len(v.strip()) > 100:
             raise ValueError('Name cannot exceed 100 characters')
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r'^[a-zA-ZÀ-ÿ\s\'-]+$', v.strip()):
+            raise ValueError('Name can only contain letters, spaces, hyphens, and apostrophes')
         return v.strip()
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not v:
+            raise ValueError('Email cannot be empty')
+        # Additional email validation beyond Pydantic's EmailStr
+        if len(v) > 254:  # RFC 5321 limit
+            raise ValueError('Email address too long')
+        return v.lower().strip()
 
     class Config:
         from_attributes = True
