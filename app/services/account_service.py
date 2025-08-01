@@ -1,8 +1,8 @@
 from app.services.base_service import BaseService
 from app.repository.account_repository import AccountRepository
+from app.entities.account import Account
 
-
-class AccountService(BaseService):
+class AccountService(BaseService[Account]):
     def __init__(self, db):
-        super().__init__(db)
-        self.repository = AccountRepository(db)
+        repository = AccountRepository(db)
+        super().__init__(db, repository, Account)
