@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Text
-from sqlalchemy.dialects.postgresql import UUID, NUMERIC
+from sqlalchemy import Column, Boolean, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.config.database import Base
 import datetime
@@ -10,7 +10,7 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(Text, nullable=False)
-    email = Column(Text)
+    email = Column(Text, unique=True, nullable=False)
     phone_number = Column(Text)
     is_registered = Column(Boolean, default=False)
     currency = Column(Text)

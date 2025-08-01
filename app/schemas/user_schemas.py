@@ -1,21 +1,64 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, field_validator, HttpUrl
+from typing import Optional, Literal
 from datetime import datetime, UTC
 from app.entities.user import User
 from uuid import UUID
+import re
 
 class UserBase(BaseModel):
-    
     name: str
     email: EmailStr
     phone_number: Optional[str] = None
-    is_registered: Optional[bool] = True
-    currency: Optional[str] = None
-    language: Optional[str] = None
-    profile_image: Optional[str] = None
+    currency: Optional[Literal["USD", "EUR", "MXN" ]] = None
+    language: Optional[Literal["en", "es"]] = None
+    profile_image: Optional[HttpUrl] = None
+
+    @field_validator('phone_number')
+    @classmethod
+    def validate_phone_number(cls, v):
+        if v is None:
+            return v
+        
+        # Only accept format: +[country_code][phone_number]
+        # Examples: +1234567890, +521234567890
+        phone_pattern = re.compile(r'^\+[1-9]\d{6,14}$')
+        if not phone_pattern.match(v):
+            raise ValueError('Phone number must be in international format: +[country_code][phone_number] (e.g., +1234567890, +521234567890)')
+        
+        return v
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Name cannot be empty')
+        if len(v.strip()) < 2:
+            raise ValueError('Name must be at least 2 characters long')
+        if len(v.strip()) > 100:
+            raise ValueError('Name cannot exceed 100 characters')
+        # Check for valid characters (letters, spaces, hyphens, apostrophes)
+        if not re.match(r'^[a-zA-ZÀ-ÿ\s\'-]+$', v.strip()):
+            raise ValueError('Name can only contain letters, spaces, hyphens, and apostrophes')
+        return v.strip()
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not v:
+            raise ValueError('Email cannot be empty')
+        # Additional email validation beyond Pydantic's EmailStr
+        if len(v) > 254:  # RFC 5321 limit
+            raise ValueError('Email address too long')
+        return v.lower().strip()
 
     class Config:
         from_attributes = True
+
+class UserProfile(UserBase):
+    id: UUID
+    is_registered: bool
+    created_at: datetime
+    updated_at: datetime
 
 class UserCreate(UserBase):
 
@@ -27,8 +70,8 @@ class UserCreate(UserBase):
             id=current_user_id,
             name=self.name,
             email=self.email,
+            is_registered=True,
             phone_number=self.phone_number,
-            is_registered=self.is_registered,
             currency=self.currency,
             language=self.language,
             profile_image=self.profile_image,
@@ -40,9 +83,37 @@ class UserCreate(UserBase):
             "name": self.name,
             "email": self.email,
             "phone_number": self.phone_number,
-            "is_registered": self.is_registered,
             "currency": self.currency,
             "language": self.language,
             "profile_image": self.profile_image,
             "created_at": datetime.now(UTC),
+        }
+
+class UserUpdate(UserBase):
+    is_registered: Optional[bool] = None
+
+    class Config:
+        from_attributes = True
+
+    def to_model(self, current_user_id: UUID):
+        return User(
+            id=current_user_id,
+            name=self.name,
+            email=self.email,
+            phone_number=self.phone_number,
+            currency=self.currency,
+            language=self.language,
+            profile_image=self.profile_image,
+            is_registered=self.is_registered,
+        )
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "email": self.email,
+            "phone_number": self.phone_number,
+            "currency": self.currency,
+            "language": self.language,
+            "profile_image": self.profile_image,
+            "is_registered": self.is_registered
         }
