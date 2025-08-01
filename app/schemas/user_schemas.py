@@ -1,21 +1,51 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime, UTC
 from app.entities.user import User
 from uuid import UUID
+import re
 
 class UserBase(BaseModel):
-    
     name: str
     email: EmailStr
     phone_number: Optional[str] = None
-    is_registered: Optional[bool] = True
     currency: Optional[str] = None
     language: Optional[str] = None
     profile_image: Optional[str] = None
 
+    @field_validator('phone_number')
+    @classmethod
+    def validate_phone_number(cls, v):
+        if v is None:
+            return v
+        
+        # Only accept format: +[country_code][phone_number]
+        # Examples: +1234567890, +521234567890
+        phone_pattern = re.compile(r'^\+[1-9]\d{6,14}$')
+        if not phone_pattern.match(v):
+            raise ValueError('Phone number must be in international format: +[country_code][phone_number] (e.g., +1234567890, +521234567890)')
+        
+        return v
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Name cannot be empty')
+        if len(v.strip()) < 2:
+            raise ValueError('Name must be at least 2 characters long')
+        if len(v.strip()) > 100:
+            raise ValueError('Name cannot exceed 100 characters')
+        return v.strip()
+
     class Config:
         from_attributes = True
+
+class UserProfile(UserBase):
+    id: UUID
+    is_registered: bool
+    created_at: datetime
+    updated_at: datetime
 
 class UserCreate(UserBase):
 
@@ -27,8 +57,8 @@ class UserCreate(UserBase):
             id=current_user_id,
             name=self.name,
             email=self.email,
+            is_registered=True,
             phone_number=self.phone_number,
-            is_registered=self.is_registered,
             currency=self.currency,
             language=self.language,
             profile_image=self.profile_image,
@@ -40,7 +70,6 @@ class UserCreate(UserBase):
             "name": self.name,
             "email": self.email,
             "phone_number": self.phone_number,
-            "is_registered": self.is_registered,
             "currency": self.currency,
             "language": self.language,
             "profile_image": self.profile_image,
@@ -48,6 +77,7 @@ class UserCreate(UserBase):
         }
 
 class UserUpdate(UserBase):
+    is_registered: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -58,11 +88,10 @@ class UserUpdate(UserBase):
             name=self.name,
             email=self.email,
             phone_number=self.phone_number,
-            is_registered=self.is_registered,
             currency=self.currency,
             language=self.language,
             profile_image=self.profile_image,
-            created_at=datetime.now(UTC),
+            is_registered=self.is_registered,
         )
 
     def to_dict(self):
@@ -70,9 +99,8 @@ class UserUpdate(UserBase):
             "name": self.name,
             "email": self.email,
             "phone_number": self.phone_number,
-            "is_registered": self.is_registered,
             "currency": self.currency,
             "language": self.language,
             "profile_image": self.profile_image,
-            "created_at": datetime.now(UTC),
+            "is_registered": self.is_registered
         }
