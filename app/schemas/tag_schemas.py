@@ -1,7 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional
+from datetime import datetime, UTC
 from uuid import UUID
+from app.entities import user
+from app.entities.tags import Tag
 
 class TagBase(BaseModel):
     name: str
@@ -13,6 +15,15 @@ class TagBase(BaseModel):
 class TagCreate(TagBase):
     pass
 
+    def to_model(self, user_id: UUID):
+        return Tag(
+            name=self.name,
+            color=self.color,
+            user_id=user_id,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC)
+        )
+
 class TagUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
@@ -22,11 +33,3 @@ class TagResponse(TagBase):
     user_id: UUID
     created_at: datetime
     updated_at: datetime
-
-class TagListResponse(BaseModel):
-    tags: List[TagResponse]
-    total: int 
-
-    def __init__(self, tags: List[TagResponse]):
-        self.tags = tags
-        self.total = len(tags)
