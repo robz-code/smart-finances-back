@@ -62,6 +62,25 @@ CREATE TABLE categories (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Tags
+CREATE TABLE tags (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  user_id UUID REFERENCES users(id) NOT NULL
+);
+
+-- Transaction Tags (Association table)
+CREATE TABLE transaction_tags (
+  id UUID PRIMARY KEY,
+  transaction_id UUID REFERENCES transactions(id) NOT NULL,
+  tag_id UUID REFERENCES tags(id) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Transactions
 CREATE TABLE transactions (
   id UUID PRIMARY KEY,
@@ -75,7 +94,6 @@ CREATE TABLE transactions (
   amount NUMERIC NOT NULL,
   currency TEXT,
   date DATE NOT NULL,
-  note TEXT,
   source TEXT DEFAULT 'manual',
   has_installments BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),

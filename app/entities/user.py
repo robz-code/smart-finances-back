@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Boolean, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from app.config.database import Base
 import datetime
 import uuid
@@ -15,5 +16,8 @@ class User(Base):
     currency = Column(Text)
     language = Column(Text)
     profile_image = Column(Text)
-    created_at = Column(DateTime, default=datetime.datetime.now)
-    updated_at = Column(DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now) 
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Relationships
+    tags = relationship("Tag", back_populates="user")

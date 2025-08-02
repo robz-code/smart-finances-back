@@ -72,6 +72,22 @@ erDiagram
         TIMESTAMP updated_at
     }
 
+    tags {
+        UUID id PK
+        UUID user_id FK
+        TEXT name
+        TEXT color
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    transaction_tags {
+        UUID id PK
+        UUID transaction_id FK
+        UUID tag_id FK
+        TIMESTAMP created_at
+    }
+
     transactions {
         UUID id PK
         UUID user_id FK
@@ -84,7 +100,6 @@ erDiagram
         NUMERIC amount
         TEXT currency
         DATE date
-        TEXT note
         TEXT source
         BOOLEAN has_installments
         TIMESTAMP created_at
@@ -182,6 +197,7 @@ erDiagram
     users ||--o{ groups : "creates"
     users ||--o{ group_members : "belongs_to"
     users ||--o{ budgets : "creates"
+    users ||--o{ tags : "owns"
 
     accounts ||--o{ credits : "has"
     accounts ||--o{ transactions : "contains"
@@ -195,6 +211,8 @@ erDiagram
     transactions ||--o{ installments : "has"
     transactions ||--o{ user_debts : "creates"
     transactions ||--o{ transactions : "transfers_to"
+    transactions ||--o{ transaction_tags : "has"
+    tags ||--o{ transaction_tags : "used_in"
 
     recurring_transactions ||--o{ recurring_debt : "creates"
     recurring_transactions ||--o{ transactions : "generates"
@@ -217,6 +235,8 @@ erDiagram
 - **accounts**: User financial accounts (bank, credit, etc.)
 - **credits**: Credit card and loan information
 - **categories**: Transaction categorization
+- **tags**: User-specific transaction tags
+- **transaction_tags**: Association between transactions and tags
 - **transactions**: Financial transactions
 - **installments**: Installment payment tracking
 - **recurring_transactions**: Recurring financial transactions
@@ -233,12 +253,13 @@ erDiagram
 
 ## Key Relationships
 
-1. **User Hierarchy**: Users can have multiple accounts, transactions, and budgets
+1. **User Hierarchy**: Users can have multiple accounts, transactions, budgets, and tags
 2. **Account Types**: Accounts can be regular accounts or credit accounts (1:1 relationship)
-3. **Transaction Flow**: Transactions can be categorized, have installments, and create debts
-4. **Social Features**: Users can join groups and share expenses
-5. **Budgeting**: Users can create budgets for specific accounts and categories
-6. **Recurring Items**: Both transactions and debts can be recurring
+3. **Transaction Flow**: Transactions can be categorized, tagged, have installments, and create debts
+4. **Tag System**: Users can create private tags to organize their transactions
+5. **Social Features**: Users can join groups and share expenses
+6. **Budgeting**: Users can create budgets for specific accounts and categories
+7. **Recurring Items**: Both transactions and debts can be recurring
 
 ## Notes
 

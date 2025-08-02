@@ -9,18 +9,6 @@ from app.schemas.base_schemas import MessageResponse
 
 router = APIRouter()
 
-@router.get("/list", 
-            summary="Get all users",
-            description="Retrieve a list of all users. Requires a valid JWT token in the Authorization header.")
-async def read_users_list(service: UserService = Depends(get_user_service)):
-    """
-    Get a list of all users.
-    
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
-    return service.get_all()
-
 @router.post("", response_model=UserProfile,
              summary="Create a new user",
              description="Create a new user with the provided data. Requires a valid JWT token in the Authorization header.")

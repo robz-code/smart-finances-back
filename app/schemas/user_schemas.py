@@ -37,7 +37,7 @@ class UserBase(BaseModel):
         if len(v.strip()) > 100:
             raise ValueError('Name cannot exceed 100 characters')
         # Check for valid characters (letters, spaces, hyphens, apostrophes)
-        if not re.match(r'^[a-zA-ZÀ-ÿ\s\'-]+$', v.strip()):
+        if not re.match(r'^[a-zA-ZÀ-ÿ0-9\s\'-]+$', v.strip()):
             raise ValueError('Name can only contain letters, spaces, hyphens, and apostrophes')
         return v.strip()
 

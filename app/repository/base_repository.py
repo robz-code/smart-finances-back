@@ -5,6 +5,8 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.exc import SQLAlchemyError
 import logging
 
+from app.schemas.base_schemas import SearchResponse
+
 T = TypeVar('T', bound=DeclarativeBase)
 
 logger = logging.getLogger(__name__)
@@ -14,10 +16,6 @@ class BaseRepository(Generic[T]):
     def __init__(self, db: Session, model: Type[T]):
         self.db = db
         self.model = model
-
-    def get_all(self) -> List[T]:
-        """Get all entities"""
-        return self.db.query(self.model).all()
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""

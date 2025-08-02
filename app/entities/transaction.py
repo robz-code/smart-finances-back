@@ -1,5 +1,6 @@
 from sqlalchemy import Column, DateTime, Text, Boolean, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID, NUMERIC, DATE
+from sqlalchemy.orm import relationship
 from app.config.database import Base
 import datetime
 import uuid
@@ -18,8 +19,10 @@ class Transaction(Base):
     amount = Column(NUMERIC, nullable=False)
     currency = Column(Text)
     date = Column(DATE, nullable=False)
-    note = Column(Text)
     source = Column(Text, default='manual')
     has_installments = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow) 
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Relationships
+    transaction_tags = relationship("TransactionTag", back_populates="transaction") 

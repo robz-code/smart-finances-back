@@ -11,6 +11,8 @@ from .group import Group
 from .group_member import GroupMember
 from .budget import Budget
 from .budget_category import BudgetCategory
+from .tags import Tag
+from .transaction_tag import TransactionTag
 
 __all__ = [
     "User",
@@ -25,5 +27,7 @@ __all__ = [
     "Group",
     "GroupMember",
     "Budget",
-    "BudgetCategory"
+    "BudgetCategory",
+    "Tag",
+    "TransactionTag"
 ]
