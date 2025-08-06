@@ -1,3 +1,4 @@
+from .user_contact import UserContact
 from .user import User
 from .account import Account
 from .credit import Credit
@@ -15,6 +16,7 @@ from .tags import Tag
 from .transaction_tag import TransactionTag
 
 __all__ = [
+    "UserContact",
     "User",
     "Account",
     "Credit",
