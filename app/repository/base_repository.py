@@ -59,7 +59,7 @@ class BaseRepository(Generic[T]):
             try:
                 # Extract attributes from the model object, excluding private attributes and id
                 update_data = {k: v for k, v in obj_in.__dict__.items() 
-                             if not k.startswith('_') and k != 'id'}
+                                if not k.startswith('_') and k != 'id'}
                 
                 # Protect audit fields from being modified
                 protected_fields = {'created_at', 'updated_at'}
@@ -68,7 +68,7 @@ class BaseRepository(Generic[T]):
                         del update_data[field]
                 
                 for key, value in update_data.items():
-                    if hasattr(obj, key):
+                    if value is not None and hasattr(obj, key):
                         setattr(obj, key, value)
                 
                 # Set updated_at manually to ensure it's updated
