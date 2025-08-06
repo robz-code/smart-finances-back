@@ -51,3 +51,11 @@ class AccountCreate(AccountBase):
             created_at=datetime.now(UTC),
             updated_at= None
         )
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[AccountType] = None
+    currency: Optional[str] = None
+
+    class Config:
+        from_attributes = True
