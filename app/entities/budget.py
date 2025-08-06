@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID, NUMERIC, DATE
 from app.config.database import Base
 import datetime
 import uuid
+from sqlalchemy.orm import relationship
 
 class Budget(Base):
     __tablename__ = 'budgets'
@@ -16,4 +17,5 @@ class Budget(Base):
     end_date = Column(DATE)
     amount = Column(NUMERIC, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow) 
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    user = relationship("User", back_populates="budgets") 

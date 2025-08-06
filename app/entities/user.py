@@ -21,3 +21,17 @@ class User(Base):
 
     # Relationships
     tags = relationship("Tag", back_populates="user")
+    accounts = relationship("Account", back_populates="user")
+    transactions = relationship("Transaction", back_populates="user")
+    categories = relationship("Category", back_populates="user")
+    user_debts_from = relationship("UserDebt", foreign_keys="[UserDebt.from_user_id]", backref="from_user")
+    user_debts_to = relationship("UserDebt", foreign_keys="[UserDebt.to_user_id]", backref="to_user")
+    recurring_debts_from = relationship("RecurringDebt", foreign_keys="[RecurringDebt.from_user_id]", backref="from_user")
+    recurring_debts_to = relationship("RecurringDebt", foreign_keys="[RecurringDebt.to_user_id]", backref="to_user")
+    contacts = relationship("UserContact", foreign_keys="[UserContact.user_id]", backref="user")
+    contacts_of = relationship("UserContact", foreign_keys="[UserContact.contact_id]", backref="contact")
+    group_memberships = relationship("GroupMember", backref="user")
+    budgets = relationship("Budget", backref="user")
+    recurring_transactions = relationship("RecurringTransaction", backref="user")
+    
+
