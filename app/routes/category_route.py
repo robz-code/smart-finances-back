@@ -5,6 +5,7 @@ from app.schemas.base_schemas import SearchResponse
 from app.dependencies.user_dependencies import get_current_user
 from uuid import UUID
 from app.services.category_service import CategoryService
+from app.entities.user import User
 
 
 router = APIRouter()

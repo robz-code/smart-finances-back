@@ -16,7 +16,5 @@ class UserDebt(Base):
     type = Column(Text, nullable=False)
     note = Column(Text)
     date = Column(DateTime, default=datetime.datetime.utcnow)
-    
     from_user = relationship("User", foreign_keys=[from_user_id], back_populates="user_debts_from")
-    to_user = relationship("User", foreign_keys=[to_user_id], back_populates="user_debts_to")
- 
+    to_user = relationship("User", foreign_keys=[to_user_id], back_populates="user_debts_to") 

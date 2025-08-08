@@ -17,4 +17,3 @@ class CategoryResponse(BaseModel):
     name: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    user_id: UUID4
