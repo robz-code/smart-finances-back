@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID, NUMERIC
 from app.config.database import Base
 import datetime
 import uuid
+from sqlalchemy.orm import relationship
 
 class RecurringDebt(Base):
     __tablename__ = 'recurring_debt'
@@ -14,3 +15,5 @@ class RecurringDebt(Base):
     amount = Column(NUMERIC, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    from_user = relationship("User", foreign_keys=[from_user_id], back_populates="recurring_debts_from")
+    to_user = relationship("User", foreign_keys=[to_user_id], back_populates="recurring_debts_to")

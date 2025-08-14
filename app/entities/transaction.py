@@ -25,4 +25,5 @@ class Transaction(Base):
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     # Relationships
-    transaction_tags = relationship("TransactionTag", back_populates="transaction") 
+    transaction_tags = relationship("TransactionTag", back_populates="transaction")
+    user = relationship("User", back_populates="transactions") 

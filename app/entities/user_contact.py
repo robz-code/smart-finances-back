@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.config.database import Base
 import datetime
 import uuid
+from sqlalchemy.orm import relationship
 
 class UserContact(Base):
     __tablename__ = 'user_contacts'
@@ -11,4 +12,6 @@ class UserContact(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     contact_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow) 
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    user = relationship("User", foreign_keys=[user_id], back_populates="contacts")
+    contact = relationship("User", foreign_keys=[contact_id], back_populates="contacts_of") 

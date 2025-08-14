@@ -3,6 +3,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.config.database import Base
 import datetime
 import uuid
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 class Category(Base):
     __tablename__ = 'categories'
@@ -12,4 +14,8 @@ class Category(Base):
     icon = Column(Text)
     color = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow) 
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('profiles.id'))
+
+
+    user = relationship("User", back_populates="categories")
