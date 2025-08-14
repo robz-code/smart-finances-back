@@ -29,13 +29,21 @@ class ContactService(BaseService[UserContact]):
                 if existing_user.id == user_id:
                     raise HTTPException(status_code=400, detail="Cannot add yourself as a contact")
                 
-                # Check if relationship already exists
-                existing_relationship = self.repository.get_contact_detail(user_id, existing_user.id)
+                # Check if relationship already exists using BaseRepository get_by_user_id
+                existing_relationships = self.repository.get_by_user_id(user_id)
+                existing_relationship = next(
+                    (rel for rel in existing_relationships if rel.contact_id == existing_user.id), 
+                    None
+                )
                 if existing_relationship:
                     raise HTTPException(status_code=409, detail="Contact relationship already exists")
                 
-                # Create the relationship
-                contact_relationship = self.repository.create_contact_relationship(user_id, existing_user.id)
+                # Create the relationship using BaseRepository add method
+                contact_relationship = UserContact(
+                    user_id=user_id,
+                    contact_id=existing_user.id
+                )
+                self.repository.add(contact_relationship)
                 logger.info(f"Created contact relationship between user {user_id} and existing user {existing_user.id}")
                 
                 return ContactDetail(
@@ -59,8 +67,12 @@ class ContactService(BaseService[UserContact]):
                 # Add the new user using UserService
                 created_user = self.user_service.add(new_user)
                 
-                # Create the relationship
-                contact_relationship = self.repository.create_contact_relationship(user_id, created_user.id)
+                # Create the relationship using BaseRepository add method
+                contact_relationship = UserContact(
+                    user_id=user_id,
+                    contact_id=created_user.id
+                )
+                self.repository.add(contact_relationship)
                 logger.info(f"Created new inactive user {created_user.id} and contact relationship with user {user_id}")
                 
                 return ContactDetail(
@@ -103,8 +115,12 @@ class ContactService(BaseService[UserContact]):
     def get_contact_detail(self, user_id: UUID, contact_id: UUID) -> ContactWithDebts:
         """Get detailed information about a specific contact including debts"""
         try:
-            # Verify the contact relationship exists
-            contact_relationship = self.repository.get_contact_detail(user_id, contact_id)
+            # Verify the contact relationship exists using BaseRepository get_by_user_id
+            contact_relationships = self.repository.get_by_user_id(user_id)
+            contact_relationship = next(
+                (rel for rel in contact_relationships if rel.contact_id == contact_id), 
+                None
+            )
             if not contact_relationship:
                 raise HTTPException(status_code=404, detail="Contact not found")
             
