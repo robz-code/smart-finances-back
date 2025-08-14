@@ -4,6 +4,7 @@ from app.config.database import Base
 from datetime import datetime, UTC
 import uuid
 from enum import Enum
+from sqlalchemy.orm import relationship
 
 class AccountType(Enum):
     CASH = "cash"
@@ -21,4 +22,5 @@ class Account(Base):
     initial_balance = Column(NUMERIC, default=0)
     created_at = Column(DateTime, default=datetime.now(UTC))
     updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
-    is_deleted = Column(Boolean, default=False) 
+    is_deleted = Column(Boolean, default=False)
+    user = relationship("User", back_populates="accounts") 

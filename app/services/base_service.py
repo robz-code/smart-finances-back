@@ -82,6 +82,7 @@ class BaseService(Generic[T]):
         if not obj_in:
             raise HTTPException(status_code=400, detail="Invalid entity data provided")
         
+        self.before_create(obj_in, **kwargs)
         try:
             result = self.repository.add(obj_in)
             logger.info(f"Successfully created {self.entity.__name__} with ID: {result.id}")
@@ -105,7 +106,6 @@ class BaseService(Generic[T]):
         if not obj_in:
             raise HTTPException(status_code=400, detail="Invalid entity data provided")
         
-        print(kwargs)
         self.before_update(id, obj_in, **kwargs)
         try:
             result = self.repository.update(id, obj_in)
