@@ -21,8 +21,8 @@ class ContactService(BaseService[UserContact]):
     def create_contact(self, user_id: UUID, contact_data: ContactCreate) -> ContactDetail:
         """Create a new contact for a user"""
         try:
-            # Check if the contact already exists as a user
-            existing_user = self.repository.get_by_email(contact_data.email)
+            # Check if the contact already exists as a user using UserService for security
+            existing_user = self.user_service.get_by_email(contact_data.email)
             
             if existing_user:
                 # Contact exists, create relationship
@@ -53,10 +53,10 @@ class ContactService(BaseService[UserContact]):
                     email=contact_data.email,
                     is_registered=False,
                     created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
+                    updated_at=None  # New user, never been updated
                 )
                 
-                # Add the new user
+                # Add the new user using UserService
                 created_user = self.user_service.add(new_user)
                 
                 # Create the relationship
@@ -79,12 +79,13 @@ class ContactService(BaseService[UserContact]):
             raise HTTPException(status_code=500, detail="Failed to create contact")
 
     def get_user_contacts(self, user_id: UUID) -> List[ContactList]:
-        """Get all contacts for a user"""
+        """Get all contacts for a user using BaseService method"""
         try:
-            contact_relationships = self.repository.get_by_user_id(user_id)
+            # Use BaseService method to get contact relationships
+            contact_relationships = super().get_by_user_id(user_id)
             contacts = []
             
-            for relationship in contact_relationships:
+            for relationship in contact_relationships.results:
                 contact_user = self.user_service.get(relationship.contact_id)
                 contacts.append(ContactList(
                     id=contact_user.id,
@@ -107,7 +108,7 @@ class ContactService(BaseService[UserContact]):
             if not contact_relationship:
                 raise HTTPException(status_code=404, detail="Contact not found")
             
-            # Get the contact user details
+            # Get the contact user details using UserService
             contact_user = self.user_service.get(contact_id)
             
             # Get debts between the users
