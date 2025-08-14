@@ -9,6 +9,7 @@ from app.routes import (
     transaction_route,
     category_route,
     tag_route,
+    contact_route,
 )
 
 # Create database tables
@@ -41,6 +42,7 @@ app.include_router(account_route.router, prefix=f"{settings.API_V1_STR}/accounts
 app.include_router(category_route.router, prefix=f"{settings.API_V1_STR}/categories", tags=["Categories"])
 app.include_router(transaction_route.router, prefix=f"{settings.API_V1_STR}/transactions", tags=["Transactions"])
 app.include_router(tag_route.router, prefix=f"{settings.API_V1_STR}/tags", tags=["Transaction Tags"])
+app.include_router(contact_route.router, prefix=f"{settings.API_V1_STR}/contacts", tags=["Contacts"])
 
 
 # Root endpoint

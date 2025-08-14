@@ -26,4 +26,5 @@ class Transaction(Base):
 
     # Relationships
     transaction_tags = relationship("TransactionTag", back_populates="transaction")
-    user = relationship("User", back_populates="transactions") 
+    user = relationship("User", back_populates="transactions")
+    user_debts = relationship("UserDebt", back_populates="transaction") 

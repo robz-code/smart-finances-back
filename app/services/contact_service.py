@@ -1,0 +1,144 @@
+from app.services.base_service import BaseService
+from app.repository.contact_repository import ContactRepository
+from app.entities.user_contact import UserContact
+from app.entities.user import User
+from app.schemas.contact_schemas import ContactCreate, ContactDetail, ContactWithDebts, ContactList
+from app.services.user_service import UserService
+from typing import List, Optional
+from uuid import UUID
+from fastapi import HTTPException
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+class ContactService(BaseService[UserContact]):
+    def __init__(self, db, user_service: UserService):
+        repository = ContactRepository(db)
+        super().__init__(db, repository, UserContact)
+        self.user_service = user_service
+
+    def create_contact(self, user_id: UUID, contact_data: ContactCreate) -> ContactDetail:
+        """Create a new contact for a user"""
+        try:
+            # Check if the contact already exists as a user
+            existing_user = self.repository.get_by_email(contact_data.email)
+            
+            if existing_user:
+                # Contact exists, create relationship
+                if existing_user.id == user_id:
+                    raise HTTPException(status_code=400, detail="Cannot add yourself as a contact")
+                
+                # Check if relationship already exists
+                existing_relationship = self.repository.get_contact_detail(user_id, existing_user.id)
+                if existing_relationship:
+                    raise HTTPException(status_code=409, detail="Contact relationship already exists")
+                
+                # Create the relationship
+                contact_relationship = self.repository.create_contact_relationship(user_id, existing_user.id)
+                logger.info(f"Created contact relationship between user {user_id} and existing user {existing_user.id}")
+                
+                return ContactDetail(
+                    id=existing_user.id,
+                    name=existing_user.name,
+                    email=existing_user.email,
+                    is_registered=existing_user.is_registered,
+                    created_at=existing_user.created_at,
+                    updated_at=existing_user.updated_at
+                )
+            else:
+                # Contact doesn't exist, create new inactive user
+                new_user = User(
+                    name=contact_data.name,
+                    email=contact_data.email,
+                    is_registered=False,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                
+                # Add the new user
+                created_user = self.user_service.add(new_user)
+                
+                # Create the relationship
+                contact_relationship = self.repository.create_contact_relationship(user_id, created_user.id)
+                logger.info(f"Created new inactive user {created_user.id} and contact relationship with user {user_id}")
+                
+                return ContactDetail(
+                    id=created_user.id,
+                    name=created_user.name,
+                    email=created_user.email,
+                    is_registered=created_user.is_registered,
+                    created_at=created_user.created_at,
+                    updated_at=created_user.updated_at
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error creating contact: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to create contact")
+
+    def get_user_contacts(self, user_id: UUID) -> List[ContactList]:
+        """Get all contacts for a user"""
+        try:
+            contact_relationships = self.repository.get_by_user_id(user_id)
+            contacts = []
+            
+            for relationship in contact_relationships:
+                contact_user = self.user_service.get(relationship.contact_id)
+                contacts.append(ContactList(
+                    id=contact_user.id,
+                    name=contact_user.name,
+                    email=contact_user.email,
+                    is_registered=contact_user.is_registered,
+                    created_at=contact_user.created_at
+                ))
+            
+            return contacts
+        except Exception as e:
+            logger.error(f"Error getting user contacts: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve contacts")
+
+    def get_contact_detail(self, user_id: UUID, contact_id: UUID) -> ContactWithDebts:
+        """Get detailed information about a specific contact including debts"""
+        try:
+            # Verify the contact relationship exists
+            contact_relationship = self.repository.get_contact_detail(user_id, contact_id)
+            if not contact_relationship:
+                raise HTTPException(status_code=404, detail="Contact not found")
+            
+            # Get the contact user details
+            contact_user = self.user_service.get(contact_id)
+            
+            # Get debts between the users
+            debts = self.repository.get_user_debts(user_id, contact_id)
+            
+            # Convert debts to summary format
+            debt_summaries = []
+            for debt in debts:
+                debt_summaries.append({
+                    "id": debt.id,
+                    "amount": float(debt.amount),
+                    "type": debt.type,
+                    "note": debt.note,
+                    "date": debt.date,
+                    "from_user_id": debt.from_user_id,
+                    "to_user_id": debt.to_user_id
+                })
+            
+            return ContactWithDebts(
+                contact=ContactDetail(
+                    id=contact_user.id,
+                    name=contact_user.name,
+                    email=contact_user.email,
+                    is_registered=contact_user.is_registered,
+                    created_at=contact_user.created_at,
+                    updated_at=contact_user.updated_at
+                ),
+                debts=debt_summaries
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting contact detail: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve contact details")
