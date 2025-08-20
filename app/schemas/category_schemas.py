@@ -29,6 +29,5 @@ class CategoryCreate(BaseModel):
             name=self.name,
             icon=self.icon,
             color=self.color,
-            created_at=datetime.now(UTC),
-            updated_at=None
+            created_at=datetime.now(UTC)
         )

@@ -81,7 +81,7 @@ class ContactService(BaseService[UserContact]):
                     email=created_user.email,
                     is_registered=created_user.is_registered,
                     created_at=created_user.created_at,
-                    updated_at=created_user.updated_at
+                    updated_at=created_user.updated_at or created_user.created_at
                 )
                 
         except HTTPException:

@@ -19,8 +19,9 @@ async def create_user(user_data: UserCreate, service: UserService = Depends(get_
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    
-    return service.add(user_data.to_model(token_payload.get("sub")))
+    from uuid import UUID
+    current_user_id = UUID(token_payload.get("sub"))
+    return service.add(user_data.to_model(current_user_id))
 
 @router.get("/", response_model=UserProfile, 
            summary="Get current user profile",

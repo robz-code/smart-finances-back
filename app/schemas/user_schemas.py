@@ -74,7 +74,7 @@ class UserCreate(UserBase):
             phone_number=self.phone_number,
             currency=self.currency,
             language=self.language,
-            profile_image=self.profile_image,
+            profile_image=str(self.profile_image) if self.profile_image is not None else None,
             created_at=datetime.now(UTC),
         )
 
@@ -96,16 +96,19 @@ class UserUpdate(UserBase):
         from_attributes = True
 
     def to_model(self, current_user_id: UUID):
-        return User(
+        from copy import deepcopy
+        # Build a partial update model preserving None for unchanged fields
+        updated = User(
             id=current_user_id,
             name=self.name,
             email=self.email,
             phone_number=self.phone_number,
             currency=self.currency,
             language=self.language,
-            profile_image=self.profile_image,
+            profile_image=str(self.profile_image) if self.profile_image is not None else None,
             is_registered=self.is_registered,
         )
+        return updated
 
     def to_dict(self):
         return {

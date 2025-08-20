@@ -25,7 +25,7 @@ def get_user_tags(
 
 @router.get("/{tag_id}", response_model=TagResponse, dependencies=[Depends(get_current_user)])
 def get_tag(
-    tag_id: str,
+    tag_id: UUID,
     tag_service: TagService = Depends(get_tag_service)
 ):
     """Get a tag by ID"""
