@@ -22,7 +22,7 @@ async def create_user(user_data: UserCreate, service: UserService = Depends(get_
     
     return service.add(user_data.to_model(token_payload.get("sub")))
 
-@router.get("/", response_model=UserProfile, 
+@router.get("", response_model=UserProfile, 
            summary="Get current user profile",
            description="Retrieve the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.")
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -34,7 +34,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
     """
     return current_user
 
-@router.put("/", response_model=UserProfile,
+@router.put("", response_model=UserProfile,
            summary="Update current user profile",
            description="Update the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.")
 async def update_curent_user(user_data: UserUpdate, current_user: User = Depends(get_current_user), user_service: UserService = Depends(get_user_service)):
@@ -46,7 +46,7 @@ async def update_curent_user(user_data: UserUpdate, current_user: User = Depends
     """
     return user_service.update(current_user.id, user_data.to_model(current_user.id))
 
-@router.delete("/",
+@router.delete("",
                status_code=status.HTTP_204_NO_CONTENT,
                summary="Delete current user",
                description="Delete the currently authenticated user. Requires a valid JWT token in the Authorization header.")

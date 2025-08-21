@@ -26,7 +26,7 @@ async def create_contact(
     """
     return contact_service.create_contact(current_user.id, contact_data)
 
-@router.get("/", response_model=List[ContactList],
+@router.get("", response_model=List[ContactList],
            summary="Get user contacts",
            description="Retrieve all contacts for the current authenticated user.")
 async def get_contacts(
