@@ -4,7 +4,8 @@ from app.entities.user_contact import UserContact
 from app.entities.user import User
 from app.schemas.contact_schemas import ContactCreate, ContactDetail, ContactWithDebts, ContactList
 from app.services.user_service import UserService
-from typing import List, Optional
+from app.services.debt_service import DebtService
+from typing import List
 from uuid import UUID
 from fastapi import HTTPException
 from datetime import datetime
@@ -13,10 +14,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ContactService(BaseService[UserContact]):
-    def __init__(self, db, user_service: UserService):
+    def __init__(self, db, user_service: UserService, debt_service: DebtService):
         repository = ContactRepository(db)
         super().__init__(db, repository, UserContact)
         self.user_service = user_service
+        self.debt_service = debt_service
 
     def create_contact(self, user_id: UUID, contact_data: ContactCreate) -> ContactDetail:
         """Create a new contact for a user"""
@@ -29,21 +31,21 @@ class ContactService(BaseService[UserContact]):
                 if existing_user.id == user_id:
                     raise HTTPException(status_code=400, detail="Cannot add yourself as a contact")
                 
-                # Check if relationship already exists using BaseRepository get_by_user_id
-                existing_relationships = self.repository.get_by_user_id(user_id)
+                # Check if relationship already exists using BaseService get_by_user_id
+                existing_relationships_response = super().get_by_user_id(user_id)
                 existing_relationship = next(
-                    (rel for rel in existing_relationships if rel.contact_id == existing_user.id), 
+                    (rel for rel in existing_relationships_response.results if rel.contact_id == existing_user.id), 
                     None
                 )
                 if existing_relationship:
                     raise HTTPException(status_code=409, detail="Contact relationship already exists")
                 
-                # Create the relationship using BaseRepository add method
+                # Create the relationship using BaseService add method
                 contact_relationship = UserContact(
                     user_id=user_id,
                     contact_id=existing_user.id
                 )
-                self.repository.add(contact_relationship)
+                super().add(contact_relationship)
                 logger.info(f"Created contact relationship between user {user_id} and existing user {existing_user.id}")
                 
                 return ContactDetail(
@@ -67,12 +69,12 @@ class ContactService(BaseService[UserContact]):
                 # Add the new user using UserService
                 created_user = self.user_service.add(new_user)
                 
-                # Create the relationship using BaseRepository add method
+                # Create the relationship using BaseService add method
                 contact_relationship = UserContact(
                     user_id=user_id,
                     contact_id=created_user.id
                 )
-                self.repository.add(contact_relationship)
+                super().add(contact_relationship)
                 logger.info(f"Created new inactive user {created_user.id} and contact relationship with user {user_id}")
                 
                 return ContactDetail(
@@ -115,10 +117,10 @@ class ContactService(BaseService[UserContact]):
     def get_contact_detail(self, user_id: UUID, contact_id: UUID) -> ContactWithDebts:
         """Get detailed information about a specific contact including debts"""
         try:
-            # Verify the contact relationship exists using BaseRepository get_by_user_id
-            contact_relationships = self.repository.get_by_user_id(user_id)
+            # Verify the contact relationship exists using BaseService get_by_user_id
+            contact_relationships_response = super().get_by_user_id(user_id)
             contact_relationship = next(
-                (rel for rel in contact_relationships if rel.contact_id == contact_id), 
+                (rel for rel in contact_relationships_response.results if rel.contact_id == contact_id), 
                 None
             )
             if not contact_relationship:
@@ -127,8 +129,8 @@ class ContactService(BaseService[UserContact]):
             # Get the contact user details using UserService
             contact_user = self.user_service.get(contact_id)
             
-            # Get debts between the users
-            debts = self.repository.get_user_debts(user_id, contact_id)
+            # Get debts between the users (custom repository method)
+            debts = self.debt_service.get_user_debts(user_id, contact_id)
             
             # Convert debts to summary format
             debt_summaries = []
