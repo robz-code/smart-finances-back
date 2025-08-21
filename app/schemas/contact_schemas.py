@@ -37,8 +37,15 @@ class ContactBase(BaseModel):
     class Config:
         from_attributes = True
 
-class ContactCreate(ContactBase):
-    pass
+class ContactCreate(BaseModel):
+    email: EmailStr
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not v:
+            raise ValueError('Email cannot be empty')
+        return v.lower().strip()
 
 class ContactDetail(BaseModel):
     id: UUID

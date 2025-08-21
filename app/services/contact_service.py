@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from datetime import datetime
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,13 @@ class ContactService(BaseService[UserContact]):
         super().__init__(db, repository, UserContact)
         self.user_service = user_service
         self.debt_service = debt_service
+
+    def _derive_name_from_email(self, email: str) -> str:
+        local_part = email.split('@')[0] if email and '@' in email else ''
+        candidate = re.sub(r'[._\-]+', ' ', local_part).strip()
+        if not candidate:
+            return 'Contact'
+        return candidate.title()
 
     def create_contact(self, user_id: UUID, contact_data: ContactCreate) -> ContactDetail:
         """Create a new contact for a user"""
@@ -58,8 +66,9 @@ class ContactService(BaseService[UserContact]):
                 )
             else:
                 # Contact doesn't exist, create new inactive user
+                derived_name = self._derive_name_from_email(contact_data.email)
                 new_user = User(
-                    name=contact_data.name,
+                    name=derived_name,
                     email=contact_data.email,
                     is_registered=False,
                     created_at=datetime.utcnow(),
