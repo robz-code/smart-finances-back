@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, List, Optional, Type, TypeVar, Any
+from typing import Any, Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
