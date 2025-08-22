@@ -6,4 +6,3 @@ def test_root_endpoint(client):
     assert data["version"] == "1.0.0"
     assert data["docs"] == "/docs"
     assert data["redoc"] == "/redoc"
-

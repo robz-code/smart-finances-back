@@ -47,14 +47,14 @@ flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics || 
 flake8 app/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
 echo "  • mypy (type checking)..."
-mypy app/ --ignore-missing-imports --no-strict-optional || {
+mypy app/ || {
     echo "❌ mypy type checking failed"
     exit 1
 }
 
 echo ""
 echo "🧪 Running tests..."
-pytest tests/ -v --cov=app --cov-report=term-missing --cov-fail-under=70 || {
+pytest -v --cov=app --cov-report=term-missing --cov-fail-under=70 || {
     echo "❌ Tests failed or coverage below 70%"
     exit 1
 }

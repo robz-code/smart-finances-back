@@ -1,50 +1,58 @@
-from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional, List
-from datetime import datetime, UTC
+import re
+from datetime import UTC, datetime
+from typing import List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, field_validator
+
 from app.entities.user_contact import UserContact
 from app.entities.user_debt import UserDebt
-import re
+
+
 class ContactBase(BaseModel):
     name: str
     email: EmailStr
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def validate_name(cls, v):
         if not v or not v.strip():
-            raise ValueError('Name cannot be empty')
+            raise ValueError("Name cannot be empty")
         if len(v.strip()) < 2:
-            raise ValueError('Name must be at least 2 characters long')
+            raise ValueError("Name must be at least 2 characters long")
         if len(v.strip()) > 100:
-            raise ValueError('Name cannot exceed 100 characters')
+            raise ValueError("Name cannot exceed 100 characters")
         # Check for valid characters (letters, spaces, hyphens, apostrophes)
-        if not re.match(r'^[a-zA-ZÀ-ÿ0-9\s\'-]+$', v.strip()):
-            raise ValueError('Name can only contain letters, spaces, hyphens, and apostrophes')
+        if not re.match(r"^[a-zA-ZÀ-ÿ0-9\s\'-]+$", v.strip()):
+            raise ValueError(
+                "Name can only contain letters, spaces, hyphens, and apostrophes"
+            )
         return v.strip()
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
         if not v:
-            raise ValueError('Email cannot be empty')
+            raise ValueError("Email cannot be empty")
         # Additional email validation beyond Pydantic's EmailStr
         if len(v) > 254:  # RFC 5321 limit
-            raise ValueError('Email address too long')
+            raise ValueError("Email address too long")
         return v.lower().strip()
 
     class Config:
         from_attributes = True
 
+
 class ContactCreate(BaseModel):
     email: EmailStr
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def validate_email(cls, v):
         if not v:
-            raise ValueError('Email cannot be empty')
+            raise ValueError("Email cannot be empty")
         return v.lower().strip()
+
 
 class ContactDetail(BaseModel):
     relationship_id: UUID
@@ -56,6 +64,7 @@ class ContactDetail(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class UserDebtSummary(BaseModel):
     id: UUID
@@ -69,12 +78,14 @@ class UserDebtSummary(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ContactWithDebts(BaseModel):
     contact: ContactDetail
     debts: List[UserDebtSummary]
 
     class Config:
         from_attributes = True
+
 
 class ContactList(BaseModel):
     relationship_id: UUID

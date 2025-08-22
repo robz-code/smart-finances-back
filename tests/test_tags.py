@@ -1,5 +1,9 @@
 def ensure_user(client, auth_headers):
-    r = client.post("/api/v1/users", json={"name": "Tag Owner", "email": "tag@example.com"}, headers=auth_headers)
+    r = client.post(
+        "/api/v1/users",
+        json={"name": "Tag Owner", "email": "tag@example.com"},
+        headers=auth_headers,
+    )
     assert r.status_code == 200
 
 
@@ -27,11 +31,12 @@ def test_tags_crud_flow(client, auth_headers):
     assert one["id"] == tag_id
 
     # Update
-    r = client.put(f"/api/v1/tags/{tag_id}", json={"name": "important"}, headers=auth_headers)
+    r = client.put(
+        f"/api/v1/tags/{tag_id}", json={"name": "important"}, headers=auth_headers
+    )
     assert r.status_code == 200
     assert r.json()["name"] == "important"
 
     # Delete
     r = client.delete(f"/api/v1/tags/{tag_id}", headers=auth_headers)
     assert r.status_code == 204
-

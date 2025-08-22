@@ -11,7 +11,7 @@ The repository is configured with GitHub Actions workflows that automatically ru
 ### 1. CI Workflow (`.github/workflows/ci.yml`)
 - **Triggers**: Push to main/develop branches and all PRs
 - **What it does**:
-  - Runs tests on Python 3.9, 3.10, and 3.11
+  - Runs tests on Python 3.10, 3.11, and 3.12
   - Performs code linting (Black, isort, flake8, mypy)
   - Generates test coverage reports
   - Uploads coverage to Codecov (optional)
@@ -19,7 +19,7 @@ The repository is configured with GitHub Actions workflows that automatically ru
 ### 2. Test Workflow (`.github/workflows/test.yml`)
 - **Triggers**: Push to main/develop branches and all PRs
 - **What it does**:
-  - Runs tests on multiple Python versions
+  - Runs tests on Python 3.10, 3.11, and 3.12
   - Generates coverage reports
 
 ### 3. Lint Workflow (`.github/workflows/lint.yml`)
@@ -167,6 +167,6 @@ The CI workflow requires 70% coverage. To change this:
 2. Modify the `--cov-fail-under=70` parameter
 
 ### Matrix Testing
-The workflow tests against multiple Python versions. To modify:
+The workflow tests against Python 3.10, 3.11, and 3.12. To modify:
 1. Edit `.github/workflows/ci.yml`
 2. Update the `python-version` matrix

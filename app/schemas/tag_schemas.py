@@ -1,9 +1,12 @@
-from pydantic import BaseModel
+from datetime import UTC, datetime
 from typing import Optional
-from datetime import datetime, UTC
 from uuid import UUID
+
+from pydantic import BaseModel
+
 from app.entities import user
 from app.entities.tags import Tag
+
 
 class TagBase(BaseModel):
     name: str
@@ -11,6 +14,7 @@ class TagBase(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 class TagCreate(TagBase):
     pass
@@ -21,12 +25,14 @@ class TagCreate(TagBase):
             color=self.color,
             user_id=user_id,
             created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC)
+            updated_at=datetime.now(UTC),
         )
+
 
 class TagUpdate(BaseModel):
     name: Optional[str] = None
     color: Optional[str] = None
+
 
 class TagResponse(TagBase):
     id: UUID

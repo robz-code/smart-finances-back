@@ -1,14 +1,18 @@
+from datetime import UTC, datetime
 from os import name
 from typing import List, Optional
-from pydantic import BaseModel, UUID4, Field
-from app.entities.category import Category
-from datetime import datetime, UTC
 from uuid import UUID
+
+from pydantic import UUID4, BaseModel, Field
+
+from app.entities.category import Category
+
 
 class CategoryUpdate(BaseModel):
     name: Optional[str]
     icon: Optional[str] = None
     color: Optional[str] = None
+
 
 class CategoryResponse(BaseModel):
     id: UUID4
@@ -17,6 +21,7 @@ class CategoryResponse(BaseModel):
     color: str
     created_at: datetime
     updated_at: datetime
+
 
 class CategoryCreate(BaseModel):
     name: str
@@ -29,5 +34,5 @@ class CategoryCreate(BaseModel):
             name=self.name,
             icon=self.icon,
             color=self.color,
-            created_at=datetime.now(UTC)
+            created_at=datetime.now(UTC),
         )

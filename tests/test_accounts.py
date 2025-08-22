@@ -2,7 +2,9 @@ from uuid import UUID
 
 
 def _create_user(client, auth_headers, name="Acc Owner", email="owner@example.com"):
-    return client.post("/api/v1/users", json={"name": name, "email": email}, headers=auth_headers)
+    return client.post(
+        "/api/v1/users", json={"name": name, "email": email}, headers=auth_headers
+    )
 
 
 def test_accounts_crud_flow(client, auth_headers):
@@ -38,7 +40,9 @@ def test_accounts_crud_flow(client, auth_headers):
 
     # Update
     update_payload = {"name": "Updated Wallet"}
-    r = client.put(f"/api/v1/accounts/{acc_id}", json=update_payload, headers=auth_headers)
+    r = client.put(
+        f"/api/v1/accounts/{acc_id}", json=update_payload, headers=auth_headers
+    )
     assert r.status_code == 200
     updated = r.json()
     assert updated["name"] == "Updated Wallet"
@@ -46,4 +50,3 @@ def test_accounts_crud_flow(client, auth_headers):
     # Delete
     r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
     assert r.status_code == 204
-
