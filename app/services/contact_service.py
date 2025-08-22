@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 
 
 class ContactService(BaseService[UserContact]):
-    def __init__(self, db: Session, user_service: UserService, debt_service: DebtService) -> None:
+    def __init__(
+        self, db: Session, user_service: UserService, debt_service: DebtService
+    ) -> None:
         repository = ContactRepository(db)
         super().__init__(db, repository, UserContact)
         self.user_service = user_service
@@ -200,7 +202,9 @@ class ContactService(BaseService[UserContact]):
             raise
         except Exception as e:
             logger.error(f"Error getting contact detail: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to retrieve contact details")
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve contact details"
+            )
 
     def delete_contact(self, relationship_id: UUID, user_id: UUID) -> bool:
         """Delete a contact relationship"""

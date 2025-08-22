@@ -67,7 +67,9 @@ class BaseService(Generic[T]):
         try:
             result = self.repository.delete(id)
             if result is None:
-                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"{self.entity.__name__} not found"
+                )
             logger.info(f"Successfully deleted {self.entity.__name__} with ID: {id}")
             return cast(T, result)
         except HTTPException:
@@ -120,7 +122,9 @@ class BaseService(Generic[T]):
         try:
             result = self.repository.update(id, obj_in)
             if result is None:
-                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"{self.entity.__name__} not found"
+                )
             logger.info(f"Successfully updated {self.entity.__name__} with ID: {id}")
             return cast(T, result)
         except HTTPException:

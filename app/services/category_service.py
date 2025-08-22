@@ -36,9 +36,7 @@ class CategoryService(BaseService[Category]):
 
         return category
 
-    def before_update(
-        self, id: UUID, obj_in: Any, **kwargs: Any
-    ) -> bool:
+    def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
         # Basic validation
         super().before_update(id, obj_in, **kwargs)
 
