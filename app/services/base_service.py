@@ -93,10 +93,6 @@ class BaseService(Generic[T]):
 
     def update(self, id: UUID, obj_in: T, **kwargs) -> T:
         """Update entity by ID with error handling"""
-        if not id:
-            raise HTTPException(status_code=400, detail="Invalid ID provided")
-        if not obj_in:
-            raise HTTPException(status_code=400, detail="Invalid entity data provided")
         
         self.before_update(id, obj_in, **kwargs)
         try:
