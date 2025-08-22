@@ -1,8 +1,6 @@
 import logging
-from typing import Optional
 from uuid import UUID
 
-from dotenv.main import logger
 from fastapi import HTTPException
 
 from app.entities.account import Account
@@ -30,7 +28,7 @@ class AccountService(BaseService[Account]):
             logger.warning(
                 f"Attempt to update account with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this account")
+            raise HTTPException(status_code=403, detail="You do not own this account")
 
         return account
 
@@ -46,6 +44,6 @@ class AccountService(BaseService[Account]):
             logger.warning(
                 f"Attempt to delete account with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this account")
+            raise HTTPException(status_code=403, detail="You do not own this account")
 
         return account

@@ -2,11 +2,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-import app
 from app.dependencies.account_dependencies import get_account_service
 from app.dependencies.user_dependencies import get_current_user
 from app.entities.user import User
-from app.schemas.account_schemas import AccountCreate, AccountResponse, AccountUpdate
+from app.schemas.account_schemas import (
+    AccountCreate,
+    AccountResponse,
+    AccountUpdate,
+)
 from app.schemas.base_schemas import SearchResponse
 from app.services.account_service import AccountService
 

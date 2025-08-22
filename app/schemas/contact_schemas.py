@@ -1,12 +1,9 @@
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, field_validator
-
-from app.entities.user_contact import UserContact
-from app.entities.user_debt import UserDebt
 
 
 class ContactBase(BaseModel):

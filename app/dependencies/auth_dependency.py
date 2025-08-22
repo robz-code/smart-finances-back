@@ -5,11 +5,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.config.settings import settings
 
 bearer_scheme = HTTPBearer(
-    description="Enter your JWT token in the format: Bearer <token>", auto_error=True
+    description="Enter your JWT token in the format: Bearer <token>",
+    auto_error=True,
 )
 
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+def verify_token(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+):
     try:
         payload = jwt.decode(
             credentials.credentials,

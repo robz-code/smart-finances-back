@@ -1,8 +1,7 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 
 from app.dependencies.contact_dependencies import get_contact_service
 from app.dependencies.user_dependencies import get_current_user
@@ -22,7 +21,11 @@ router = APIRouter()
     "",
     response_model=ContactDetail,
     summary="Create a new contact",
-    description="Create a new contact for the current user. If the contact email is already registered, creates a relationship. If not, creates a new inactive user.",
+    description=(
+        "Create a new contact for the current user. "
+        "If the contact email is already registered, creates a relationship. "
+        "If not, creates a new inactive user."
+    ),
 )
 async def create_contact(
     contact_data: ContactCreate,
@@ -62,7 +65,10 @@ async def get_contacts(
     "/{relationship_id}",
     response_model=ContactWithDebts,
     summary="Get contact details",
-    description="Retrieve detailed information about a specific contact including debt information between users.",
+    description=(
+        "Retrieve detailed information about a specific contact "
+        "including debt information between users."
+    ),
 )
 async def get_contact_detail(
     relationship_id: UUID,

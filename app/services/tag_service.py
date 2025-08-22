@@ -1,13 +1,12 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
 from app.repository.tag_repository import TagRepository
-from app.schemas.tag_schemas import TagCreate, TagResponse, TagUpdate
+from app.schemas.tag_schemas import TagUpdate
 from app.services.base_service import BaseService
 
 # Configure logger
@@ -34,7 +33,7 @@ class TagService(BaseService[Tag]):
             logger.warning(
                 f"Attempt to delete tag with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this tag")
+            raise HTTPException(status_code=403, detail="You do not own this tag")
 
         return tag
 
@@ -53,6 +52,6 @@ class TagService(BaseService[Tag]):
             logger.warning(
                 f"Attempt to delete tag with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this tag")
+            raise HTTPException(status_code=403, detail="You do not own this tag")
 
         return tag

@@ -48,7 +48,8 @@ class ContactService(BaseService[UserContact]):
                 # Contact exists, create relationship
                 if existing_user.id == user_id:
                     raise HTTPException(
-                        status_code=400, detail="Cannot add yourself as a contact"
+                        status_code=400,
+                        detail="Cannot add yourself as a contact",
                     )
 
                 # Check if relationship already exists using BaseService get_by_user_id
@@ -63,7 +64,8 @@ class ContactService(BaseService[UserContact]):
                 )
                 if existing_relationship:
                     raise HTTPException(
-                        status_code=409, detail="Contact relationship already exists"
+                        status_code=409,
+                        detail="Contact relationship already exists",
                     )
 
                 # Create the relationship using BaseService add method
@@ -208,7 +210,7 @@ class ContactService(BaseService[UserContact]):
             logger.warning(
                 f"Attempt to delete contact with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this contact")
+            raise HTTPException(status_code=403, detail="You do not own this contact")
 
         # Check if the contact is still in the user's contacts
         existing_relationships_response = super().get_by_user_id(user_id)

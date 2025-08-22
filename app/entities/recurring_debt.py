@@ -20,10 +20,14 @@ class RecurringDebt(Base):
     amount = Column(NUMERIC, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
     )
     from_user = relationship(
-        "User", foreign_keys=[from_user_id], back_populates="recurring_debts_from"
+        "User",
+        foreign_keys=[from_user_id],
+        back_populates="recurring_debts_from",
     )
     to_user = relationship(
         "User", foreign_keys=[to_user_id], back_populates="recurring_debts_to"

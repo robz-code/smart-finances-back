@@ -31,7 +31,7 @@ class CategoryService(BaseService[Category]):
             logger.warning(
                 f"Attempt to delete category with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this category")
+            raise HTTPException(status_code=403, detail="You do not own this category")
 
         return category
 
@@ -52,6 +52,6 @@ class CategoryService(BaseService[Category]):
             logger.warning(
                 f"Attempt to delete category with ID: {id} not owned by user with ID: {user_id}"
             )
-            raise HTTPException(status_code=403, detail=f"You do not own this category")
+            raise HTTPException(status_code=403, detail="You do not own this category")
 
         return category

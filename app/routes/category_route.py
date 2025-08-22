@@ -63,7 +63,9 @@ def create_category(
 
 
 @router.put(
-    "/{category_id}", response_model=CategoryResponse, status_code=status.HTTP_200_OK
+    "/{category_id}",
+    response_model=CategoryResponse,
+    status_code=status.HTTP_200_OK,
 )
 def update_category(
     category_id: UUID,

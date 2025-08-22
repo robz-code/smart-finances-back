@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.entities import user
 from app.entities.tags import Tag
 
 

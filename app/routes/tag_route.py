@@ -1,11 +1,7 @@
-from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from httpx import delete
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 
-from app.config.database import get_db
 from app.dependencies.tag_dependencies import get_tag_service
 from app.dependencies.user_dependencies import get_current_user
 from app.entities.user import User
@@ -26,7 +22,9 @@ def get_user_tags(
 
 
 @router.get(
-    "/{tag_id}", response_model=TagResponse, dependencies=[Depends(get_current_user)]
+    "/{tag_id}",
+    response_model=TagResponse,
+    dependencies=[Depends(get_current_user)],
 )
 def get_tag(tag_id: UUID, tag_service: TagService = Depends(get_tag_service)):
     """Get a tag by ID"""

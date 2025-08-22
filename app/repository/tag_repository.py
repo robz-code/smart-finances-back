@@ -1,11 +1,6 @@
-from typing import List, Optional
-from uuid import UUID
-
-from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
-from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 
 

@@ -1,11 +1,9 @@
 import logging
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Session
-
-from app.schemas.base_schemas import SearchResponse
 
 T = TypeVar("T", bound=DeclarativeBase)
 

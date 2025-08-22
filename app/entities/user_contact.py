@@ -16,7 +16,9 @@ class UserContact(Base):
     contact_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
     )
     user = relationship("User", foreign_keys=[user_id], back_populates="contacts")
     contact = relationship(

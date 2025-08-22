@@ -1,9 +1,8 @@
 from datetime import UTC, datetime
-from os import name
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel
 
 from app.entities.category import Category
 

@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from app.config.database import get_db
 from app.dependencies.auth_dependency import verify_token
 from app.entities.user import User
-from app.repository.user_repository import UserRepository
 from app.services.user_service import UserService
 
 # Configure logger

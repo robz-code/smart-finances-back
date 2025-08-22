@@ -1,9 +1,8 @@
 import logging
-from typing import Generic, List, Optional, Type, TypeVar
+from typing import Generic, Type, TypeVar
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import Boolean
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase
 
@@ -76,7 +75,8 @@ class BaseService(Generic[T]):
                 f"Integrity error deleting {self.entity.__name__} ID {id}: {str(e)}"
             )
             raise HTTPException(
-                status_code=409, detail="Cannot delete due to existing references"
+                status_code=409,
+                detail="Cannot delete due to existing references",
             )
         except SQLAlchemyError as e:
             logger.error(
@@ -127,7 +127,8 @@ class BaseService(Generic[T]):
             )
             if "unique" in str(e).lower():
                 raise HTTPException(
-                    status_code=409, detail="Update would violate unique constraint"
+                    status_code=409,
+                    detail="Update would violate unique constraint",
                 )
             raise HTTPException(status_code=400, detail="Invalid data provided")
         except SQLAlchemyError as e:

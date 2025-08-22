@@ -108,8 +108,6 @@ class UserUpdate(UserBase):
         from_attributes = True
 
     def to_model(self, current_user_id: UUID):
-        from copy import deepcopy
-
         # Build a partial update model preserving None for unchanged fields
         updated = User(
             id=current_user_id,
