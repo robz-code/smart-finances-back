@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Literal, Optional, Any
+from typing import Any, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, HttpUrl, field_validator

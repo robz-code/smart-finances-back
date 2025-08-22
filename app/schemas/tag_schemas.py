@@ -1,9 +1,9 @@
+import re
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
-import re
 
 from app.entities.tags import Tag
 

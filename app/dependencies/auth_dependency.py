@@ -1,7 +1,8 @@
+from typing import Any
+
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from typing import Any
 
 from app.config.settings import settings
 
