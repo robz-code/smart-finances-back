@@ -18,7 +18,7 @@ class TagService(BaseService[Tag]):
 
     def before_delete(self, id: UUID, **kwargs) -> bool:
         # Baisc validation
-        tag = super().defore_delete(id)
+        tag = super().before_delete(id)
 
         # Getting kwargs
         user_id = kwargs.get("user_id")

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.auth_dependency import verify_token
 import logging
 from app.entities.user import User
+from uuid import UUID
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -21,9 +22,15 @@ def get_current_user(
     user_service: UserService = Depends(get_user_service)
 ) -> User:
     """Dependency to get the current authenticated user from the token"""
-    user_id = token_payload.get("sub")
-    if not user_id:
+    user_id_str = token_payload.get("sub")
+    if not user_id_str:
         logger.error("Authentication failed: No user_id in token payload")
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    try:
+        user_id = UUID(user_id_str)
+    except Exception:
+        logger.error("Authentication failed: Invalid user_id format in token payload")
         raise HTTPException(status_code=401, detail="Invalid token payload")
     
     try:
