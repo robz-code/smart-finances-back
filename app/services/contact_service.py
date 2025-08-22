@@ -111,7 +111,7 @@ class ContactService(BaseService[UserContact]):
             for relationship in contact_relationships.results:
                 contact_user = self.user_service.get(relationship.contact_id)
                 contacts.append(ContactList(
-                    id=contact_user.id,
+                    relationship_id=relationship.id,
                     name=contact_user.name,
                     email=contact_user.email,
                     is_registered=contact_user.is_registered,
@@ -123,23 +123,20 @@ class ContactService(BaseService[UserContact]):
             logger.error(f"Error getting user contacts: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve contacts")
 
-    def get_contact_detail(self, user_id: UUID, contact_id: UUID) -> ContactWithDebts:
+    def get_contact_detail(self, relationship_id: UUID) -> ContactWithDebts:
         """Get detailed information about a specific contact including debts"""
         try:
             # Verify the contact relationship exists using BaseService get_by_user_id
-            contact_relationships_response = super().get_by_user_id(user_id)
-            contact_relationship = next(
-                (rel for rel in contact_relationships_response.results if rel.contact_id == contact_id), 
-                None
-            )
-            if not contact_relationship:
+            relationship = super().get(relationship_id)
+            
+            if not relationship:
                 raise HTTPException(status_code=404, detail="Contact not found")
             
             # Get the contact user details using UserService
-            contact_user = self.user_service.get(contact_id)
+            contact_user = self.user_service.get(relationship.contact_id)
             
-            # Get debts between the users (custom repository method)
-            debts = self.debt_service.get_user_debts(user_id, contact_id)
+            # Get debts between the users
+            debts = self.debt_service.get_user_debts(relationship.user_id, relationship.contact_id)
             
             # Convert debts to summary format
             debt_summaries = []
@@ -156,7 +153,7 @@ class ContactService(BaseService[UserContact]):
             
             return ContactWithDebts(
                 contact=ContactDetail(
-                    id=contact_user.id,
+                    relationship_id=relationship.id,
                     name=contact_user.name,
                     email=contact_user.email,
                     is_registered=contact_user.is_registered,
@@ -170,3 +167,27 @@ class ContactService(BaseService[UserContact]):
         except Exception as e:
             logger.error(f"Error getting contact detail: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to retrieve contact details")
+
+    def before_delete(self, id: UUID, **kwargs) -> UserContact:
+        contact =  super().before_delete(id, **kwargs)
+
+        user_id = kwargs.get("user_id")
+        if not user_id:
+            logger.warning(f"Attempt to delete contact with ID: {id} without user ID")
+            raise HTTPException(status_code=400, detail="Invalid user ID provided")
+
+        if contact.user_id != user_id:
+            logger.warning(f"Attempt to delete contact with ID: {id} not owned by user with ID: {user_id}")
+            raise HTTPException(status_code=403, detail=f"You do not own this contact")
+
+        # Check if the contact is still in the user's contacts
+        existing_relationships_response = super().get_by_user_id(user_id)
+        existing_relationship = next(
+            (rel for rel in existing_relationships_response.results if rel.contact_id == contact.contact_id), 
+            None
+        )
+        if not existing_relationship:
+            logger.warning(f"Attempt to delete contact with ID: {id} not found in user's contacts")
+            raise HTTPException(status_code=404, detail="Contact not found")
+        
+        return contact

@@ -6,6 +6,7 @@ from app.dependencies.user_dependencies import get_current_user
 from app.schemas.contact_schemas import ContactCreate, ContactDetail, ContactWithDebts, ContactList
 from app.entities.user import User
 from typing import List
+from uuid import UUID
 
 router = APIRouter()
 
@@ -41,11 +42,11 @@ async def get_contacts(
     """
     return contact_service.get_user_contacts(current_user.id)
 
-@router.get("/{contact_id}", response_model=ContactWithDebts,
+@router.get("/{relationship_id}", response_model=ContactWithDebts,
            summary="Get contact details",
            description="Retrieve detailed information about a specific contact including debt information between users.")
 async def get_contact_detail(
-    contact_id: str,
+    relationship_id: UUID,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service)
 ):
@@ -56,10 +57,19 @@ async def get_contact_detail(
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    try:
-        from uuid import UUID
-        contact_uuid = UUID(contact_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid contact ID format")
+    return contact_service.get_contact_detail(relationship_id)
+
+
+@router.delete("/{relationship_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_contact(
+    relationship_id: UUID,
+    current_user: User = Depends(get_current_user),
+    contact_service: ContactService = Depends(get_contact_service)
+):
+    """
+    Delete a specific contact.
     
-    return contact_service.get_contact_detail(current_user.id, contact_uuid)
+    This endpoint requires authentication via JWT token.
+    Include the token in the Authorization header as: `Bearer <your_token>`
+    """
+    return contact_service.delete(relationship_id, user_id=current_user.id)
