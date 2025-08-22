@@ -1,8 +1,10 @@
+from typing import Generic, List, TypeVar
+
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
-from typing import List, TypeVar, Generic
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 class MessageResponse(BaseModel):
     message: str
@@ -10,8 +12,9 @@ class MessageResponse(BaseModel):
     def __init__(self, message: str):
         super().__init__(message=message)
 
+
 class SearchResponse(GenericModel, Generic[T]):
     total: int
     results: List[T]
 
-    model_config = {'arbitrary_types_allowed': True}
+    model_config = {"arbitrary_types_allowed": True}

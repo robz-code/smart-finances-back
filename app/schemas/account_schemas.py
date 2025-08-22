@@ -1,8 +1,10 @@
-from pydantic import BaseModel
+from datetime import UTC, datetime
 from typing import Optional
-from datetime import datetime, UTC
-from app.entities.account import Account, AccountType
 from uuid import UUID
+
+from pydantic import BaseModel
+
+from app.entities.account import Account, AccountType
 
 
 class AccountBase(BaseModel):
@@ -10,6 +12,7 @@ class AccountBase(BaseModel):
     type: AccountType
     currency: Optional[str] = None
     initial_balance: Optional[float] = None
+
     class Config:
         from_attributes = True
 
@@ -40,7 +43,7 @@ class AccountResponse(AccountBase):
 
 
 class AccountCreate(AccountBase):
-    
+
     def to_model(self, current_user_id: UUID):
         return Account(
             user_id=current_user_id,
@@ -49,8 +52,9 @@ class AccountCreate(AccountBase):
             currency=self.currency,
             initial_balance=self.initial_balance,
             created_at=datetime.now(UTC),
-            updated_at= None
+            updated_at=None,
         )
+
 
 class AccountUpdate(BaseModel):
     name: Optional[str] = None
