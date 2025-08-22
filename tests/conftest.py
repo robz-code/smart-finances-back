@@ -7,31 +7,41 @@ import pytest
 import sys
 
 # Ensure project root is importable
-if "/workspace" not in sys.path:
-    sys.path.insert(0, "/workspace")
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 import jwt
 from fastapi.testclient import TestClient
 
 
-# Ensure a clean SQLite database for tests
-TEST_DB_PATH = "/workspace/test.db"
+# Note: DB path is created per session (and per worker) inside the fixture below
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _set_env_before_import() -> None:
-    # Remove previous test DB
-    if os.path.exists(TEST_DB_PATH):
-        os.remove(TEST_DB_PATH)
+    # Create a unique temporary directory per session (and effectively per worker)
+    import tempfile
+
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "gw0")
+    pid = os.getpid()
+    temp_dir = tempfile.mkdtemp(prefix=f"sf_tests_{worker_id}_{pid}_")
+    db_path = os.path.join(temp_dir, "test.db")
 
     # Required settings for the app
     os.environ["PROJECT_NAME"] = "Smart Finances - Tests"
     os.environ["API_V1_STR"] = "/api/v1"
-    os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH}"
+    os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
     os.environ["SUPABASE_URL"] = "http://localhost"
     os.environ["SUPABASE_KEY"] = "test-supabase-key"
     os.environ["JWT_SECRET_KEY"] = "test-jwt-secret"
     os.environ["BACKEND_CORS_ORIGINS"] = '["*"]'
     os.environ["SECRET_KEY"] = "test-secret-key"
+
+    # Teardown: remove the temporary directory and DB after the session
+    try:
+        yield
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
