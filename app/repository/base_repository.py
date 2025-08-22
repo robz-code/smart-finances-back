@@ -78,9 +78,9 @@ class BaseRepository(Generic[T]):
 
                 # Set updated_at manually to ensure it's updated
                 if hasattr(obj, "updated_at"):
-                    from datetime import UTC, datetime
+                    from datetime import datetime, timezone
 
-                    obj.updated_at = datetime.now(UTC)
+                    obj.updated_at = datetime.now(timezone.utc)
 
                 self.db.commit()
                 self.db.refresh(obj)

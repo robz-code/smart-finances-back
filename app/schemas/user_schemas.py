@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Literal, Optional
 from uuid import UUID
 
@@ -86,7 +86,7 @@ class UserCreate(UserBase):
             profile_image=(
                 str(self.profile_image) if self.profile_image is not None else None
             ),
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
     def to_dict(self):
@@ -97,7 +97,7 @@ class UserCreate(UserBase):
             "currency": self.currency,
             "language": self.language,
             "profile_image": self.profile_image,
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
         }
 
 

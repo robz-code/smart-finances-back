@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import List
 from uuid import UUID
 
@@ -92,7 +92,7 @@ class ContactService(BaseService[UserContact]):
                     name=derived_name,
                     email=contact_data.email,
                     is_registered=False,
-                    created_at=datetime.now(UTC),  # Fix deprecation warning
+                    created_at=datetime.now(timezone.utc),  # Fix deprecation warning
                     updated_at=None,  # New user, never been updated
                 )
 

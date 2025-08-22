@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -33,5 +33,5 @@ class CategoryCreate(BaseModel):
             name=self.name,
             icon=self.icon,
             color=self.color,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )

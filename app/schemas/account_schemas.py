@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -23,7 +23,7 @@ class AccountBase(BaseModel):
             type=self.type.value,
             currency=self.currency,
             initial_balance=self.initial_balance,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
     def to_dict(self):
@@ -32,7 +32,7 @@ class AccountBase(BaseModel):
             "type": self.type.value,
             "currency": self.currency,
             "initial_balance": self.initial_balance,
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
         }
 
 
@@ -51,7 +51,7 @@ class AccountCreate(AccountBase):
             type=self.type.value,
             currency=self.currency,
             initial_balance=self.initial_balance,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
             updated_at=None,
         )
 

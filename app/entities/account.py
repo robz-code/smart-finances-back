@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Text
@@ -24,7 +24,7 @@ class Account(Base):
     type = Column(Text, nullable=False, default=AccountType.CASH.value)
     currency = Column(Text, default="MXN")
     initial_balance = Column(NUMERIC, default=0)
-    created_at = Column(DateTime, default=datetime.now(UTC))
-    updated_at = Column(DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     is_deleted = Column(Boolean, default=False)
     user = relationship("User", back_populates="accounts")
