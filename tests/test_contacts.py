@@ -22,17 +22,21 @@ def test_create_contact_when_user_exists(client, auth_headers):
     existing_user = r.json()
 
     # Now, with the primary user's token, add Alice as contact
-    payload = {"name": "Alice", "email": "alice@example.com"}
+    # Note: ContactCreate only expects email, not name
+    payload = {"email": "alice@example.com"}
     r = client.post("/api/v1/contacts", json=payload, headers=auth_headers)
     assert r.status_code == 200
     detail = r.json()
-    assert detail["id"] == existing_user["id"]
+    # The response now includes relationship_id, not just id
+    assert detail["relationship_id"] is not None
+    assert detail["email"] == "alice@example.com"
     assert detail["is_registered"] is True
 
 
 def test_create_contact_when_user_not_exists(client, auth_headers):
     ensure_primary_user(client, auth_headers)
-    payload = {"name": "Bob", "email": "bob@example.com"}
+    # ContactCreate only expects email, not name
+    payload = {"email": "bob@example.com"}
     r = client.post("/api/v1/contacts", json=payload, headers=auth_headers)
     assert r.status_code == 200
     detail = r.json()
@@ -52,19 +56,23 @@ def test_get_contacts_and_detail(client, auth_headers):
     contact_user = r.json()
 
     # Link as contact using primary token
-    r = client.post("/api/v1/contacts", json={"name": "Charlie", "email": "charlie@example.com"}, headers=auth_headers)
+    r = client.post("/api/v1/contacts", json={"email": "charlie@example.com"}, headers=auth_headers)
     assert r.status_code == 200
+    contact_response = r.json()
 
     # List contacts
-    r = client.get("/api/v1/contacts/", headers=auth_headers)
+    r = client.get("/api/v1/contacts", headers=auth_headers)
     assert r.status_code == 200
     contacts = r.json()
     assert any(c["email"] == "charlie@example.com" for c in contacts)
 
-    # Detail (no debts expected)
-    r = client.get(f"/api/v1/contacts/{contact_user['id']}", headers=auth_headers)
+    # Detail - now uses relationship_id from the contact creation response
+    # The response structure has changed to include both contact and debts
+    r = client.get(f"/api/v1/contacts/{contact_response['relationship_id']}", headers=auth_headers)
     assert r.status_code == 200
     detail = r.json()
-    assert detail["contact"]["id"] == contact_user["id"]
+    # New structure: contact info is nested under 'contact' key
+    assert detail["contact"]["email"] == "charlie@example.com"
+    assert detail["contact"]["relationship_id"] == contact_response["relationship_id"]
     assert isinstance(detail["debts"], list)
 

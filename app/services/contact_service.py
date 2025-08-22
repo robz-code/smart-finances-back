@@ -8,7 +8,7 @@ from app.services.debt_service import DebtService
 from typing import List
 from uuid import UUID
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, UTC
 import logging
 import re
 
@@ -53,11 +53,11 @@ class ContactService(BaseService[UserContact]):
                     user_id=user_id,
                     contact_id=existing_user.id
                 )
-                super().add(contact_relationship)
+                created_relationship = super().add(contact_relationship)
                 logger.info(f"Created contact relationship between user {user_id} and existing user {existing_user.id}")
                 
                 return ContactDetail(
-                    id=existing_user.id,
+                    relationship_id=created_relationship.id,  # Use the UserContact ID
                     name=existing_user.name,
                     email=existing_user.email,
                     is_registered=existing_user.is_registered,
@@ -71,7 +71,7 @@ class ContactService(BaseService[UserContact]):
                     name=derived_name,
                     email=contact_data.email,
                     is_registered=False,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),  # Fix deprecation warning
                     updated_at=None  # New user, never been updated
                 )
                 
@@ -83,11 +83,11 @@ class ContactService(BaseService[UserContact]):
                     user_id=user_id,
                     contact_id=created_user.id
                 )
-                super().add(contact_relationship)
+                created_relationship = super().add(contact_relationship)
                 logger.info(f"Created new inactive user {created_user.id} and contact relationship with user {user_id}")
                 
                 return ContactDetail(
-                    id=created_user.id,
+                    relationship_id=created_relationship.id,  # Use the UserContact ID
                     name=created_user.name,
                     email=created_user.email,
                     is_registered=created_user.is_registered,
