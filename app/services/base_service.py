@@ -1,10 +1,10 @@
 import logging
-from typing import Generic, Type, TypeVar
+from typing import Any, Generic, Type, TypeVar, cast
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.schemas.base_schemas import SearchResponse
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseService(Generic[T]):
-    def __init__(self, db, repository, entity: Type[T]):
+    def __init__(self, db: Session, repository: Any, entity: Type[T]) -> None:
         self.db = db
         self.repository = repository
         self.entity = entity
@@ -29,7 +29,7 @@ class BaseService(Generic[T]):
                 raise HTTPException(
                     status_code=404, detail=f"{self.entity.__name__} not found"
                 )
-            return obj
+            return cast(T, obj)
         except HTTPException:
             raise
         except SQLAlchemyError as e:
@@ -60,14 +60,16 @@ class BaseService(Generic[T]):
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def delete(self, id: UUID, **kwargs) -> T:
+    def delete(self, id: UUID, **kwargs: Any) -> T:
         """Delete entity by ID with error handling"""
 
-        self.before_delete(id, **kwargs)
+        deleted_obj = self.before_delete(id, **kwargs)
         try:
-            deleted_obj = self.repository.delete(id)
+            result = self.repository.delete(id)
+            if result is None:
+                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
             logger.info(f"Successfully deleted {self.entity.__name__} with ID: {id}")
-            return deleted_obj
+            return cast(T, result)
         except HTTPException:
             raise
         except IntegrityError as e:
@@ -89,7 +91,7 @@ class BaseService(Generic[T]):
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def add(self, obj_in: T, **kwargs) -> T:
+    def add(self, obj_in: T, **kwargs: Any) -> T:
         """Add new entity with error handling"""
 
         self.before_create(obj_in, **kwargs)
@@ -98,7 +100,7 @@ class BaseService(Generic[T]):
             logger.info(
                 f"Successfully created {self.entity.__name__} with ID: {result.id}"
             )
-            return result
+            return cast(T, result)
         except IntegrityError as e:
             logger.error(f"Integrity error creating {self.entity.__name__}: {str(e)}")
             if "unique" in str(e).lower():
@@ -111,14 +113,16 @@ class BaseService(Generic[T]):
             logger.error(f"Unexpected error creating {self.entity.__name__}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def update(self, id: UUID, obj_in: T, **kwargs) -> T:
+    def update(self, id: UUID, obj_in: T, **kwargs: Any) -> T:
         """Update entity by ID with error handling"""
 
         self.before_update(id, obj_in, **kwargs)
         try:
             result = self.repository.update(id, obj_in)
+            if result is None:
+                raise HTTPException(status_code=404, detail=f"{self.entity.__name__} not found")
             logger.info(f"Successfully updated {self.entity.__name__} with ID: {id}")
-            return result
+            return cast(T, result)
         except HTTPException:
             raise
         except IntegrityError as e:
@@ -143,12 +147,12 @@ class BaseService(Generic[T]):
             raise HTTPException(status_code=500, detail="Internal server error")
 
     # Hooks
-    def before_create(self, obj_in: T, **kwargs) -> bool:
+    def before_create(self, obj_in: T, **kwargs: Any) -> bool:
         """Perform actions before the entity is created"""
 
         return True
 
-    def before_update(self, id: UUID, obj_in: T, **kwargs) -> bool:
+    def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
         """Perform actions before the entity is created or updated"""
         obj = self.repository.get(id)
         if obj is None:
@@ -159,9 +163,9 @@ class BaseService(Generic[T]):
                 status_code=404, detail=f"{self.entity.__name__} not found"
             )
 
-        return obj
+        return True
 
-    def before_delete(self, id: UUID, **kwargs) -> T:
+    def before_delete(self, id: UUID, **kwargs: Any) -> T:
         """Perform actions after the entity is created"""
         # Check if the entity exists
         obj = self.repository.get(id)
@@ -173,4 +177,4 @@ class BaseService(Generic[T]):
                 status_code=404, detail=f"{self.entity.__name__} not found"
             )
 
-        return obj
+        return cast(T, obj)

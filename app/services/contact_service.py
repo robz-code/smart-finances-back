@@ -1,10 +1,11 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import List
+from typing import Any, List
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from app.entities.user import User
 from app.entities.user_contact import UserContact
@@ -14,6 +15,7 @@ from app.schemas.contact_schemas import (
     ContactDetail,
     ContactList,
     ContactWithDebts,
+    UserDebtSummary,
 )
 from app.services.base_service import BaseService
 from app.services.debt_service import DebtService
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class ContactService(BaseService[UserContact]):
-    def __init__(self, db, user_service: UserService, debt_service: DebtService):
+    def __init__(self, db: Session, user_service: UserService, debt_service: DebtService) -> None:
         repository = ContactRepository(db)
         super().__init__(db, repository, UserContact)
         self.user_service = user_service
@@ -168,64 +170,48 @@ class ContactService(BaseService[UserContact]):
             debt_summaries = []
             for debt in debts:
                 debt_summaries.append(
-                    {
-                        "id": debt.id,
-                        "amount": float(debt.amount),
-                        "type": debt.type,
-                        "note": debt.note,
-                        "date": debt.date,
-                        "from_user_id": debt.from_user_id,
-                        "to_user_id": debt.to_user_id,
-                    }
+                    UserDebtSummary(
+                        id=debt.id,
+                        amount=debt.amount,
+                        type=debt.type,
+                        note=debt.note,
+                        date=debt.date,
+                        from_user_id=debt.from_user_id,
+                        to_user_id=debt.to_user_id,
+                    )
                 )
 
+            # Create ContactDetail first
+            contact_detail = ContactDetail(
+                relationship_id=relationship.id,
+                name=contact_user.name,
+                email=contact_user.email,
+                is_registered=contact_user.is_registered,
+                created_at=contact_user.created_at,
+                updated_at=contact_user.updated_at,
+            )
+
             return ContactWithDebts(
-                contact=ContactDetail(
-                    relationship_id=relationship.id,
-                    name=contact_user.name,
-                    email=contact_user.email,
-                    is_registered=contact_user.is_registered,
-                    created_at=contact_user.created_at,
-                    updated_at=contact_user.updated_at,
-                ),
+                contact=contact_detail,
                 debts=debt_summaries,
             )
+
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error getting contact detail: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail="Failed to retrieve contact details"
-            )
+            raise HTTPException(status_code=500, detail="Failed to retrieve contact details")
 
-    def before_delete(self, id: UUID, **kwargs) -> UserContact:
-        contact = super().before_delete(id, **kwargs)
+    def delete_contact(self, relationship_id: UUID, user_id: UUID) -> bool:
+        """Delete a contact relationship"""
+        try:
+            # Use BaseService delete method which includes before_delete validation
+            super().delete(relationship_id, user_id=user_id)
+            logger.info(f"Successfully deleted contact relationship {relationship_id}")
+            return True
 
-        user_id = kwargs.get("user_id")
-        if not user_id:
-            logger.warning(f"Attempt to delete contact with ID: {id} without user ID")
-            raise HTTPException(status_code=400, detail="Invalid user ID provided")
-
-        if contact.user_id != user_id:
-            logger.warning(
-                f"Attempt to delete contact with ID: {id} not owned by user with ID: {user_id}"
-            )
-            raise HTTPException(status_code=403, detail="You do not own this contact")
-
-        # Check if the contact is still in the user's contacts
-        existing_relationships_response = super().get_by_user_id(user_id)
-        existing_relationship = next(
-            (
-                rel
-                for rel in existing_relationships_response.results
-                if rel.contact_id == contact.contact_id
-            ),
-            None,
-        )
-        if not existing_relationship:
-            logger.warning(
-                f"Attempt to delete contact with ID: {id} not found in user's contacts"
-            )
-            raise HTTPException(status_code=404, detail="Contact not found")
-
-        return contact
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting contact: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to delete contact")

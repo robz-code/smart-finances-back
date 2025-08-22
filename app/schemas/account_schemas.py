@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ class AccountBase(BaseModel):
     class Config:
         from_attributes = True
 
-    def to_model(self, current_user_id: UUID):
+    def to_model(self, current_user_id: UUID) -> Account:
         return Account(
             user_id=current_user_id,
             name=self.name,
@@ -26,7 +26,7 @@ class AccountBase(BaseModel):
             created_at=datetime.now(timezone.utc),
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "type": self.type.value,
@@ -44,7 +44,7 @@ class AccountResponse(AccountBase):
 
 class AccountCreate(AccountBase):
 
-    def to_model(self, current_user_id: UUID):
+    def to_model(self, current_user_id: UUID) -> Account:
         return Account(
             user_id=current_user_id,
             name=self.name,

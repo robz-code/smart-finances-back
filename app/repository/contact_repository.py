@@ -8,7 +8,7 @@ from app.repository.base_repository import BaseRepository
 
 
 class ContactRepository(BaseRepository[UserContact]):
-    def __init__(self, db: Session):
+    def __init__(self, db: Session) -> None:
         super().__init__(db, UserContact)
 
     def get_user_debts(self, user_id: UUID, contact_id: UUID) -> List:

@@ -12,7 +12,7 @@ class ContactBase(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Name cannot be empty")
         if len(v.strip()) < 2:
@@ -28,7 +28,7 @@ class ContactBase(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v):
+    def validate_email(cls, v: str) -> str:
         if not v:
             raise ValueError("Email cannot be empty")
         # Additional email validation beyond Pydantic's EmailStr
@@ -45,7 +45,7 @@ class ContactCreate(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v):
+    def validate_email(cls, v: str) -> str:
         if not v:
             raise ValueError("Email cannot be empty")
         return v.lower().strip()

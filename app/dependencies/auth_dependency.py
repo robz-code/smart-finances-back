@@ -1,6 +1,7 @@
 import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Any
 
 from app.config.settings import settings
 
@@ -12,7 +13,7 @@ bearer_scheme = HTTPBearer(
 
 def verify_token(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-):
+) -> dict[str, Any]:
     try:
         payload = jwt.decode(
             credentials.credentials,

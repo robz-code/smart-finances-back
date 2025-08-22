@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, HttpUrl, field_validator
@@ -18,7 +18,7 @@ class UserBase(BaseModel):
 
     @field_validator("phone_number")
     @classmethod
-    def validate_phone_number(cls, v):
+    def validate_phone_number(cls, v: Optional[str]) -> Optional[str]:
         if v is None:
             return v
 
@@ -34,7 +34,7 @@ class UserBase(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Name cannot be empty")
         if len(v.strip()) < 2:
@@ -50,7 +50,7 @@ class UserBase(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v):
+    def validate_email(cls, v: str) -> str:
         if not v:
             raise ValueError("Email cannot be empty")
         # Additional email validation beyond Pydantic's EmailStr
@@ -74,7 +74,7 @@ class UserCreate(UserBase):
     class Config:
         from_attributes = True
 
-    def to_model(self, current_user_id: UUID):
+    def to_model(self, current_user_id: UUID) -> User:
         return User(
             id=current_user_id,
             name=self.name,
@@ -89,7 +89,7 @@ class UserCreate(UserBase):
             created_at=datetime.now(timezone.utc),
         )
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "email": self.email,
@@ -107,7 +107,7 @@ class UserUpdate(UserBase):
     class Config:
         from_attributes = True
 
-    def to_model(self, current_user_id: UUID):
+    def to_model(self, current_user_id: UUID) -> User:
         # Build a partial update model preserving None for unchanged fields
         updated = User(
             id=current_user_id,
@@ -123,7 +123,7 @@ class UserUpdate(UserBase):
         )
         return updated
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "email": self.email,
