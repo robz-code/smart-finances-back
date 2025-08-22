@@ -25,6 +25,10 @@ class Account(Base):
     currency = Column(Text, default="MXN")
     initial_balance = Column(NUMERIC, default=0)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    updated_at = Column(
+        DateTime,
+        default=datetime.now(timezone.utc),
+        onupdate=datetime.now(timezone.utc),
+    )
     is_deleted = Column(Boolean, default=False)
     user = relationship("User", back_populates="accounts")
