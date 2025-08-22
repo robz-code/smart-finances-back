@@ -14,7 +14,7 @@ from app.entities.user import User
 
 router = APIRouter()
 
-@router.get("/", response_model=SearchResponse[TagResponse])
+@router.get("", response_model=SearchResponse[TagResponse])
 def get_user_tags(
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service)
@@ -32,7 +32,7 @@ def get_tag(
     return tag_service.get(tag_id)
     
 
-@router.post("/", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TagResponse, status_code=status.HTTP_201_CREATED)
 def create_tag(
     tag_data: TagCreate,
     current_user: User = Depends(get_current_user),

@@ -19,8 +19,6 @@ class BaseService(Generic[T]):
 
     def get(self, id: UUID) -> T:
         """Get entity by ID with error handling"""
-        if not id:
-            raise HTTPException(status_code=400, detail="Invalid ID provided")
         
         try:
             obj = self.repository.get(id) 
@@ -39,8 +37,6 @@ class BaseService(Generic[T]):
 
     def get_by_user_id(self, user_id: UUID) -> SearchResponse[T]:
         """Get entities by user ID with error handling"""
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Invalid user ID provided")
         
         try:
             result = self.repository.get_by_user_id(user_id)
@@ -57,8 +53,6 @@ class BaseService(Generic[T]):
 
     def delete(self, id: UUID, **kwargs) -> T:
         """Delete entity by ID with error handling"""
-        if not id:
-            raise HTTPException(status_code=400, detail="Invalid ID provided")
         
         self.before_delete(id, **kwargs)
         try:
@@ -79,8 +73,6 @@ class BaseService(Generic[T]):
 
     def add(self, obj_in: T, **kwargs) -> T:
         """Add new entity with error handling"""
-        if not obj_in:
-            raise HTTPException(status_code=400, detail="Invalid entity data provided")
         
         self.before_create(obj_in, **kwargs)
         try:
@@ -101,10 +93,6 @@ class BaseService(Generic[T]):
 
     def update(self, id: UUID, obj_in: T, **kwargs) -> T:
         """Update entity by ID with error handling"""
-        if not id:
-            raise HTTPException(status_code=400, detail="Invalid ID provided")
-        if not obj_in:
-            raise HTTPException(status_code=400, detail="Invalid entity data provided")
         
         self.before_update(id, obj_in, **kwargs)
         try:

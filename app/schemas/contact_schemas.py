@@ -5,7 +5,6 @@ from uuid import UUID
 from app.entities.user_contact import UserContact
 from app.entities.user_debt import UserDebt
 import re
-
 class ContactBase(BaseModel):
     name: str
     email: EmailStr
@@ -37,11 +36,18 @@ class ContactBase(BaseModel):
     class Config:
         from_attributes = True
 
-class ContactCreate(ContactBase):
-    pass
+class ContactCreate(BaseModel):
+    email: EmailStr
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not v:
+            raise ValueError('Email cannot be empty')
+        return v.lower().strip()
 
 class ContactDetail(BaseModel):
-    id: UUID
+    relationship_id: UUID
     name: str
     email: str
     is_registered: bool
@@ -71,7 +77,7 @@ class ContactWithDebts(BaseModel):
         from_attributes = True
 
 class ContactList(BaseModel):
-    id: UUID
+    relationship_id: UUID
     name: str
     email: str
     is_registered: bool
