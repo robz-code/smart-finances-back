@@ -1,15 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from supabase import Client, create_client
+
+from app.config.database import Base, engine
 from app.config.settings import settings
-from supabase import create_client, Client
-from app.config.database import engine, Base
 from app.routes import (
-    user_route,
     account_route,
-    transaction_route,
     category_route,
-    tag_route,
     contact_route,
+    tag_route,
+    transaction_route,
+    user_route,
 )
 
 # Create database tables
@@ -37,12 +38,28 @@ if settings.BACKEND_CORS_ORIGINS:
 
 
 # Include routers
-app.include_router(user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"])
-app.include_router(account_route.router, prefix=f"{settings.API_V1_STR}/accounts", tags=["Accounts"])
-app.include_router(category_route.router, prefix=f"{settings.API_V1_STR}/categories", tags=["Categories"])
-app.include_router(transaction_route.router, prefix=f"{settings.API_V1_STR}/transactions", tags=["Transactions"])
-app.include_router(tag_route.router, prefix=f"{settings.API_V1_STR}/tags", tags=["Transaction Tags"])
-app.include_router(contact_route.router, prefix=f"{settings.API_V1_STR}/contacts", tags=["Contacts"])
+app.include_router(
+    user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"]
+)
+app.include_router(
+    account_route.router, prefix=f"{settings.API_V1_STR}/accounts", tags=["Accounts"]
+)
+app.include_router(
+    category_route.router,
+    prefix=f"{settings.API_V1_STR}/categories",
+    tags=["Categories"],
+)
+app.include_router(
+    transaction_route.router,
+    prefix=f"{settings.API_V1_STR}/transactions",
+    tags=["Transactions"],
+)
+app.include_router(
+    tag_route.router, prefix=f"{settings.API_V1_STR}/tags", tags=["Transaction Tags"]
+)
+app.include_router(
+    contact_route.router, prefix=f"{settings.API_V1_STR}/contacts", tags=["Contacts"]
+)
 
 
 # Root endpoint
@@ -53,5 +70,5 @@ def read_root():
         "message": "Welcome to Smart Finances API",
         "version": "1.0.0",
         "docs": "/docs",
-        "redoc": "/redoc"
+        "redoc": "/redoc",
     }

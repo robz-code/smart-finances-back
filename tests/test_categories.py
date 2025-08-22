@@ -1,5 +1,9 @@
 def ensure_user(client, auth_headers):
-    r = client.post("/api/v1/users", json={"name": "Cat Owner", "email": "cat@example.com"}, headers=auth_headers)
+    r = client.post(
+        "/api/v1/users",
+        json={"name": "Cat Owner", "email": "cat@example.com"},
+        headers=auth_headers,
+    )
     assert r.status_code == 200
 
 
@@ -27,11 +31,12 @@ def test_categories_crud_flow(client, auth_headers):
     assert one["id"] == cat_id
 
     # Update
-    r = client.put(f"/api/v1/categories/{cat_id}", json={"name": "Groceries"}, headers=auth_headers)
+    r = client.put(
+        f"/api/v1/categories/{cat_id}", json={"name": "Groceries"}, headers=auth_headers
+    )
     assert r.status_code == 200
     assert r.json()["name"] == "Groceries"
 
     # Delete
     r = client.delete(f"/api/v1/categories/{cat_id}", headers=auth_headers)
     assert r.status_code == 204
-

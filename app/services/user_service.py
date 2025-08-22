@@ -1,7 +1,9 @@
-from app.services.base_service import BaseService
-from app.repository.user_repository import UserRepository
-from app.entities.user import User
 from typing import Optional
+
+from app.entities.user import User
+from app.repository.user_repository import UserRepository
+from app.services.base_service import BaseService
+
 
 class UserService(BaseService[User]):
     def __init__(self, db):

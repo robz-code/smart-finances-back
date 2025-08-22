@@ -4,6 +4,7 @@ import uuid
 def test_create_user_and_get_me_flow(client, auth_headers):
     # Create
     import uuid as _uuid
+
     payload = {
         "name": "John Doe",
         "email": f"john+{_uuid.uuid4().hex}@example.com",
@@ -30,6 +31,7 @@ def test_create_user_and_get_me_flow(client, auth_headers):
 def test_update_user(client, auth_headers):
     # First create user
     import uuid as _uuid
+
     payload = {
         "name": "Jane Smith",
         "email": f"jane+{_uuid.uuid4().hex}@example.com",
@@ -58,10 +60,10 @@ def test_update_user(client, auth_headers):
 
 def test_delete_user(client, auth_headers):
     import uuid as _uuid
+
     payload = {"name": "Del User", "email": f"del+{_uuid.uuid4().hex}@example.com"}
     r = client.post("/api/v1/users", json=payload, headers=auth_headers)
     assert r.status_code == 200
 
     r = client.delete("/api/v1/users/", headers=auth_headers)
     assert r.status_code == 204
-

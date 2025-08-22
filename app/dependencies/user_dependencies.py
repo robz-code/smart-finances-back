@@ -1,13 +1,14 @@
+import logging
+from uuid import UUID
 
-from app.services.user_service import UserService
-from app.config.database import get_db
-from app.repository.user_repository import UserRepository
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from app.config.database import get_db
 from app.dependencies.auth_dependency import verify_token
-import logging
 from app.entities.user import User
-from uuid import UUID
+from app.repository.user_repository import UserRepository
+from app.services.user_service import UserService
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
 
 def get_current_user(
     token_payload: dict = Depends(verify_token),
-    user_service: UserService = Depends(get_user_service)
+    user_service: UserService = Depends(get_user_service),
 ) -> User:
     """Dependency to get the current authenticated user from the token"""
     user_id_str = token_payload.get("sub")
@@ -32,13 +33,13 @@ def get_current_user(
     except Exception:
         logger.error("Authentication failed: Invalid user_id format in token payload")
         raise HTTPException(status_code=401, detail="Invalid token payload")
-    
+
     try:
         user = user_service.get(user_id)
         if not user:
             logger.warning(f"User not found with ID: {user_id}")
             raise HTTPException(status_code=404, detail="User not found")
-        
+
         logger.debug(f"Successfully authenticated user: {user_id}")
         return user
     except HTTPException:

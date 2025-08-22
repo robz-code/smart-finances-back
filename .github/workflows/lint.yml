@@ -39,4 +39,4 @@ jobs:
     
     - name: Run mypy (type checking)
       run: |
-        mypy app/ --ignore-missing-imports --no-strict-optional
+        mypy app/

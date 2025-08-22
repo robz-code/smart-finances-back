@@ -1,10 +1,10 @@
 import os
-import uuid
 import shutil
+import sys
+import uuid
 from typing import Dict
 
 import pytest
-import sys
 
 # Ensure project root is importable
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -12,7 +12,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 import jwt
 from fastapi.testclient import TestClient
-
 
 # Note: DB path is created per session (and per worker) inside the fixture below
 
@@ -48,6 +47,7 @@ def _set_env_before_import() -> None:
 def client() -> TestClient:
     # Import after env vars are set so the app is configured correctly
     from app import app as fastapi_app
+
     test_client = TestClient(fastapi_app)
     return test_client
 
@@ -59,7 +59,9 @@ def user_id() -> uuid.UUID:
 
 @pytest.fixture()
 def auth_headers(user_id: uuid.UUID) -> Dict[str, str]:
-    token = jwt.encode({"sub": str(user_id)}, os.environ["JWT_SECRET_KEY"], algorithm="HS256")
+    token = jwt.encode(
+        {"sub": str(user_id)}, os.environ["JWT_SECRET_KEY"], algorithm="HS256"
+    )
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -77,4 +79,3 @@ def create_registered_user(client: TestClient, auth_headers: Dict[str, str]):
         return client.post("/api/v1/users", json=payload, headers=auth_headers)
 
     return _create
-
