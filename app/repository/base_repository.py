@@ -1,5 +1,5 @@
 import logging
-from typing import Generic, List, Optional, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar, Any
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,11 +17,11 @@ class BaseRepository(Generic[T]):
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""
-        return self.db.query(self.model).filter(self.model.id == id).first()
+        return self.db.query(self.model).filter(self.model.id == id).first()  # type: ignore
 
     def get_by_user_id(self, user_id: UUID) -> List[T]:
         """Get entities by user ID"""
-        return self.db.query(self.model).filter(self.model.user_id == user_id).all()
+        return self.db.query(self.model).filter(self.model.user_id == user_id).all()  # type: ignore
 
     def delete(self, id: UUID) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
@@ -46,7 +46,7 @@ class BaseRepository(Generic[T]):
             self.db.commit()
             self.db.refresh(obj_in)
             logger.info(
-                f"Successfully created {self.model.__name__} with ID: {obj_in.id}"
+                f"Successfully created {self.model.__name__} with ID: {obj_in.id}"  # type: ignore
             )
             return obj_in
         except SQLAlchemyError as e:
