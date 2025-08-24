@@ -1,3 +1,4 @@
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -23,7 +24,7 @@ router = APIRouter()
 )
 def read_category(
     category_id: UUID, service: CategoryService = Depends(get_category_service)
-):
+) -> CategoryResponse:
     """
     Get a specific category by ID.
 
@@ -37,14 +38,14 @@ def read_category(
 def read_categories_list(
     service: CategoryService = Depends(get_category_service),
     current_user: User = Depends(get_current_user),
-):
+) -> SearchResponse[CategoryResponse]:
     """
     Get a list of all categories.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return service.get_by_user_id(current_user.id)
+    return service.get_by_user_id(cast(UUID, current_user.id))
 
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)
@@ -52,14 +53,14 @@ def create_category(
     category_data: CategoryCreate,
     current_user: User = Depends(get_current_user),
     service: CategoryService = Depends(get_category_service),
-):
+) -> CategoryResponse:
     """
     Create a new category.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return service.add(category_data.to_model(current_user.id))
+    return service.add(category_data.to_model(cast(UUID, current_user.id)))
 
 
 @router.put(
@@ -72,14 +73,18 @@ def update_category(
     category_data: CategoryUpdate,
     current_user: User = Depends(get_current_user),
     service: CategoryService = Depends(get_category_service),
-):
+) -> CategoryResponse:
     """
     Update a category if it belongs to the current user.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return service.update(category_id, category_data, user_id=current_user.id)
+    return service.update(
+        category_id,
+        category_data,
+        user_id=cast(UUID, current_user.id),
+    )
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -87,11 +92,12 @@ def delete_category(
     category_id: UUID,
     current_user: User = Depends(get_current_user),
     service: CategoryService = Depends(get_category_service),
-):
+) -> None:
     """
     Delete a category if it belongs to the current user.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return service.delete(category_id, user_id=current_user.id)
+    service.delete(category_id, user_id=cast(UUID, current_user.id))
+    return None

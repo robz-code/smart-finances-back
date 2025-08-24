@@ -1,3 +1,5 @@
+from typing import cast
+
 from fastapi import APIRouter, Depends, status
 
 from app.dependencies.auth_dependency import verify_token
@@ -22,7 +24,7 @@ async def create_user(
     user_data: UserCreate,
     service: UserService = Depends(get_user_service),
     token_payload: dict = Depends(verify_token),
-):
+) -> UserProfile:
     """
     Create a new user.
 
@@ -41,7 +43,7 @@ async def create_user(
     summary="Get current user profile",
     description="Retrieve the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.",
 )
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user)) -> UserProfile:
     """
     Get the current user's profile information.
 
@@ -61,14 +63,17 @@ async def update_curent_user(
     user_data: UserUpdate,
     current_user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service),
-):
+) -> UserProfile:
     """
     Update the current user's profile information.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return user_service.update(current_user.id, user_data.to_model(current_user.id))
+    return user_service.update(
+        cast("UUID", current_user.id),
+        user_data.to_model(cast("UUID", current_user.id)),
+    )
 
 
 @router.delete(
@@ -80,12 +85,12 @@ async def update_curent_user(
 async def soft_delete_current_user(
     current_user: User = Depends(get_current_user),
     service: UserService = Depends(get_user_service),
-):
+) -> None:
     """
     Soft Delete the current user.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    service.delete(current_user.id)
+    service.delete(cast("UUID", current_user.id))
     return None

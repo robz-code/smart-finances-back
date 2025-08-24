@@ -27,7 +27,8 @@ class UserBase(BaseModel):
         phone_pattern = re.compile(r"^\+[1-9]\d{6,14}$")
         if not phone_pattern.match(v):
             raise ValueError(
-                "Phone number must be in international format: +[country_code][phone_number] (e.g., +1234567890, +521234567890)"
+                "Phone number must be in international format: +[country_code]"
+                "[phone_number] (e.g., +1234567890, +521234567890)"
             )
 
         return v

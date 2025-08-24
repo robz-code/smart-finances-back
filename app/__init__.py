@@ -70,7 +70,7 @@ app.include_router(
 
 # Root endpoint
 @app.get("/")
-def read_root():
+def read_root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "message": "Welcome to Smart Finances API",

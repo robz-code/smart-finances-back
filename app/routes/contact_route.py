@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -31,7 +31,7 @@ async def create_contact(
     contact_data: ContactCreate,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> ContactDetail:
     """
     Create a new contact for the current user.
 
@@ -39,7 +39,7 @@ async def create_contact(
     - If the contact email is not registered, creates a new inactive user and relationship
     - Requires authentication via JWT token
     """
-    return contact_service.create_contact(current_user.id, contact_data)
+    return contact_service.create_contact(cast(UUID, current_user.id), contact_data)
 
 
 @router.get(
@@ -51,14 +51,14 @@ async def create_contact(
 async def get_contacts(
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> List[ContactList]:
     """
     Get all contacts for the current user.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return contact_service.get_user_contacts(current_user.id)
+    return contact_service.get_user_contacts(cast(UUID, current_user.id))
 
 
 @router.get(
@@ -74,7 +74,7 @@ async def get_contact_detail(
     relationship_id: UUID,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> ContactWithDebts:
     """
     Get detailed information about a specific contact.
 
@@ -90,11 +90,12 @@ def delete_contact(
     relationship_id: UUID,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> None:
     """
     Delete a specific contact.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return contact_service.delete(relationship_id, user_id=current_user.id)
+    contact_service.delete_contact(relationship_id, user_id=cast(UUID, current_user.id))
+    return None

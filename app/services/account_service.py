@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.account import Account
 from app.repository.account_repository import AccountRepository
-from app.schemas.account_schemas import AccountUpdate
+# from app.schemas.account_schemas import AccountUpdate  # unused in service
 from app.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,10 @@ class AccountService(BaseService[Account]):
         account = self.repository.get(id)
         if account and account.user_id != user_id:
             logger.warning(
-                f"Attempt to update account with ID: {id} not owned by user with ID: {user_id}"
+                (
+                    f"Attempt to update account with ID: {id} not owned by user "
+                    f"with ID: {user_id}"
+                )
             )
             raise HTTPException(status_code=403, detail="You do not own this account")
 
@@ -46,7 +49,10 @@ class AccountService(BaseService[Account]):
 
         if account.user_id != user_id:
             logger.warning(
-                f"Attempt to delete account with ID: {id} not owned by user with ID: {user_id}"
+                (
+                    f"Attempt to delete account with ID: {id} not owned by user "
+                    f"with ID: {user_id}"
+                )
             )
             raise HTTPException(status_code=403, detail="You do not own this account")
 

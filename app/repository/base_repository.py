@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,11 +17,19 @@ class BaseRepository(Generic[T]):
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""
-        return self.db.query(self.model).filter(self.model.id == id).first()  # type: ignore
+        return (
+            self.db.query(self.model)
+            .filter(self.model.id == id)
+            .first()  # type: ignore
+        )
 
     def get_by_user_id(self, user_id: UUID) -> List[T]:
         """Get entities by user ID"""
-        return self.db.query(self.model).filter(self.model.user_id == user_id).all()  # type: ignore
+        return (
+            self.db.query(self.model)
+            .filter(self.model.user_id == user_id)
+            .all()  # type: ignore
+        )
 
     def delete(self, id: UUID) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
@@ -30,7 +38,9 @@ class BaseRepository(Generic[T]):
             try:
                 self.db.delete(obj)
                 self.db.commit()
-                logger.info(f"Successfully deleted {self.model.__name__} with ID: {id}")
+                logger.info(
+                    f"Successfully deleted {self.model.__name__} with ID: {id}"
+                )
             except SQLAlchemyError as e:
                 self.db.rollback()
                 logger.error(
@@ -59,7 +69,8 @@ class BaseRepository(Generic[T]):
         obj = self.get(id)
         if obj:
             try:
-                # Extract attributes from the model object, excluding private attributes and id
+                # Extract attributes from the model object,
+                # excluding private attributes and id
                 update_data = {
                     k: v
                     for k, v in obj_in.__dict__.items()
@@ -84,7 +95,9 @@ class BaseRepository(Generic[T]):
 
                 self.db.commit()
                 self.db.refresh(obj)
-                logger.info(f"Successfully updated {self.model.__name__} with ID: {id}")
+                logger.info(
+                    f"Successfully updated {self.model.__name__} with ID: {id}"
+                )
             except SQLAlchemyError as e:
                 self.db.rollback()
                 logger.error(

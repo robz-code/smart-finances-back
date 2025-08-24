@@ -1,6 +1,3 @@
-from uuid import UUID
-
-
 def _create_user(client, auth_headers, name="Acc Owner", email="owner@example.com"):
     return client.post(
         "/api/v1/users", json={"name": name, "email": email}, headers=auth_headers

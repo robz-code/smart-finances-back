@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any, List
+from typing import Any, List, cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -82,12 +82,12 @@ class ContactService(BaseService[UserContact]):
                 )
 
                 return ContactDetail(
-                    relationship_id=created_relationship.id,  # Use the UserContact ID
-                    name=existing_user.name,
-                    email=existing_user.email,
-                    is_registered=existing_user.is_registered,
-                    created_at=existing_user.created_at,
-                    updated_at=existing_user.updated_at,
+                    relationship_id=cast(UUID, created_relationship.id),
+                    name=cast(str, existing_user.name),
+                    email=cast(str, existing_user.email),
+                    is_registered=cast(bool, existing_user.is_registered),
+                    created_at=cast(datetime, existing_user.created_at),
+                    updated_at=cast(datetime, existing_user.updated_at),
                 )
             else:
                 # Contact doesn't exist, create new inactive user
@@ -113,12 +113,15 @@ class ContactService(BaseService[UserContact]):
                 )
 
                 return ContactDetail(
-                    relationship_id=created_relationship.id,  # Use the UserContact ID
-                    name=created_user.name,
-                    email=created_user.email,
-                    is_registered=created_user.is_registered,
-                    created_at=created_user.created_at,
-                    updated_at=created_user.updated_at or created_user.created_at,
+                    relationship_id=cast(UUID, created_relationship.id),
+                    name=cast(str, created_user.name),
+                    email=cast(str, created_user.email),
+                    is_registered=cast(bool, created_user.is_registered),
+                    created_at=cast(datetime, created_user.created_at),
+                    updated_at=cast(
+                        datetime,
+                        created_user.updated_at or created_user.created_at,
+                    ),
                 )
 
         except HTTPException:
@@ -135,14 +138,14 @@ class ContactService(BaseService[UserContact]):
             contacts = []
 
             for relationship in contact_relationships.results:
-                contact_user = self.user_service.get(relationship.contact_id)
+                contact_user = self.user_service.get(cast(UUID, relationship.contact_id))
                 contacts.append(
                     ContactList(
-                        relationship_id=relationship.id,
-                        name=contact_user.name,
-                        email=contact_user.email,
-                        is_registered=contact_user.is_registered,
-                        created_at=contact_user.created_at,
+                        relationship_id=cast(UUID, relationship.id),
+                        name=cast(str, contact_user.name),
+                        email=cast(str, contact_user.email),
+                        is_registered=cast(bool, contact_user.is_registered),
+                        created_at=cast(datetime, contact_user.created_at),
                     )
                 )
 
@@ -161,11 +164,11 @@ class ContactService(BaseService[UserContact]):
                 raise HTTPException(status_code=404, detail="Contact not found")
 
             # Get the contact user details using UserService
-            contact_user = self.user_service.get(relationship.contact_id)
+            contact_user = self.user_service.get(cast(UUID, relationship.contact_id))
 
             # Get debts between the users
             debts = self.debt_service.get_user_debts(
-                relationship.user_id, relationship.contact_id
+                cast(UUID, relationship.user_id), cast(UUID, relationship.contact_id)
             )
 
             # Convert debts to summary format
@@ -173,24 +176,24 @@ class ContactService(BaseService[UserContact]):
             for debt in debts:
                 debt_summaries.append(
                     UserDebtSummary(
-                        id=debt.id,
-                        amount=debt.amount,
-                        type=debt.type,
-                        note=debt.note,
-                        date=debt.date,
-                        from_user_id=debt.from_user_id,
-                        to_user_id=debt.to_user_id,
+                        id=cast(UUID, debt.id),
+                        amount=float(debt.amount),
+                        type=cast(str, debt.type),
+                        note=cast("str | None", debt.note),
+                        date=cast(datetime, debt.date),
+                        from_user_id=cast(UUID, debt.from_user_id),
+                        to_user_id=cast(UUID, debt.to_user_id),
                     )
                 )
 
             # Create ContactDetail first
             contact_detail = ContactDetail(
-                relationship_id=relationship.id,
-                name=contact_user.name,
-                email=contact_user.email,
-                is_registered=contact_user.is_registered,
-                created_at=contact_user.created_at,
-                updated_at=contact_user.updated_at,
+                relationship_id=cast(UUID, relationship.id),
+                name=cast(str, contact_user.name),
+                email=cast(str, contact_user.email),
+                is_registered=cast(bool, contact_user.is_registered),
+                created_at=cast(datetime, contact_user.created_at),
+                updated_at=cast(datetime, contact_user.updated_at),
             )
 
             return ContactWithDebts(
