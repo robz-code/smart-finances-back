@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.category import Category
 from app.repository.category_repository import CategoryRepository
+
 # from app.schemas.category_schemas import CategoryUpdate  # unused in service
 from app.services.base_service import BaseService
 

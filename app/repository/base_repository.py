@@ -38,9 +38,7 @@ class BaseRepository(Generic[T]):
             try:
                 self.db.delete(obj)
                 self.db.commit()
-                logger.info(
-                    f"Successfully deleted {self.model.__name__} with ID: {id}"
-                )
+                logger.info(f"Successfully deleted {self.model.__name__} with ID: {id}")
             except SQLAlchemyError as e:
                 self.db.rollback()
                 logger.error(
@@ -56,7 +54,8 @@ class BaseRepository(Generic[T]):
             self.db.commit()
             self.db.refresh(obj_in)
             logger.info(
-                f"Successfully created {self.model.__name__} with ID: {obj_in.id}"  # type: ignore
+                f"Successfully created {self.model.__name__} "
+                f"with ID: {obj_in.id}"  # type: ignore
             )
             return obj_in
         except SQLAlchemyError as e:
@@ -95,9 +94,7 @@ class BaseRepository(Generic[T]):
 
                 self.db.commit()
                 self.db.refresh(obj)
-                logger.info(
-                    f"Successfully updated {self.model.__name__} with ID: {id}"
-                )
+                logger.info(f"Successfully updated {self.model.__name__} with ID: {id}")
             except SQLAlchemyError as e:
                 self.db.rollback()
                 logger.error(

@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Any, List, cast
+from typing import List, cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -45,7 +45,8 @@ class ContactService(BaseService[UserContact]):
     ) -> ContactDetail:
         """Create a new contact for a user"""
         try:
-            # Check if the contact already exists as a user using UserService for security
+            # Check if the contact already exists as a user using UserService
+            # for security
             existing_user = self.user_service.get_by_email(contact_data.email)
 
             if existing_user:
@@ -78,7 +79,8 @@ class ContactService(BaseService[UserContact]):
                 )
                 created_relationship = super().add(contact_relationship)
                 logger.info(
-                    f"Created contact relationship between user {user_id} and existing user {existing_user.id}"
+                    f"Created contact relationship between user {user_id} "
+                    f"and existing user {existing_user.id}"
                 )
 
                 return ContactDetail(
@@ -109,7 +111,8 @@ class ContactService(BaseService[UserContact]):
                 )
                 created_relationship = super().add(contact_relationship)
                 logger.info(
-                    f"Created new inactive user {created_user.id} and contact relationship with user {user_id}"
+                    f"Created new inactive user {created_user.id} "
+                    f"and contact relationship with user {user_id}"
                 )
 
                 return ContactDetail(
@@ -138,7 +141,9 @@ class ContactService(BaseService[UserContact]):
             contacts = []
 
             for relationship in contact_relationships.results:
-                contact_user = self.user_service.get(cast(UUID, relationship.contact_id))
+                contact_user = self.user_service.get(
+                    cast(UUID, relationship.contact_id)
+                )
                 contacts.append(
                     ContactList(
                         relationship_id=cast(UUID, relationship.id),
