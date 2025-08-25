@@ -1,4 +1,4 @@
-from typing import List, cast
+from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -27,7 +27,9 @@ def get_user_tags(
     response_model=TagResponse,
     dependencies=[Depends(get_current_user)],
 )
-def get_tag(tag_id: UUID, tag_service: TagService = Depends(get_tag_service)) -> TagResponse:
+def get_tag(
+    tag_id: UUID, tag_service: TagService = Depends(get_tag_service)
+) -> TagResponse:
     """Get a tag by ID"""
     return tag_service.get(tag_id)
 

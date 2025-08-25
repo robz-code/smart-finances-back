@@ -56,14 +56,15 @@ class BaseService(Generic[T]):
             raise HTTPException(status_code=500, detail="Database error occurred")
         except Exception as e:
             logger.error(
-                f"Unexpected error in get_by_user_id for {self.entity.__name__}: {str(e)}"
+                f"Unexpected error in get_by_user_id for "
+                f"{self.entity.__name__}: {str(e)}"
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
     def delete(self, id: UUID, **kwargs: Any) -> T:
         """Delete entity by ID with error handling"""
 
-        deleted_obj = self.before_delete(id, **kwargs)
+        self.before_delete(id, **kwargs)
         try:
             result = self.repository.delete(id)
             if result is None:

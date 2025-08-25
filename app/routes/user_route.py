@@ -1,4 +1,5 @@
 from typing import cast
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
@@ -18,7 +19,10 @@ router = APIRouter()
     "",
     response_model=UserProfile,
     summary="Create a new user",
-    description="Create a new user with the provided data. Requires a valid JWT token in the Authorization header.",
+    description=(
+        "Create a new user with the provided data. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
 )
 async def create_user(
     user_data: UserCreate,
@@ -31,8 +35,6 @@ async def create_user(
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    from uuid import UUID
-
     current_user_id = UUID(token_payload.get("sub"))
     return service.add(user_data.to_model(current_user_id))
 
@@ -41,7 +43,10 @@ async def create_user(
     "",
     response_model=UserProfile,
     summary="Get current user profile",
-    description="Retrieve the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.",
+    description=(
+        "Retrieve the profile of the currently authenticated user. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
 )
 async def get_me(current_user: User = Depends(get_current_user)) -> UserProfile:
     """
@@ -57,7 +62,10 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserProfile:
     "",
     response_model=UserProfile,
     summary="Update current user profile",
-    description="Update the profile of the currently authenticated user. Requires a valid JWT token in the Authorization header.",
+    description=(
+        "Update the profile of the currently authenticated user. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
 )
 async def update_curent_user(
     user_data: UserUpdate,
@@ -80,7 +88,10 @@ async def update_curent_user(
     "",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete current user",
-    description="Delete the currently authenticated user. Requires a valid JWT token in the Authorization header.",
+    description=(
+        "Delete the currently authenticated user. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
 )
 async def soft_delete_current_user(
     current_user: User = Depends(get_current_user),

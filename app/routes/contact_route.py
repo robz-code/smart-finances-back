@@ -36,7 +36,8 @@ async def create_contact(
     Create a new contact for the current user.
 
     - If the contact email is already registered, creates a relationship between users
-    - If the contact email is not registered, creates a new inactive user and relationship
+    - If the contact email is not registered, creates a new inactive user and "
+        "relationship
     - Requires authentication via JWT token
     """
     return contact_service.create_contact(cast(UUID, current_user.id), contact_data)
@@ -78,7 +79,8 @@ async def get_contact_detail(
     """
     Get detailed information about a specific contact.
 
-    Returns contact information along with debt details between the current user and the contact.
+    Returns contact information along with debt details between the current user "
+        "and the contact.
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """

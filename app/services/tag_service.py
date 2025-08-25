@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
 from app.repository.tag_repository import TagRepository
+
 # from app.schemas.tag_schemas import TagUpdate  # unused in service
 from app.services.base_service import BaseService
 

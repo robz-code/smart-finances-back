@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.account import Account
 from app.repository.account_repository import AccountRepository
+
 # from app.schemas.account_schemas import AccountUpdate  # unused in service
 from app.services.base_service import BaseService
 

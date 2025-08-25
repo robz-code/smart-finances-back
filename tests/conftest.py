@@ -4,8 +4,8 @@ import sys
 import uuid
 from typing import Dict
 
-import pytest
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 
 # Ensure project root is importable
