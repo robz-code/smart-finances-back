@@ -17,8 +17,8 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(BaseModel):
     id: UUID4
     name: str
-    icon: str
-    color: str
+    icon: Optional[str] = None
+    color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -30,8 +30,9 @@ class CategoryCreate(BaseModel):
 
     def to_model(self, current_user_id: UUID) -> Category:
         return Category(
-            id=current_user_id,
+            user_id=current_user_id,
             name=self.name,
+            icon=self.icon,
             color=self.color,
             created_at=datetime.now(timezone.utc),
         )

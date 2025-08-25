@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.category import Category
 from app.repository.category_repository import CategoryRepository
-from app.schemas.category_schemas import CategoryUpdate
+# from app.schemas.category_schemas import CategoryUpdate  # unused in service
 from app.services.base_service import BaseService
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,10 @@ class CategoryService(BaseService[Category]):
         # Specific Validations
         if category.user_id != user_id:
             logger.warning(
-                f"Attempt to delete category with ID: {id} not owned by user with ID: {user_id}"
+                (
+                    f"Attempt to delete category with ID: {id} not owned by user "
+                    f"with ID: {user_id}"
+                )
             )
             raise HTTPException(status_code=403, detail="You do not own this category")
 
@@ -50,7 +53,10 @@ class CategoryService(BaseService[Category]):
         category = self.repository.get(id)
         if category and category.user_id != user_id:
             logger.warning(
-                f"Attempt to update category with ID: {id} not owned by user with ID: {user_id}"
+                (
+                    f"Attempt to update category with ID: {id} not owned by user "
+                    f"with ID: {user_id}"
+                )
             )
             raise HTTPException(status_code=403, detail="You do not own this category")
 

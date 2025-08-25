@@ -27,4 +27,6 @@ class Tag(Base):
     transaction_tags = relationship("TransactionTag", back_populates="tag")
 
     def __repr__(self) -> str:
-        return f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        return (
+            f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        )
