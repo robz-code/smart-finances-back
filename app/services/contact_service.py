@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import List, cast
+from typing import Any, List, cast
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -69,9 +69,7 @@ class ContactService(BaseService[UserContact]):
                     )
 
                 # Create the relationship using the new repository method
-                created_relationship = self.repository.create_contact_relationship(
-                    user_id, existing_user.id
-                )
+                self.repository.create_contact_relationship(user_id, existing_user.id)
 
                 logger.info(
                     f"Created contact relationship between user {user_id} "
@@ -80,8 +78,8 @@ class ContactService(BaseService[UserContact]):
 
                 return ContactDetail(
                     relationship_id=cast(
-                        UUID, created_relationship.user1_id
-                    ),  # Use user1_id as relationship_id
+                        UUID, user_id
+                    ),  # Use the requesting user's ID as relationship_id
                     name=cast(str, existing_user.name),
                     email=cast(str, existing_user.email),
                     is_registered=cast(bool, existing_user.is_registered),
@@ -103,9 +101,7 @@ class ContactService(BaseService[UserContact]):
                 created_user = self.user_service.add(new_user)
 
                 # Create the relationship using the new repository method
-                created_relationship = self.repository.create_contact_relationship(
-                    user_id, created_user.id
-                )
+                self.repository.create_contact_relationship(user_id, created_user.id)
 
                 logger.info(
                     f"Created new inactive user {created_user.id} "
@@ -114,8 +110,8 @@ class ContactService(BaseService[UserContact]):
 
                 return ContactDetail(
                     relationship_id=cast(
-                        UUID, created_relationship.user1_id
-                    ),  # Use user1_id as relationship_id
+                        UUID, user_id
+                    ),  # Use the requesting user's ID as relationship_id
                     name=cast(str, created_user.name),
                     email=cast(str, created_user.email),
                     is_registered=cast(bool, created_user.is_registered),
@@ -151,8 +147,8 @@ class ContactService(BaseService[UserContact]):
                 contacts.append(
                     ContactList(
                         relationship_id=cast(
-                            UUID, relationship.user1_id
-                        ),  # Use user1_id as relationship_id
+                            UUID, user_id
+                        ),  # Use the requesting user's ID as relationship_id
                         name=cast(str, contact_user.name),
                         email=cast(str, contact_user.email),
                         is_registered=cast(bool, contact_user.is_registered),
@@ -168,28 +164,29 @@ class ContactService(BaseService[UserContact]):
     def get_contact_detail(self, relationship_id: UUID) -> ContactWithDebts:
         """Get detailed information about a specific contact including debts"""
         try:
-            # Since we no longer have a single relationship ID, we need to find the
-            # relationship by searching through the user's contacts
-            # For now, we'll use the relationship_id as a user_id to find the contact
-            # This is a temporary solution - in a real implementation, you might want to
-            # restructure the API to use user_id instead of relationship_id
+            # Since relationship_id is now the requesting user's ID,
+            # we need to find a relationship that involves this user
+            # and then determine which contact they want to see
+            # For now, we'll use the first relationship found
+            # In a real implementation, you might want to restructure this API
 
-            # Find the relationship by searching for the user in contact relationships
+            # Find relationships for the requesting user
             relationships = self.repository.get_contacts_by_user_id(relationship_id)
 
             if not relationships:
-                raise HTTPException(status_code=404, detail="Contact not found")
+                raise HTTPException(status_code=404, detail="No contacts found")
 
             # For simplicity, use the first relationship found
             # In a real implementation, you might want to restructure this
             relationship = relationships[0]
 
-            # Determine which user is the contact
-            contact_user_id = (
-                relationship.user2_id
-                if relationship.user1_id == relationship_id
-                else relationship.user1_id
-            )
+            # Determine which user is the contact (the other user in the relationship)
+            if relationship.user1_id == relationship_id:
+                # If the requesting user is user1_id, then the contact is user2_id
+                contact_user_id = relationship.user2_id
+            else:
+                # If the requesting user is user2_id, then the contact is user1_id
+                contact_user_id = relationship.user1_id
 
             # Get the contact user details using UserService
             contact_user = self.user_service.get(contact_user_id)
@@ -215,8 +212,8 @@ class ContactService(BaseService[UserContact]):
             # Create ContactDetail first
             contact_detail = ContactDetail(
                 relationship_id=cast(
-                    UUID, relationship.user1_id
-                ),  # Use user1_id as relationship_id
+                    UUID, relationship_id
+                ),  # Use the requesting user's ID as relationship_id
                 name=cast(str, contact_user.name),
                 email=cast(str, contact_user.email),
                 is_registered=cast(bool, contact_user.is_registered),
@@ -240,40 +237,53 @@ class ContactService(BaseService[UserContact]):
     def delete_contact(self, relationship_id: UUID, user_id: UUID) -> bool:
         """Delete a contact relationship"""
         try:
-            # Since we no longer have a single relationship ID, we need to find the
-            # relationship by searching through the user's contacts
-            # For now, we'll use the relationship_id as a user_id to find the contact
-            # This is a temporary solution - in a real implementation, you might want to
-            # restructure the API to use user_id instead of relationship_id
-
-            # Find the relationship by searching for the user in contact relationships
-            relationships = self.repository.get_contacts_by_user_id(relationship_id)
-
-            if not relationships:
-                raise HTTPException(status_code=404, detail="Contact not found")
-
-            # For simplicity, use the first relationship found
-            # In a real implementation, you might want to restructure this
-            relationship = relationships[0]
-
-            # Delete the relationship using the new repository method
-            success = self.repository.delete_contact_relationship(
-                relationship.user1_id, relationship.user2_id
-            )
-
-            if success:
-                logger.info(
-                    f"Successfully deleted contact relationship between users "
-                    f"{relationship.user1_id} and {relationship.user2_id}"
-                )
-                return True
-            else:
-                raise HTTPException(
-                    status_code=404, detail="Contact relationship not found"
-                )
-
+            # Use the overridden delete method
+            self.delete(relationship_id)
+            return True
         except HTTPException:
             raise
         except Exception as e:
             logger.error(f"Error deleting contact: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to delete contact")
+
+    def get(self, relationship_id: UUID) -> UserContact:
+        """Override BaseService.get() since UserContact doesn't have an id field"""
+        # For UserContact, we need to find the relationship by searching
+        # This is a temporary solution - in a real implementation, you might want to
+        # restructure the API to use user_id instead of relationship_id
+        relationships = self.repository.get_contacts_by_user_id(relationship_id)
+
+        if not relationships:
+            raise HTTPException(status_code=404, detail="Contact not found")
+
+        # For simplicity, use the first relationship found
+        return relationships[0]
+
+    def delete(self, relationship_id: UUID, **kwargs: Any) -> UserContact:
+        """Override BaseService.delete() since UserContact doesn't have an id field"""
+        # For UserContact, we need to find the relationship by searching
+        # This is a temporary solution - in a real implementation, you might want to
+        # restructure the API to use user_id instead of relationship_id
+        relationships = self.repository.get_contacts_by_user_id(relationship_id)
+
+        if not relationships:
+            raise HTTPException(status_code=404, detail="Contact not found")
+
+        # For simplicity, use the first relationship found
+        relationship = relationships[0]
+
+        # Delete the relationship using the new repository method
+        success = self.repository.delete_contact_relationship(
+            relationship.user1_id, relationship.user2_id
+        )
+
+        if success:
+            logger.info(
+                f"Successfully deleted contact relationship between users "
+                f"{relationship.user1_id} and {relationship.user2_id}"
+            )
+            return relationship
+        else:
+            raise HTTPException(
+                status_code=404, detail="Contact relationship not found"
+            )
