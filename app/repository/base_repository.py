@@ -31,6 +31,16 @@ class BaseRepository(Generic[T]):
             .all()  # type: ignore
         )
 
+    def get_contacts_by_user_id(self, user_id: UUID) -> List[T]:
+        """Get contact relationships by user ID (works with both user1_id and user2_id)"""
+        return (
+            self.db.query(self.model)
+            .filter(
+                (self.model.user1_id == user_id) | (self.model.user2_id == user_id)
+            )
+            .all()  # type: ignore
+        )
+
     def delete(self, id: UUID) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
         obj = self.get(id)
