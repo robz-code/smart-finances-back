@@ -33,7 +33,8 @@ class ContactRepository(BaseRepository[UserContact]):
         return debts
 
     def get_contacts_by_user_id(self, user_id: UUID) -> List[UserContact]:
-        """Get all contact relationships for a user (works with both user1_id and user2_id)"""
+        """Get all contact relationships for a user
+        (works with both user1_id and user2_id)"""
         return (
             self.db.query(UserContact)
             .filter(
@@ -42,12 +43,14 @@ class ContactRepository(BaseRepository[UserContact]):
             .all()
         )
 
-    def check_contact_exists(self, user1_id: UUID, user2_id: UUID) -> Optional[UserContact]:
+    def check_contact_exists(
+        self, user1_id: UUID, user2_id: UUID
+    ) -> Optional[UserContact]:
         """Check if a contact relationship already exists between two users"""
         # Ensure user1_id < user2_id for consistency
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
-        
+
         return (
             self.db.query(UserContact)
             .filter(
@@ -56,17 +59,16 @@ class ContactRepository(BaseRepository[UserContact]):
             .first()
         )
 
-    def create_contact_relationship(self, user1_id: UUID, user2_id: UUID) -> UserContact:
+    def create_contact_relationship(
+        self, user1_id: UUID, user2_id: UUID
+    ) -> UserContact:
         """Create a new contact relationship between two users"""
         # Ensure user1_id < user2_id for consistency
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
-        
-        contact_relationship = UserContact(
-            user1_id=user1_id,
-            user2_id=user2_id
-        )
-        
+
+        contact_relationship = UserContact(user1_id=user1_id, user2_id=user2_id)
+
         return self.add(contact_relationship)
 
     def delete_contact_relationship(self, user1_id: UUID, user2_id: UUID) -> bool:
@@ -74,7 +76,7 @@ class ContactRepository(BaseRepository[UserContact]):
         # Ensure user1_id < user2_id for consistency
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
-        
+
         relationship = (
             self.db.query(UserContact)
             .filter(
@@ -82,10 +84,10 @@ class ContactRepository(BaseRepository[UserContact]):
             )
             .first()
         )
-        
+
         if relationship:
             self.db.delete(relationship)
             self.db.commit()
             return True
-        
+
         return False

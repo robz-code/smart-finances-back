@@ -32,12 +32,11 @@ class BaseRepository(Generic[T]):
         )
 
     def get_contacts_by_user_id(self, user_id: UUID) -> List[T]:
-        """Get contact relationships by user ID (works with both user1_id and user2_id)"""
+        """Get contact relationships by user ID
+        (works with both user1_id and user2_id)"""
         return (
             self.db.query(self.model)
-            .filter(
-                (self.model.user1_id == user_id) | (self.model.user2_id == user_id)
-            )
+            .filter((self.model.user1_id == user_id) | (self.model.user2_id == user_id))
             .all()  # type: ignore
         )
 

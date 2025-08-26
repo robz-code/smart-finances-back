@@ -51,16 +51,16 @@ class User(Base):
         foreign_keys="[RecurringDebt.to_user_id]",
         back_populates="to_user",
     )
-    
+
     # Bidirectional contacts relationship using many-to-many self-relationship
     contacts = relationship(
         "User",
         secondary="user_contacts",
         primaryjoin="User.id==user_contacts.c.user1_id",
         secondaryjoin="User.id==user_contacts.c.user2_id",
-        backref="contacted_by"
+        backref="contacted_by",
     )
-    
+
     group_memberships = relationship("GroupMember", back_populates="user")
     budgets = relationship("Budget", back_populates="user")
     recurring_transactions = relationship("RecurringTransaction", back_populates="user")
