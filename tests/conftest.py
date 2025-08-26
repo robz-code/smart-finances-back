@@ -4,14 +4,14 @@ import sys
 import uuid
 from typing import Dict
 
+import jwt
 import pytest
+from fastapi.testclient import TestClient
 
 # Ensure project root is importable
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-import jwt
-from fastapi.testclient import TestClient
 
 # Note: DB path is created per session (and per worker) inside the fixture below
 

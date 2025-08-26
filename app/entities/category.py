@@ -17,7 +17,9 @@ class Category(Base):
     color = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
     )
     user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
 

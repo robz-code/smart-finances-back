@@ -8,10 +8,10 @@ from app.repository.base_repository import BaseRepository
 
 
 class DebtRepository(BaseRepository[UserDebt]):
-    def __init__(self, db: Session):
+    def __init__(self, db: Session) -> None:
         super().__init__(db, UserDebt)
 
-    def get_user_debts(self, user_id: UUID, contact_id: UUID) -> List:
+    def get_user_debts(self, user_id: UUID, contact_id: UUID) -> List[UserDebt]:
         """Get all debts between two users"""
         debts = (
             self.db.query(UserDebt)

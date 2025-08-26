@@ -42,7 +42,9 @@ app.include_router(
     user_route.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"]
 )
 app.include_router(
-    account_route.router, prefix=f"{settings.API_V1_STR}/accounts", tags=["Accounts"]
+    account_route.router,
+    prefix=f"{settings.API_V1_STR}/accounts",
+    tags=["Accounts"],
 )
 app.include_router(
     category_route.router,
@@ -55,16 +57,20 @@ app.include_router(
     tags=["Transactions"],
 )
 app.include_router(
-    tag_route.router, prefix=f"{settings.API_V1_STR}/tags", tags=["Transaction Tags"]
+    tag_route.router,
+    prefix=f"{settings.API_V1_STR}/tags",
+    tags=["Transaction Tags"],
 )
 app.include_router(
-    contact_route.router, prefix=f"{settings.API_V1_STR}/contacts", tags=["Contacts"]
+    contact_route.router,
+    prefix=f"{settings.API_V1_STR}/contacts",
+    tags=["Contacts"],
 )
 
 
 # Root endpoint
 @app.get("/")
-def read_root():
+def read_root() -> dict[str, str]:
     """Root endpoint."""
     return {
         "message": "Welcome to Smart Finances API",

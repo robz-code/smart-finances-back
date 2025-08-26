@@ -1,11 +1,9 @@
 import logging
-from typing import Any, Generic, List, Optional, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Session
-
-from app.schemas.base_schemas import SearchResponse
 
 T = TypeVar("T", bound=DeclarativeBase)
 
@@ -19,11 +17,19 @@ class BaseRepository(Generic[T]):
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""
-        return self.db.query(self.model).filter(self.model.id == id).first()
+        return (
+            self.db.query(self.model)
+            .filter(self.model.id == id)
+            .first()  # type: ignore
+        )
 
     def get_by_user_id(self, user_id: UUID) -> List[T]:
         """Get entities by user ID"""
-        return self.db.query(self.model).filter(self.model.user_id == user_id).all()
+        return (
+            self.db.query(self.model)
+            .filter(self.model.user_id == user_id)
+            .all()  # type: ignore
+        )
 
     def delete(self, id: UUID) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
@@ -48,7 +54,8 @@ class BaseRepository(Generic[T]):
             self.db.commit()
             self.db.refresh(obj_in)
             logger.info(
-                f"Successfully created {self.model.__name__} with ID: {obj_in.id}"
+                f"Successfully created {self.model.__name__} "
+                f"with ID: {obj_in.id}"  # type: ignore
             )
             return obj_in
         except SQLAlchemyError as e:
@@ -61,7 +68,8 @@ class BaseRepository(Generic[T]):
         obj = self.get(id)
         if obj:
             try:
-                # Extract attributes from the model object, excluding private attributes and id
+                # Extract attributes from the model object,
+                # excluding private attributes and id
                 update_data = {
                     k: v
                     for k, v in obj_in.__dict__.items()
@@ -80,9 +88,9 @@ class BaseRepository(Generic[T]):
 
                 # Set updated_at manually to ensure it's updated
                 if hasattr(obj, "updated_at"):
-                    from datetime import UTC, datetime
+                    from datetime import datetime, timezone
 
-                    obj.updated_at = datetime.now(UTC)
+                    obj.updated_at = datetime.now(timezone.utc)
 
                 self.db.commit()
                 self.db.refresh(obj)

@@ -1,8 +1,7 @@
-from typing import List
+from typing import List, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 
 from app.dependencies.contact_dependencies import get_contact_service
 from app.dependencies.user_dependencies import get_current_user
@@ -22,21 +21,26 @@ router = APIRouter()
     "",
     response_model=ContactDetail,
     summary="Create a new contact",
-    description="Create a new contact for the current user. If the contact email is already registered, creates a relationship. If not, creates a new inactive user.",
+    description=(
+        "Create a new contact for the current user. "
+        "If the contact email is already registered, creates a relationship. "
+        "If not, creates a new inactive user."
+    ),
 )
 async def create_contact(
     contact_data: ContactCreate,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> ContactDetail:
     """
     Create a new contact for the current user.
 
     - If the contact email is already registered, creates a relationship between users
-    - If the contact email is not registered, creates a new inactive user and relationship
+    - If the contact email is not registered, creates a new inactive user and "
+        "relationship
     - Requires authentication via JWT token
     """
-    return contact_service.create_contact(current_user.id, contact_data)
+    return contact_service.create_contact(cast(UUID, current_user.id), contact_data)
 
 
 @router.get(
@@ -48,31 +52,35 @@ async def create_contact(
 async def get_contacts(
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> List[ContactList]:
     """
     Get all contacts for the current user.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return contact_service.get_user_contacts(current_user.id)
+    return contact_service.get_user_contacts(cast(UUID, current_user.id))
 
 
 @router.get(
     "/{relationship_id}",
     response_model=ContactWithDebts,
     summary="Get contact details",
-    description="Retrieve detailed information about a specific contact including debt information between users.",
+    description=(
+        "Retrieve detailed information about a specific contact "
+        "including debt information between users."
+    ),
 )
 async def get_contact_detail(
     relationship_id: UUID,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> ContactWithDebts:
     """
     Get detailed information about a specific contact.
 
-    Returns contact information along with debt details between the current user and the contact.
+    Returns contact information along with debt details between the current user "
+        "and the contact.
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
@@ -84,11 +92,12 @@ def delete_contact(
     relationship_id: UUID,
     current_user: User = Depends(get_current_user),
     contact_service: ContactService = Depends(get_contact_service),
-):
+) -> None:
     """
     Delete a specific contact.
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return contact_service.delete(relationship_id, user_id=current_user.id)
+    contact_service.delete_contact(relationship_id, user_id=cast(UUID, current_user.id))
+    return None

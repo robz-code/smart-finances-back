@@ -1,5 +1,4 @@
 import uuid as _uuid
-from datetime import datetime
 from uuid import uuid4
 
 
@@ -32,7 +31,7 @@ def test_create_contact_when_user_exists(client, auth_headers):
         headers=headers2,
     )
     assert r.status_code == 200
-    existing_user = r.json()
+    _ = r.json()  # existing_user not used
 
     # Now, with the primary user's token, add Alice as contact
     # Note: ContactCreate only expects email, not name
@@ -75,7 +74,7 @@ def test_get_contacts_and_detail(client, auth_headers):
         headers=headers_contact,
     )
     assert r.status_code == 200
-    contact_user = r.json()
+    _ = r.json()  # contact_user not used
 
     # Link as contact using primary token
     r = client.post(

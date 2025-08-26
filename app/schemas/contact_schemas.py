@@ -1,12 +1,9 @@
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, field_validator
-
-from app.entities.user_contact import UserContact
-from app.entities.user_debt import UserDebt
 
 
 class ContactBase(BaseModel):
@@ -15,7 +12,7 @@ class ContactBase(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v):
+    def validate_name(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Name cannot be empty")
         if len(v.strip()) < 2:
@@ -31,7 +28,7 @@ class ContactBase(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v):
+    def validate_email(cls, v: str) -> str:
         if not v:
             raise ValueError("Email cannot be empty")
         # Additional email validation beyond Pydantic's EmailStr
@@ -48,7 +45,7 @@ class ContactCreate(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, v):
+    def validate_email(cls, v: str) -> str:
         if not v:
             raise ValueError("Email cannot be empty")
         return v.lower().strip()

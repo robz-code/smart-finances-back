@@ -17,12 +17,14 @@ class Tag(Base):
     color = Column(Text)  # Optional color for UI display
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
     )
 
     # Relationships
     user = relationship("User", back_populates="tags")
     transaction_tags = relationship("TransactionTag", back_populates="tag")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"

@@ -1,11 +1,8 @@
-from typing import List
+from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from httpx import delete
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, status
 
-from app.config.database import get_db
 from app.dependencies.tag_dependencies import get_tag_service
 from app.dependencies.user_dependencies import get_current_user
 from app.entities.user import User
@@ -20,15 +17,19 @@ router = APIRouter()
 def get_user_tags(
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> SearchResponse[TagResponse]:
     """Get all tags for the current user"""
-    return tag_service.get_by_user_id(current_user.id)
+    return tag_service.get_by_user_id(cast(UUID, current_user.id))
 
 
 @router.get(
-    "/{tag_id}", response_model=TagResponse, dependencies=[Depends(get_current_user)]
+    "/{tag_id}",
+    response_model=TagResponse,
+    dependencies=[Depends(get_current_user)],
 )
-def get_tag(tag_id: UUID, tag_service: TagService = Depends(get_tag_service)):
+def get_tag(
+    tag_id: UUID, tag_service: TagService = Depends(get_tag_service)
+) -> TagResponse:
     """Get a tag by ID"""
     return tag_service.get(tag_id)
 
@@ -38,9 +39,9 @@ def create_tag(
     tag_data: TagCreate,
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> TagResponse:
     """Create a new tag for the current user"""
-    return tag_service.add(tag_data.to_model(current_user.id))
+    return tag_service.add(tag_data.to_model(cast(UUID, current_user.id)))
 
 
 @router.put("/{tag_id}", response_model=TagResponse, status_code=status.HTTP_200_OK)
@@ -49,9 +50,9 @@ def update_tag(
     tag_data: TagUpdate,
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> TagResponse:
     """Update a tag if it belongs to the current user"""
-    return tag_service.update(tag_id, tag_data, user_id=current_user.id)
+    return tag_service.update(tag_id, tag_data, user_id=cast(UUID, current_user.id))
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -59,6 +60,7 @@ def delete_tag(
     tag_id: UUID,
     current_user: User = Depends(get_current_user),
     tag_service: TagService = Depends(get_tag_service),
-):
+) -> None:
     """Delete a tag if it belongs to the current user"""
-    return tag_service.delete(tag_id, user_id=current_user.id)
+    tag_service.delete(tag_id, user_id=cast(UUID, current_user.id))
+    return None

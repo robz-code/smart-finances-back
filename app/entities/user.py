@@ -21,7 +21,9 @@ class User(Base):
     profile_image = Column(Text)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
-        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+        DateTime,
+        default=datetime.datetime.utcnow,
+        onupdate=datetime.datetime.utcnow,
     )
 
     # Relationships
@@ -30,10 +32,14 @@ class User(Base):
     transactions = relationship("Transaction", back_populates="user")
     categories = relationship("Category", back_populates="user")
     user_debts_from = relationship(
-        "UserDebt", foreign_keys="[UserDebt.from_user_id]", back_populates="from_user"
+        "UserDebt",
+        foreign_keys="[UserDebt.from_user_id]",
+        back_populates="from_user",
     )
     user_debts_to = relationship(
-        "UserDebt", foreign_keys="[UserDebt.to_user_id]", back_populates="to_user"
+        "UserDebt",
+        foreign_keys="[UserDebt.to_user_id]",
+        back_populates="to_user",
     )
     recurring_debts_from = relationship(
         "RecurringDebt",
@@ -46,10 +52,14 @@ class User(Base):
         back_populates="to_user",
     )
     contacts = relationship(
-        "UserContact", foreign_keys="[UserContact.user_id]", back_populates="user"
+        "UserContact",
+        foreign_keys="[UserContact.user_id]",
+        back_populates="user",
     )
     contacts_of = relationship(
-        "UserContact", foreign_keys="[UserContact.contact_id]", back_populates="contact"
+        "UserContact",
+        foreign_keys="[UserContact.contact_id]",
+        back_populates="contact",
     )
     group_memberships = relationship("GroupMember", back_populates="user")
     budgets = relationship("Budget", back_populates="user")

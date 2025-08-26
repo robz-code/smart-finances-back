@@ -1,6 +1,3 @@
-import uuid
-
-
 def test_create_user_and_get_me_flow(client, auth_headers):
     # Create
     import uuid as _uuid
