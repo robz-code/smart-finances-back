@@ -1,9 +1,7 @@
-from datetime import date
-from decimal import Decimal
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 
 from app.dependencies.transaction_dependencies import get_transaction_service
 from app.dependencies.user_dependencies import get_current_user
@@ -22,17 +20,7 @@ router = APIRouter()
 
 @router.get("", response_model=SearchResponse[TransactionResponse])
 def search_transactions(
-    account_id: UUID = Query(None, description="Filter by account ID"),
-    category_id: UUID = Query(None, description="Filter by category ID"),
-    group_id: UUID = Query(None, description="Filter by group ID"),
-    type: str = Query(None, description="Filter by transaction type"),
-    currency: str = Query(None, description="Filter by currency"),
-    date_from: date = Query(None, description="Filter by start date (YYYY-MM-DD)"),
-    date_to: date = Query(None, description="Filter by end date (YYYY-MM-DD)"),
-    amount_min: Decimal = Query(None, description="Filter by minimum amount"),
-    amount_max: Decimal = Query(None, description="Filter by maximum amount"),
-    source: str = Query(None, description="Filter by source"),
-    has_installments: bool = Query(None, description="Filter by installments flag"),
+    search: TransactionSearch = Depends(),
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> SearchResponse[TransactionResponse]:
@@ -41,21 +29,21 @@ def search_transactions(
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
+    
+    Query parameters:
+    - account_id: Filter by account ID
+    - category_id: Filter by category ID
+    - group_id: Filter by group ID
+    - type: Filter by transaction type
+    - currency: Filter by currency
+    - date_from: Filter by start date (YYYY-MM-DD)
+    - date_to: Filter by end date (YYYY-MM-DD)
+    - amount_min: Filter by minimum amount
+    - amount_max: Filter by maximum amount
+    - source: Filter by source
+    - has_installments: Filter by installments flag
     """
-    search_params = TransactionSearch(
-        account_id=account_id,
-        category_id=category_id,
-        group_id=group_id,
-        type=type,
-        currency=currency,
-        date_from=date_from,
-        date_to=date_to,
-        amount_min=amount_min,
-        amount_max=amount_max,
-        source=source,
-        has_installments=has_installments,
-    )
-    return service.search(cast(UUID, current_user.id), search_params)
+    return service.search(cast(UUID, current_user.id), search)
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

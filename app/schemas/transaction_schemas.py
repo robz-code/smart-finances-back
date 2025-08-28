@@ -21,8 +21,7 @@ class TransactionBase(BaseModel):
     source: str = "manual"
     has_installments: bool = False
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(
@@ -98,8 +97,7 @@ class TransactionUpdate(BaseModel):
     source: Optional[str] = None
     has_installments: Optional[bool] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class TransactionSearch(BaseModel):
@@ -114,3 +112,21 @@ class TransactionSearch(BaseModel):
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
     has_installments: Optional[bool] = None
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "account_id": "123e4567-e89b-12d3-a456-426614174000",
+                "category_id": "123e4567-e89b-12d3-a456-426614174001",
+                "type": "expense",
+                "currency": "USD",
+                "date_from": "2024-01-01",
+                "date_to": "2024-12-31",
+                "amount_min": "10.00",
+                "amount_max": "1000.00",
+                "source": "manual",
+                "has_installments": False
+            }
+        }
+    }
