@@ -1,6 +1,6 @@
 import uuid
-from decimal import Decimal
 from datetime import date, datetime, timezone
+from decimal import Decimal
 
 import pytest
 from pydantic import ValidationError
@@ -10,8 +10,8 @@ from app.schemas.transaction_schemas import (
     TransactionBase,
     TransactionCreate,
     TransactionResponse,
-    TransactionUpdate,
     TransactionSearch,
+    TransactionUpdate,
 )
 
 
@@ -31,10 +31,10 @@ class TestTransactionBase:
             "source": "manual",
             "has_installments": False,
         }
-        
+
         # Act
         transaction = TransactionBase(**data)
-        
+
         # Assert
         assert str(transaction.account_id) == data["account_id"]
         assert str(transaction.category_id) == data["category_id"]
@@ -54,10 +54,10 @@ class TestTransactionBase:
             "amount": "200.00",
             "date": "2024-01-20",
         }
-        
+
         # Act
         transaction = TransactionBase(**data)
-        
+
         # Assert
         assert str(transaction.account_id) == data["account_id"]
         assert transaction.type == "income"
@@ -77,7 +77,7 @@ class TestTransactionBase:
             "amount": "100.00",
             "date": "2024-01-15",
         }
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
@@ -91,7 +91,7 @@ class TestTransactionBase:
             "amount": "invalid-amount",
             "date": "2024-01-15",
         }
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
@@ -105,7 +105,7 @@ class TestTransactionBase:
             "amount": "100.00",
             "date": "invalid-date",
         }
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
@@ -121,10 +121,10 @@ class TestTransactionBase:
             "date": "2024-01-15",
         }
         transaction_base = TransactionBase(**data)
-        
+
         # Act
         model = transaction_base.to_model(user_id)
-        
+
         # Assert
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
@@ -146,10 +146,10 @@ class TestTransactionBase:
             "date": "2024-01-15",
         }
         transaction_base = TransactionBase(**data)
-        
+
         # Act
         result_dict = transaction_base.to_dict()
-        
+
         # Assert
         assert result_dict["account_id"] == data["account_id"]
         assert result_dict["type"] == "expense"
@@ -178,10 +178,10 @@ class TestTransactionCreate:
             "date": "2024-01-25",
         }
         transaction_create = TransactionCreate(**data)
-        
+
         # Act
         model = transaction_create.to_model(user_id)
-        
+
         # Assert
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
@@ -199,10 +199,10 @@ class TestTransactionUpdate:
         """Test TransactionUpdate with all fields optional"""
         # Arrange
         data = {}
-        
+
         # Act
         transaction_update = TransactionUpdate(**data)
-        
+
         # Assert
         assert transaction_update.account_id is None
         assert transaction_update.category_id is None
@@ -220,10 +220,10 @@ class TestTransactionUpdate:
             "amount": "150.00",
             "type": "expense",
         }
-        
+
         # Act
         transaction_update = TransactionUpdate(**data)
-        
+
         # Assert
         assert transaction_update.amount == Decimal("150.00")
         assert transaction_update.type == "expense"
@@ -239,10 +239,10 @@ class TestTransactionUpdate:
             "account_id": account_id,
             "category_id": category_id,
         }
-        
+
         # Act
         transaction_update = TransactionUpdate(**data)
-        
+
         # Assert
         assert str(transaction_update.account_id) == account_id
         assert str(transaction_update.category_id) == category_id
@@ -270,10 +270,10 @@ class TestTransactionResponse:
             "created_at": "2024-01-15T10:00:00Z",
             "updated_at": "2024-01-15T11:00:00Z",
         }
-        
+
         # Act
         transaction_response = TransactionResponse(**data)
-        
+
         # Assert
         assert str(transaction_response.id) == transaction_id
         assert str(transaction_response.user_id) == user_id
@@ -289,7 +289,7 @@ class TestTransactionSearch:
         """Test TransactionSearch with no filters"""
         # Act
         search = TransactionSearch()
-        
+
         # Assert
         assert search.account_id is None
         assert search.category_id is None
@@ -309,7 +309,7 @@ class TestTransactionSearch:
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
         group_id = str(uuid.uuid4())
-        
+
         # Act
         search = TransactionSearch(
             account_id=account_id,
@@ -324,7 +324,7 @@ class TestTransactionSearch:
             source="manual",
             has_installments=True,
         )
-        
+
         # Assert
         assert str(search.account_id) == account_id
         assert str(search.category_id) == category_id
@@ -343,13 +343,13 @@ class TestTransactionSearch:
         # Arrange
         amount_min = Decimal("50.00")
         amount_max = Decimal("200.00")
-        
+
         # Act
         search = TransactionSearch(
             amount_min=amount_min,
             amount_max=amount_max,
         )
-        
+
         # Assert
         assert search.amount_min == amount_min
         assert search.amount_max == amount_max
@@ -359,13 +359,13 @@ class TestTransactionSearch:
         # Arrange
         date_from = date(2024, 1, 1)
         date_to = date(2024, 1, 31)
-        
+
         # Act
         search = TransactionSearch(
             date_from=date_from,
             date_to=date_to,
         )
-        
+
         # Assert
         assert search.date_from == date_from
         assert search.date_to == date_to
@@ -374,9 +374,9 @@ class TestTransactionSearch:
         """Test TransactionSearch model configuration"""
         # Act
         search = TransactionSearch()
-        
+
         # Assert
-        assert hasattr(search, 'model_config')
+        assert hasattr(search, "model_config")
         assert search.model_config.get("from_attributes") is True
         assert "json_schema_extra" in search.model_config
         assert "example" in search.model_config["json_schema_extra"]
@@ -394,7 +394,7 @@ class TestSchemaValidation:
                 amount="100.00",
                 date="2024-01-15",
             )
-        
+
         # Missing type
         with pytest.raises(ValidationError):
             TransactionBase(
@@ -402,7 +402,7 @@ class TestSchemaValidation:
                 amount="100.00",
                 date="2024-01-15",
             )
-        
+
         # Missing amount
         with pytest.raises(ValidationError):
             TransactionBase(
@@ -410,7 +410,7 @@ class TestSchemaValidation:
                 type="expense",
                 date="2024-01-15",
             )
-        
+
         # Missing date
         with pytest.raises(ValidationError):
             TransactionBase(
@@ -429,7 +429,7 @@ class TestSchemaValidation:
                 amount="not-a-number",
                 date="2024-01-15",
             )
-        
+
         # Invalid date (string instead of date)
         with pytest.raises(ValidationError):
             TransactionBase(
@@ -444,11 +444,11 @@ class TestSchemaValidation:
         # Invalid UUID
         with pytest.raises(ValidationError):
             TransactionSearch(account_id="invalid-uuid")
-        
+
         # Invalid amount
         with pytest.raises(ValidationError):
             TransactionSearch(amount_min="not-a-number")
-        
+
         # Invalid date
         with pytest.raises(ValidationError):
             TransactionSearch(date_from="not-a-date")

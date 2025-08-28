@@ -112,9 +112,9 @@ class TransactionService(BaseService[Transaction]):
         existing_transaction = self.repository.get(id)
         if not existing_transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
-        
+
         # Validate that the user owns the transaction
-        user_id = kwargs.get('user_id')
+        user_id = kwargs.get("user_id")
         if user_id and existing_transaction.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
@@ -152,9 +152,9 @@ class TransactionService(BaseService[Transaction]):
         existing_transaction = self.repository.get(id)
         if not existing_transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
-        
+
         # Validate that the user owns the transaction
-        user_id = kwargs.get('user_id')
+        user_id = kwargs.get("user_id")
         if user_id and existing_transaction.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
@@ -166,6 +166,7 @@ class TransactionService(BaseService[Transaction]):
         """Validate that the user owns the account"""
         try:
             from app.repository.account_repository import AccountRepository
+
             account_repo = AccountRepository(self.db)
             account = account_repo.get(account_id)
             return account and account.user_id == user_id
@@ -176,6 +177,7 @@ class TransactionService(BaseService[Transaction]):
         """Validate that the user owns the category"""
         try:
             from app.repository.category_repository import CategoryRepository
+
             category_repo = CategoryRepository(self.db)
             category = category_repo.get(category_id)
             return category and category.user_id == user_id

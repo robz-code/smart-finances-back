@@ -84,9 +84,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Get transactions by group ID for a specific user"""
         return (
             self.db.query(Transaction)
-            .filter(
-                Transaction.user_id == user_id, Transaction.group_id == group_id
-            )
+            .filter(Transaction.user_id == user_id, Transaction.group_id == group_id)
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()
         )
@@ -100,7 +98,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             .filter(
                 Transaction.user_id == user_id,
                 Transaction.date >= date_from,
-                Transaction.date <= date_to
+                Transaction.date <= date_to,
             )
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()

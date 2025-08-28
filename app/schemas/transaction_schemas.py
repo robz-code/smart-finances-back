@@ -1,5 +1,5 @@
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from datetime import date
 from typing import Any, Optional
 from uuid import UUID
 
@@ -126,7 +126,7 @@ class TransactionSearch(BaseModel):
                 "amount_min": "10.00",
                 "amount_max": "1000.00",
                 "source": "manual",
-                "has_installments": False
+                "has_installments": False,
             }
-        }
+        },
     }

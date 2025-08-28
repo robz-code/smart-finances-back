@@ -1,6 +1,6 @@
 import uuid
-from decimal import Decimal
 from datetime import date
+from decimal import Decimal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -53,10 +53,10 @@ class TestTransactionService:
         search_params = TransactionSearch(type="expense")
         mock_transactions = [Mock(), Mock()]
         mock_repository.search.return_value = mock_transactions
-        
+
         # Act
         result = service.search(user_id, search_params)
-        
+
         # Assert
         assert result.total == 2
         assert result.results == mock_transactions
@@ -68,11 +68,11 @@ class TestTransactionService:
         user_id = uuid.uuid4()
         search_params = TransactionSearch(type="expense")
         mock_repository.search.side_effect = Exception("Database error")
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.search(user_id, search_params)
-        
+
         assert exc_info.value.status_code == 500
         assert "Error searching transactions" in str(exc_info.value.detail)
 
@@ -83,10 +83,10 @@ class TestTransactionService:
         account_id = uuid.uuid4()
         mock_transactions = [Mock(), Mock()]
         mock_repository.get_by_account_id.return_value = mock_transactions
-        
+
         # Act
         result = service.get_by_account_id(user_id, account_id)
-        
+
         # Assert
         assert result.total == 2
         assert result.results == mock_transactions
@@ -99,10 +99,10 @@ class TestTransactionService:
         category_id = uuid.uuid4()
         mock_transactions = [Mock(), Mock()]
         mock_repository.get_by_category_id.return_value = mock_transactions
-        
+
         # Act
         result = service.get_by_category_id(user_id, category_id)
-        
+
         # Assert
         assert result.total == 2
         assert result.results == mock_transactions
@@ -115,10 +115,10 @@ class TestTransactionService:
         group_id = uuid.uuid4()
         mock_transactions = [Mock(), Mock()]
         mock_repository.get_by_group_id.return_value = mock_transactions
-        
+
         # Act
         result = service.get_by_group_id(user_id, group_id)
-        
+
         # Assert
         assert result.total == 2
         assert result.results == mock_transactions
@@ -132,83 +132,120 @@ class TestTransactionService:
         date_to = "2024-01-31"
         mock_transactions = [Mock(), Mock()]
         mock_repository.get_by_date_range.return_value = mock_transactions
-        
+
         # Act
         result = service.get_by_date_range(user_id, date_from, date_to)
-        
+
         # Assert
         assert result.total == 2
         assert result.results == mock_transactions
-        mock_repository.get_by_date_range.assert_called_once_with(user_id, date_from, date_to)
+        mock_repository.get_by_date_range.assert_called_once_with(
+            user_id, date_from, date_to
+        )
 
-    @patch('app.services.transaction_service.TransactionService._validate_account_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_category_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_group_ownership')
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_account_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_category_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_group_ownership"
+    )
     def test_before_create_success(
-        self, 
-        mock_validate_group, 
-        mock_validate_category, 
-        mock_validate_account, 
-        service, 
-        sample_transaction
+        self,
+        mock_validate_group,
+        mock_validate_category,
+        mock_validate_account,
+        service,
+        sample_transaction,
     ):
         """Test successful before_create validation"""
         # Arrange
         mock_validate_account.return_value = True
         mock_validate_category.return_value = True
         mock_validate_group.return_value = True
-        
+
         # Act
         result = service.before_create(sample_transaction)
-        
+
         # Assert
         assert result is True
-        mock_validate_account.assert_called_once_with(sample_transaction.user_id, sample_transaction.account_id)
-        mock_validate_category.assert_called_once_with(sample_transaction.user_id, sample_transaction.category_id)
-        mock_validate_group.assert_called_once_with(sample_transaction.user_id, sample_transaction.group_id)
+        mock_validate_account.assert_called_once_with(
+            sample_transaction.user_id, sample_transaction.account_id
+        )
+        mock_validate_category.assert_called_once_with(
+            sample_transaction.user_id, sample_transaction.category_id
+        )
+        mock_validate_group.assert_called_once_with(
+            sample_transaction.user_id, sample_transaction.group_id
+        )
 
-    @patch('app.services.transaction_service.TransactionService._validate_account_ownership')
-    def test_before_create_invalid_account(self, mock_validate_account, service, sample_transaction):
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_account_ownership"
+    )
+    def test_before_create_invalid_account(
+        self, mock_validate_account, service, sample_transaction
+    ):
         """Test before_create with invalid account"""
         # Arrange
         mock_validate_account.return_value = False
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_create(sample_transaction)
-        
+
         assert exc_info.value.status_code == 403
         assert "Account not found or access denied" in str(exc_info.value.detail)
 
-    @patch('app.services.transaction_service.TransactionService._validate_account_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_category_ownership')
-    def test_before_create_invalid_category(self, mock_validate_category, mock_validate_account, service, sample_transaction):
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_account_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_category_ownership"
+    )
+    def test_before_create_invalid_category(
+        self, mock_validate_category, mock_validate_account, service, sample_transaction
+    ):
         """Test before_create with invalid category"""
         # Arrange
         mock_validate_account.return_value = True
         mock_validate_category.return_value = False
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_create(sample_transaction)
-        
+
         assert exc_info.value.status_code == 403
         assert "Category not found or access denied" in str(exc_info.value.detail)
 
-    @patch('app.services.transaction_service.TransactionService._validate_account_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_category_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_group_ownership')
-    def test_before_create_invalid_group(self, mock_validate_group, mock_validate_category, mock_validate_account, service, sample_transaction):
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_account_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_category_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_group_ownership"
+    )
+    def test_before_create_invalid_group(
+        self,
+        mock_validate_group,
+        mock_validate_category,
+        mock_validate_account,
+        service,
+        sample_transaction,
+    ):
         """Test before_create with invalid group"""
         # Arrange
         mock_validate_account.return_value = True
         mock_validate_category.return_value = True
         mock_validate_group.return_value = False
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_create(sample_transaction)
-        
+
         assert exc_info.value.status_code == 403
         assert "Group not found or access denied" in str(exc_info.value.detail)
 
@@ -216,11 +253,11 @@ class TestTransactionService:
         """Test before_create with zero amount"""
         # Arrange
         sample_transaction.amount = Decimal("0.00")
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_create(sample_transaction)
-        
+
         assert exc_info.value.status_code == 400
         assert "Transaction amount cannot be zero" in str(exc_info.value.detail)
 
@@ -229,24 +266,30 @@ class TestTransactionService:
         # Arrange
         sample_transaction.category_id = None
         sample_transaction.group_id = None
-        
-        with patch.object(service, '_validate_account_ownership', return_value=True):
+
+        with patch.object(service, "_validate_account_ownership", return_value=True):
             # Act
             result = service.before_create(sample_transaction)
-            
+
             # Assert
             assert result is True
 
-    @patch('app.services.transaction_service.TransactionService._validate_account_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_category_ownership')
-    @patch('app.services.transaction_service.TransactionService._validate_group_ownership')
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_account_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_category_ownership"
+    )
+    @patch(
+        "app.services.transaction_service.TransactionService._validate_group_ownership"
+    )
     def test_before_update_success(
-        self, 
-        mock_validate_group, 
-        mock_validate_category, 
-        mock_validate_account, 
-        service, 
-        sample_transaction
+        self,
+        mock_validate_group,
+        mock_validate_category,
+        mock_validate_account,
+        service,
+        sample_transaction,
     ):
         """Test successful before_update validation"""
         # Arrange
@@ -255,20 +298,28 @@ class TestTransactionService:
         update_data.account_id = uuid.uuid4()
         update_data.category_id = uuid.uuid4()
         update_data.group_id = uuid.uuid4()
-        
+
         service.repository.get.return_value = sample_transaction
         mock_validate_account.return_value = True
         mock_validate_category.return_value = True
         mock_validate_group.return_value = True
-        
+
         # Act
-        result = service.before_update(transaction_id, update_data, user_id=sample_transaction.user_id)
-        
+        result = service.before_update(
+            transaction_id, update_data, user_id=sample_transaction.user_id
+        )
+
         # Assert
         assert result is True
-        mock_validate_account.assert_called_once_with(sample_transaction.user_id, update_data.account_id)
-        mock_validate_category.assert_called_once_with(sample_transaction.user_id, update_data.category_id)
-        mock_validate_group.assert_called_once_with(sample_transaction.user_id, update_data.group_id)
+        mock_validate_account.assert_called_once_with(
+            sample_transaction.user_id, update_data.account_id
+        )
+        mock_validate_category.assert_called_once_with(
+            sample_transaction.user_id, update_data.category_id
+        )
+        mock_validate_group.assert_called_once_with(
+            sample_transaction.user_id, update_data.group_id
+        )
 
     def test_before_update_transaction_not_found(self, service):
         """Test before_update with non-existent transaction"""
@@ -276,11 +327,11 @@ class TestTransactionService:
         transaction_id = uuid.uuid4()
         update_data = Mock()
         service.repository.get.return_value = None
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_update(transaction_id, update_data)
-        
+
         assert exc_info.value.status_code == 404
         assert "Transaction not found" in str(exc_info.value.detail)
 
@@ -290,11 +341,11 @@ class TestTransactionService:
         transaction_id = uuid.uuid4()
         update_data = Mock()
         service.repository.get.return_value = sample_transaction
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_update(transaction_id, update_data, user_id=uuid.uuid4())
-        
+
         assert exc_info.value.status_code == 403
         assert "Access denied to this transaction" in str(exc_info.value.detail)
 
@@ -303,10 +354,12 @@ class TestTransactionService:
         # Arrange
         transaction_id = uuid.uuid4()
         service.repository.get.return_value = sample_transaction
-        
+
         # Act
-        result = service.before_delete(transaction_id, user_id=sample_transaction.user_id)
-        
+        result = service.before_delete(
+            transaction_id, user_id=sample_transaction.user_id
+        )
+
         # Assert
         assert result == sample_transaction
 
@@ -315,11 +368,11 @@ class TestTransactionService:
         # Arrange
         transaction_id = uuid.uuid4()
         service.repository.get.return_value = None
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_delete(transaction_id)
-        
+
         assert exc_info.value.status_code == 404
         assert "Transaction not found" in str(exc_info.value.detail)
 
@@ -328,15 +381,15 @@ class TestTransactionService:
         # Arrange
         transaction_id = uuid.uuid4()
         service.repository.get.return_value = sample_transaction
-        
+
         # Act & Assert
         with pytest.raises(HTTPException) as exc_info:
             service.before_delete(transaction_id, user_id=uuid.uuid4())
-        
+
         assert exc_info.value.status_code == 403
         assert "Access denied to this transaction" in str(exc_info.value.detail)
 
-    @patch('app.services.transaction_service.AccountRepository')
+    @patch("app.services.transaction_service.AccountRepository")
     def test_validate_account_ownership_success(self, mock_account_repo_class, service):
         """Test successful account ownership validation"""
         # Arrange
@@ -344,20 +397,22 @@ class TestTransactionService:
         account_id = uuid.uuid4()
         mock_account_repo = Mock()
         mock_account_repo_class.return_value = mock_account_repo
-        
+
         mock_account = Mock()
         mock_account.user_id = user_id
         mock_account_repo.get.return_value = mock_account
-        
+
         # Act
         result = service._validate_account_ownership(user_id, account_id)
-        
+
         # Assert
         assert result is True
         mock_account_repo.get.assert_called_once_with(account_id)
 
-    @patch('app.services.transaction_service.AccountRepository')
-    def test_validate_account_ownership_account_not_found(self, mock_account_repo_class, service):
+    @patch("app.services.transaction_service.AccountRepository")
+    def test_validate_account_ownership_account_not_found(
+        self, mock_account_repo_class, service
+    ):
         """Test account ownership validation with non-existent account"""
         # Arrange
         user_id = uuid.uuid4()
@@ -365,48 +420,52 @@ class TestTransactionService:
         mock_account_repo = Mock()
         mock_account_repo_class.return_value = mock_account_repo
         mock_account_repo.get.return_value = None
-        
+
         # Act
         result = service._validate_account_ownership(user_id, account_id)
-        
+
         # Assert
         assert result is False
 
-    @patch('app.services.transaction_service.AccountRepository')
-    def test_validate_account_ownership_wrong_user(self, mock_account_repo_class, service):
+    @patch("app.services.transaction_service.AccountRepository")
+    def test_validate_account_ownership_wrong_user(
+        self, mock_account_repo_class, service
+    ):
         """Test account ownership validation with wrong user"""
         # Arrange
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
         mock_account_repo = Mock()
         mock_account_repo_class.return_value = mock_account_repo
-        
+
         mock_account = Mock()
         mock_account.user_id = uuid.uuid4()  # Different user
         mock_account_repo.get.return_value = mock_account
-        
+
         # Act
         result = service._validate_account_ownership(user_id, account_id)
-        
+
         # Assert
         assert result is False
 
-    @patch('app.services.transaction_service.CategoryRepository')
-    def test_validate_category_ownership_success(self, mock_category_repo_class, service):
+    @patch("app.services.transaction_service.CategoryRepository")
+    def test_validate_category_ownership_success(
+        self, mock_category_repo_class, service
+    ):
         """Test successful category ownership validation"""
         # Arrange
         user_id = uuid.uuid4()
         category_id = uuid.uuid4()
         mock_category_repo = Mock()
         mock_category_repo_class.return_value = mock_category_repo
-        
+
         mock_category = Mock()
         mock_category.user_id = user_id
         mock_category_repo.get.return_value = mock_category
-        
+
         # Act
         result = service._validate_category_ownership(user_id, category_id)
-        
+
         # Assert
         assert result is True
         mock_category_repo.get.assert_called_once_with(category_id)
@@ -416,9 +475,9 @@ class TestTransactionService:
         # Arrange
         user_id = uuid.uuid4()
         group_id = uuid.uuid4()
-        
+
         # Act
         result = service._validate_group_ownership(user_id, group_id)
-        
+
         # Assert
         assert result is True
