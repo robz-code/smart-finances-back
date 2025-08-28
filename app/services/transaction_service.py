@@ -1,11 +1,9 @@
 import logging
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
-logger = logging.getLogger(__name__)
 
 from app.entities.transaction import Transaction
 from app.repository.transaction_repository import TransactionRepository
@@ -13,13 +11,17 @@ from app.schemas.base_schemas import SearchResponse
 from app.schemas.transaction_schemas import TransactionSearch
 from app.services.base_service import BaseService
 
+logger = logging.getLogger(__name__)
+
 
 class TransactionService(BaseService[Transaction]):
     def __init__(self, db: Session):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
 
-    def search(self, user_id: UUID, search_params: TransactionSearch) -> SearchResponse[Transaction]:
+    def search(
+        self, user_id: UUID, search_params: TransactionSearch
+    ) -> SearchResponse[Transaction]:
         """Search transactions with validation and error handling"""
         try:
             result = self.repository.search(user_id, search_params)
@@ -28,7 +30,9 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error searching transactions: {str(e)}")
             raise HTTPException(status_code=500, detail="Error searching transactions")
 
-    def get_by_account_id(self, user_id: UUID, account_id: UUID) -> SearchResponse[Transaction]:
+    def get_by_account_id(
+        self, user_id: UUID, account_id: UUID
+    ) -> SearchResponse[Transaction]:
         """Get transactions by account ID with validation"""
         try:
             result = self.repository.get_by_account_id(user_id, account_id)
@@ -37,7 +41,9 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by account: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def get_by_category_id(self, user_id: UUID, category_id: UUID) -> SearchResponse[Transaction]:
+    def get_by_category_id(
+        self, user_id: UUID, category_id: UUID
+    ) -> SearchResponse[Transaction]:
         """Get transactions by category ID with validation"""
         try:
             result = self.repository.get_by_category_id(user_id, category_id)
@@ -46,7 +52,9 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by category: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def get_by_group_id(self, user_id: UUID, group_id: UUID) -> SearchResponse[Transaction]:
+    def get_by_group_id(
+        self, user_id: UUID, group_id: UUID
+    ) -> SearchResponse[Transaction]:
         """Get transactions by group ID with validation"""
         try:
             result = self.repository.get_by_group_id(user_id, group_id)
@@ -55,7 +63,9 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by group: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def get_by_date_range(self, user_id: UUID, date_from: str, date_to: str) -> SearchResponse[Transaction]:
+    def get_by_date_range(
+        self, user_id: UUID, date_from: str, date_to: str
+    ) -> SearchResponse[Transaction]:
         """Get transactions by date range with validation"""
         try:
             result = self.repository.get_by_date_range(user_id, date_from, date_to)
@@ -68,20 +78,32 @@ class TransactionService(BaseService[Transaction]):
         """Validate transaction before creation"""
         # Validate that the user owns the account
         if not self._validate_account_ownership(obj_in.user_id, obj_in.account_id):
-            raise HTTPException(status_code=403, detail="Account not found or access denied")
-        
+            raise HTTPException(
+                status_code=403, detail="Account not found or access denied"
+            )
+
         # Validate that the user owns the category if provided
-        if obj_in.category_id and not self._validate_category_ownership(obj_in.user_id, obj_in.category_id):
-            raise HTTPException(status_code=403, detail="Category not found or access denied")
-        
+        if obj_in.category_id and not self._validate_category_ownership(
+            obj_in.user_id, obj_in.category_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Category not found or access denied"
+            )
+
         # Validate that the user owns the group if provided
-        if obj_in.group_id and not self._validate_group_ownership(obj_in.user_id, obj_in.group_id):
-            raise HTTPException(status_code=403, detail="Group not found or access denied")
-        
+        if obj_in.group_id and not self._validate_group_ownership(
+            obj_in.user_id, obj_in.group_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Group not found or access denied"
+            )
+
         # Validate amount is not zero
         if obj_in.amount == 0:
-            raise HTTPException(status_code=400, detail="Transaction amount cannot be zero")
-        
+            raise HTTPException(
+                status_code=400, detail="Transaction amount cannot be zero"
+            )
+
         return True
 
     def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
@@ -94,20 +116,34 @@ class TransactionService(BaseService[Transaction]):
         # Validate that the user owns the transaction
         user_id = kwargs.get('user_id')
         if user_id and existing_transaction.user_id != user_id:
-            raise HTTPException(status_code=403, detail="Access denied to this transaction")
-        
+            raise HTTPException(
+                status_code=403, detail="Access denied to this transaction"
+            )
+
         # Validate account ownership if account_id is being updated
-        if obj_in.account_id and not self._validate_account_ownership(user_id, obj_in.account_id):
-            raise HTTPException(status_code=403, detail="Account not found or access denied")
-        
+        if obj_in.account_id and not self._validate_account_ownership(
+            user_id, obj_in.account_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Account not found or access denied"
+            )
+
         # Validate category ownership if category_id is being updated
-        if obj_in.category_id and not self._validate_category_ownership(user_id, obj_in.category_id):
-            raise HTTPException(status_code=403, detail="Category not found or access denied")
-        
+        if obj_in.category_id and not self._validate_category_ownership(
+            user_id, obj_in.category_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Category not found or access denied"
+            )
+
         # Validate group ownership if group_id is being updated
-        if obj_in.group_id and not self._validate_group_ownership(user_id, obj_in.group_id):
-            raise HTTPException(status_code=403, detail="Group not found or access denied")
-        
+        if obj_in.group_id and not self._validate_group_ownership(
+            user_id, obj_in.group_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Group not found or access denied"
+            )
+
         return True
 
     def before_delete(self, id: UUID, **kwargs: Any) -> Transaction:
@@ -120,8 +156,10 @@ class TransactionService(BaseService[Transaction]):
         # Validate that the user owns the transaction
         user_id = kwargs.get('user_id')
         if user_id and existing_transaction.user_id != user_id:
-            raise HTTPException(status_code=403, detail="Access denied to this transaction")
-        
+            raise HTTPException(
+                status_code=403, detail="Access denied to this transaction"
+            )
+
         return existing_transaction
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:

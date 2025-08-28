@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, status
 from app.dependencies.transaction_dependencies import get_transaction_service
 from app.dependencies.user_dependencies import get_current_user
 from app.entities.user import User
+from app.schemas.base_schemas import SearchResponse
 from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionResponse,
     TransactionSearch,
     TransactionUpdate,
 )
-from app.schemas.base_schemas import SearchResponse
 from app.services.transaction_service import TransactionService
 
 router = APIRouter()
@@ -144,7 +144,9 @@ def get_transactions_by_account(
     return service.get_by_account_id(cast(UUID, current_user.id), account_id)
 
 
-@router.get("/category/{category_id}", response_model=SearchResponse[TransactionResponse])
+@router.get(
+    "/category/{category_id}", response_model=SearchResponse[TransactionResponse]
+)
 def get_transactions_by_category(
     category_id: UUID,
     service: TransactionService = Depends(get_transaction_service),
