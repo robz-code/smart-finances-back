@@ -29,7 +29,7 @@ def search_transactions(
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
-    
+
     Query parameters:
     - account_id: Filter by account ID
     - category_id: Filter by category ID

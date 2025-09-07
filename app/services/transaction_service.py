@@ -82,6 +82,12 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Account not found or access denied"
             )
 
+        # Validate amount is not zero (check business rule before optional checks)
+        if obj_in.amount == 0:
+            raise HTTPException(
+                status_code=400, detail="Transaction amount cannot be zero"
+            )
+
         # Validate that the user owns the category if provided
         if obj_in.category_id and not self._validate_category_ownership(
             obj_in.user_id, obj_in.category_id
@@ -98,12 +104,6 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Group not found or access denied"
             )
 
-        # Validate amount is not zero
-        if obj_in.amount == 0:
-            raise HTTPException(
-                status_code=400, detail="Transaction amount cannot be zero"
-            )
-
         return True
 
     def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
@@ -112,9 +112,9 @@ class TransactionService(BaseService[Transaction]):
         existing_transaction = self.repository.get(id)
         if not existing_transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
-        
+
         # Validate that the user owns the transaction
-        user_id = kwargs.get('user_id')
+        user_id = kwargs.get("user_id")
         if user_id and existing_transaction.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
@@ -152,9 +152,9 @@ class TransactionService(BaseService[Transaction]):
         existing_transaction = self.repository.get(id)
         if not existing_transaction:
             raise HTTPException(status_code=404, detail="Transaction not found")
-        
+
         # Validate that the user owns the transaction
-        user_id = kwargs.get('user_id')
+        user_id = kwargs.get("user_id")
         if user_id and existing_transaction.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
@@ -165,8 +165,12 @@ class TransactionService(BaseService[Transaction]):
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
         try:
-            from app.repository.account_repository import AccountRepository
-            account_repo = AccountRepository(self.db)
+            # Import at top-level name for tests to patch
+            from app.repository.account_repository import (
+                AccountRepository,  # type: ignore
+            )
+
+            account_repo = AccountRepository(self.db)  # type: ignore
             account = account_repo.get(account_id)
             return account and account.user_id == user_id
         except Exception:
@@ -175,8 +179,12 @@ class TransactionService(BaseService[Transaction]):
     def _validate_category_ownership(self, user_id: UUID, category_id: UUID) -> bool:
         """Validate that the user owns the category"""
         try:
-            from app.repository.category_repository import CategoryRepository
-            category_repo = CategoryRepository(self.db)
+            # Import at top-level name for tests to patch
+            from app.repository.category_repository import (
+                CategoryRepository,  # type: ignore
+            )
+
+            category_repo = CategoryRepository(self.db)  # type: ignore
             category = category_repo.get(category_id)
             return category and category.user_id == user_id
         except Exception:
