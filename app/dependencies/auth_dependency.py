@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 import jwt
@@ -16,9 +17,11 @@ def verify_token(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict[str, Any]:
     try:
+        # Prefer runtime environment secret in tests; fallback to settings
+        secret = os.getenv("JWT_SECRET_KEY", settings.JWT_SECRET_KEY)
         payload = jwt.decode(
             credentials.credentials,
-            settings.JWT_SECRET_KEY,
+            secret,
             algorithms=["HS256"],
             options={"verify_aud": False},
         )

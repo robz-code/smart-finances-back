@@ -42,11 +42,15 @@ class TransactionBase(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "account_id": self.account_id,
-            "category_id": self.category_id,
-            "group_id": self.group_id,
-            "recurrent_transaction_id": self.recurrent_transaction_id,
-            "transfer_id": self.transfer_id,
+            "account_id": str(self.account_id) if self.account_id else None,
+            "category_id": str(self.category_id) if self.category_id else None,
+            "group_id": str(self.group_id) if self.group_id else None,
+            "recurrent_transaction_id": (
+                str(self.recurrent_transaction_id)
+                if self.recurrent_transaction_id
+                else None
+            ),
+            "transfer_id": str(self.transfer_id) if self.transfer_id else None,
             "type": self.type,
             "amount": self.amount,
             "currency": self.currency,
