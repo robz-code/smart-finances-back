@@ -9,7 +9,7 @@ from sqlalchemy.orm import relationship
 from app.config.database import Base
 
 
-class AccountType(Enum):
+class AccountType(str, Enum):
     CASH = "cash"
     CREDIT = "credit_card"
     DEBIT = "debit_card"
