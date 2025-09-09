@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client, create_client
@@ -24,7 +26,12 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
 
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
+# Initialize Supabase client only when configuration is provided.
+# This prevents runtime errors during tests or environments where
+# Supabase is not required.
+supabase: Optional[Client] = None
+if settings.SUPABASE_URL and settings.SUPABASE_KEY:
+    supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 # Set up CORS
 if settings.BACKEND_CORS_ORIGINS:
