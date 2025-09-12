@@ -1,4 +1,5 @@
-from app.config.database import Base, engine
+from app.config.db_base import Base
+from app.config.database import engine
 import app.entities.user  # Import all your models so Base.metadata knows about them
 import app.entities.user_contact
 import app.entities.account

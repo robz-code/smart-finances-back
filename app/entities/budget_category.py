@@ -1,7 +1,7 @@
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
 class BudgetCategory(Base):
