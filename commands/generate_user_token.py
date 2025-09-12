@@ -37,7 +37,10 @@ def get_token(email, password):
     user = data.get("user", {})
     
     print("✅ Access Token:")
-    clipboard.copy(access_token)
+    try:
+        clipboard.copy(access_token)
+    except Exception as e:
+        print("Error copiando al portapapeles:", e)
     print(access_token)
     print("El acces token se ha copiado para el 🧑 User ID:", user.get("id"))
     return access_token
