@@ -1,7 +1,7 @@
 from typing import cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.dependencies.transaction_dependencies import get_transaction_service
 from app.dependencies.user_dependencies import get_current_user
@@ -58,7 +58,10 @@ def get_transaction(
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    return service.get(transaction_id)
+    transaction = service.get(transaction_id)
+    if transaction.user_id != cast(UUID, current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied to this transaction")
+    return transaction
 
 
 @router.post(

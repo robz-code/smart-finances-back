@@ -6,10 +6,10 @@ from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import NUMERIC, UUID
 from sqlalchemy.orm import relationship
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
-class AccountType(Enum):
+class AccountType(str, Enum):
     CASH = "cash"
     CREDIT = "credit_card"
     DEBIT = "debit_card"
