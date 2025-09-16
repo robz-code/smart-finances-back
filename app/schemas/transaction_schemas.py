@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -134,3 +135,32 @@ class TransactionSearch(BaseModel):
             }
         },
     }
+
+    _filter_builders: ClassVar[dict[str, Callable[[Any], Any]]] = {
+        "account_id": lambda value: Transaction.account_id == value,
+        "category_id": lambda value: Transaction.category_id == value,
+        "group_id": lambda value: Transaction.group_id == value,
+        "type": lambda value: Transaction.type == value,
+        "currency": lambda value: Transaction.currency == value,
+        "date_from": lambda value: Transaction.date >= value,
+        "date_to": lambda value: Transaction.date <= value,
+        "amount_min": lambda value: Transaction.amount >= value,
+        "amount_max": lambda value: Transaction.amount <= value,
+        "source": lambda value: Transaction.source == value,
+        "has_installments": lambda value: Transaction.has_installments == value,
+    }
+
+    def build_filters(self) -> list[Any]:
+        """Generate SQLAlchemy filter expressions for the provided search fields."""
+
+        filters: list[Any] = []
+        for field_name, value in self.model_dump(exclude_unset=True).items():
+            if value is None:
+                # Skip filters explicitly set to null to mimic previous behaviour
+                continue
+
+            builder = self._filter_builders.get(field_name)
+            if builder:
+                filters.append(builder(value))
+
+        return filters

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -18,40 +18,8 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Search transactions based on various criteria"""
         query = self.db.query(Transaction).filter(Transaction.user_id == user_id)
 
-        if search_params.account_id:
-            query = query.filter(Transaction.account_id == search_params.account_id)
-
-        if search_params.category_id:
-            query = query.filter(Transaction.category_id == search_params.category_id)
-
-        if search_params.group_id:
-            query = query.filter(Transaction.group_id == search_params.group_id)
-
-        if search_params.type:
-            query = query.filter(Transaction.type == search_params.type)
-
-        if search_params.currency:
-            query = query.filter(Transaction.currency == search_params.currency)
-
-        if search_params.date_from:
-            query = query.filter(Transaction.date >= search_params.date_from)
-
-        if search_params.date_to:
-            query = query.filter(Transaction.date <= search_params.date_to)
-
-        if search_params.amount_min is not None:
-            query = query.filter(Transaction.amount >= search_params.amount_min)
-
-        if search_params.amount_max is not None:
-            query = query.filter(Transaction.amount <= search_params.amount_max)
-
-        if search_params.source:
-            query = query.filter(Transaction.source == search_params.source)
-
-        if search_params.has_installments is not None:
-            query = query.filter(
-                Transaction.has_installments == search_params.has_installments
-            )
+        for filter_condition in search_params.build_filters():
+            query = query.filter(filter_condition)
 
         # Order by date descending (most recent first)
         query = query.order_by(Transaction.date.desc(), Transaction.created_at.desc())
