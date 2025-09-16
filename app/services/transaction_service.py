@@ -19,6 +19,17 @@ class TransactionService(BaseService[Transaction]):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
 
+    def get(self, transaction_id: UUID, user_id: UUID) -> Transaction:
+        """Retrieve a transaction ensuring it belongs to the requesting user."""
+
+        transaction = super().get(transaction_id)
+        if transaction.user_id != user_id:
+            raise HTTPException(
+                status_code=403, detail="Access denied to this transaction"
+            )
+
+        return transaction
+
     def search(
         self, user_id: UUID, search_params: TransactionSearch
     ) -> SearchResponse[Transaction]:
@@ -191,10 +202,37 @@ class TransactionService(BaseService[Transaction]):
             return False
 
     def _validate_group_ownership(self, user_id: UUID, group_id: UUID) -> bool:
-        """Validate that the user owns the group"""
+        """Validate that the user owns the group or is a member of it."""
+
         try:
-            # Assuming there's a group repository, if not this can be implemented later
-            # For now, return True to avoid blocking the transaction
-            return True
-        except Exception:
+            from app.entities.group import Group  # type: ignore
+            from app.entities.group_member import GroupMember  # type: ignore
+
+            group = (
+                self.db.query(Group)
+                .filter(Group.id == group_id)
+                .first()
+            )
+            if group is None:
+                return False
+
+            if getattr(group, "created_by", None) == user_id:
+                return True
+
+            membership = (
+                self.db.query(GroupMember)
+                .filter(
+                    GroupMember.group_id == group_id,
+                    GroupMember.user_id == user_id,
+                )
+                .first()
+            )
+            return membership is not None
+        except Exception as exc:
+            logger.warning(
+                "Error validating group ownership for user %s and group %s: %s",
+                user_id,
+                group_id,
+                exc,
+            )
             return False
