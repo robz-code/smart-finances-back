@@ -11,7 +11,7 @@ from app.entities.transaction import Transaction
 
 class TransactionBase(BaseModel):
     account_id: UUID
-    category_id: Optional[UUID] = None
+    category_id: UUID = None
     group_id: Optional[UUID] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
