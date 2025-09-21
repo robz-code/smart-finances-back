@@ -208,11 +208,7 @@ class TransactionService(BaseService[Transaction]):
             from app.entities.group import Group  # type: ignore
             from app.entities.group_member import GroupMember  # type: ignore
 
-            group = (
-                self.db.query(Group)
-                .filter(Group.id == group_id)
-                .first()
-            )
+            group = self.db.query(Group).filter(Group.id == group_id).first()
             if group is None:
                 return False
 

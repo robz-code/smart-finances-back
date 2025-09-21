@@ -8,16 +8,17 @@ from sqlalchemy.orm import relationship
 
 from app.config.db_base import Base
 
+
 class TransactionType(str, Enum):
     INCOME = "income"
     EXPENSE = "expense"
     TRANSFER = "transfer"
 
+
 class TransactionSource(str, Enum):
     MANUAL = "manual"
     RECURRING = "recurring"
     TRANSFER = "transfer"
-
 
 
 class Transaction(Base):
@@ -26,7 +27,9 @@ class Transaction(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
-    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False)
+    category_id = Column(
+        UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
+    )
     group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"))
     recurrent_transaction_id = Column(
         UUID(as_uuid=True), ForeignKey("recurring_transactions.id")
