@@ -3,8 +3,8 @@ from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.config.settings import settings
 from app.config.db_base import Base
+from app.config.settings import settings
 
 # Create SQLAlchemy engine
 engine = create_engine(
