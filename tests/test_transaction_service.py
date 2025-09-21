@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.entities.transaction import Transaction
 from app.schemas.transaction_schemas import TransactionSearch
+from app.services.account_service import AccountService
+from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
 
 
@@ -26,9 +28,13 @@ class TestTransactionService:
         return Mock()
 
     @pytest.fixture
-    def service(self, mock_db):
+    def service(self, mock_db, mock_repository):
         """Transaction service instance"""
-        return TransactionService(mock_db)
+        svc = TransactionService(mock_db)
+        svc.repository = mock_repository
+        svc.account_service = Mock(spec=AccountService)
+        svc.category_service = Mock(spec=CategoryService)
+        return svc
 
     @pytest.fixture
     def sample_transaction(self):
@@ -38,6 +44,7 @@ class TestTransactionService:
             user_id=uuid.uuid4(),
             account_id=uuid.uuid4(),
             category_id=uuid.uuid4(),
+            group_id=uuid.uuid4(),
             type="expense",
             amount=Decimal("100.00"),
             currency="USD",
@@ -389,86 +396,55 @@ class TestTransactionService:
         assert exc_info.value.status_code == 403
         assert "Access denied to this transaction" in str(exc_info.value.detail)
 
-    @patch("app.services.transaction_service.AccountRepository")
-    def test_validate_account_ownership_success(self, mock_account_repo_class, service):
+    def test_validate_account_ownership_success(self, service):
         """Test successful account ownership validation"""
-        # Arrange
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
-        mock_account_repo = Mock()
-        mock_account_repo_class.return_value = mock_account_repo
-
         mock_account = Mock()
         mock_account.user_id = user_id
-        mock_account_repo.get.return_value = mock_account
+        service.account_service.get.return_value = mock_account
 
-        # Act
         result = service._validate_account_ownership(user_id, account_id)
 
-        # Assert
         assert result is True
-        mock_account_repo.get.assert_called_once_with(account_id)
+        service.account_service.get.assert_called_once_with(account_id)
 
-    @patch("app.services.transaction_service.AccountRepository")
-    def test_validate_account_ownership_account_not_found(
-        self, mock_account_repo_class, service
-    ):
+    def test_validate_account_ownership_account_not_found(self, service):
         """Test account ownership validation with non-existent account"""
-        # Arrange
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
-        mock_account_repo = Mock()
-        mock_account_repo_class.return_value = mock_account_repo
-        mock_account_repo.get.return_value = None
+        service.account_service.get.side_effect = HTTPException(
+            status_code=404, detail="Account not found"
+        )
 
-        # Act
         result = service._validate_account_ownership(user_id, account_id)
 
-        # Assert
         assert result is False
 
-    @patch("app.services.transaction_service.AccountRepository")
-    def test_validate_account_ownership_wrong_user(
-        self, mock_account_repo_class, service
-    ):
+    def test_validate_account_ownership_wrong_user(self, service):
         """Test account ownership validation with wrong user"""
-        # Arrange
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
-        mock_account_repo = Mock()
-        mock_account_repo_class.return_value = mock_account_repo
-
         mock_account = Mock()
-        mock_account.user_id = uuid.uuid4()  # Different user
-        mock_account_repo.get.return_value = mock_account
+        mock_account.user_id = uuid.uuid4()
+        service.account_service.get.return_value = mock_account
 
-        # Act
         result = service._validate_account_ownership(user_id, account_id)
 
-        # Assert
         assert result is False
 
-    @patch("app.services.transaction_service.CategoryRepository")
-    def test_validate_category_ownership_success(
-        self, mock_category_repo_class, service
-    ):
+    def test_validate_category_ownership_success(self, service):
         """Test successful category ownership validation"""
-        # Arrange
         user_id = uuid.uuid4()
         category_id = uuid.uuid4()
-        mock_category_repo = Mock()
-        mock_category_repo_class.return_value = mock_category_repo
-
         mock_category = Mock()
         mock_category.user_id = user_id
-        mock_category_repo.get.return_value = mock_category
+        service.category_service.get.return_value = mock_category
 
-        # Act
         result = service._validate_category_ownership(user_id, category_id)
 
-        # Assert
         assert result is True
-        mock_category_repo.get.assert_called_once_with(category_id)
+        service.category_service.get.assert_called_once_with(category_id)
 
     def test_validate_group_ownership_default(self, service):
         """Test group ownership validation (defaults to True for now)"""

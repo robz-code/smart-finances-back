@@ -5,8 +5,12 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.entities.group import Group
+from app.entities.group_member import GroupMember
 from app.entities.transaction import Transaction
 from app.repository.transaction_repository import TransactionRepository
+from app.services.account_service import AccountService
+from app.services.category_service import CategoryService
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.transaction_schemas import TransactionSearch
 from app.services.base_service import BaseService
@@ -18,6 +22,8 @@ class TransactionService(BaseService[Transaction]):
     def __init__(self, db: Session):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
+        self.account_service = AccountService(db)
+        self.category_service = CategoryService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> Transaction:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -87,16 +93,16 @@ class TransactionService(BaseService[Transaction]):
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
         """Validate transaction before creation"""
+        # Validate amount is not zero before any other business rules
+        if obj_in.amount == 0:
+            raise HTTPException(
+                status_code=400, detail="Transaction amount cannot be zero"
+            )
+
         # Validate that the user owns the account
         if not self._validate_account_ownership(obj_in.user_id, obj_in.account_id):
             raise HTTPException(
                 status_code=403, detail="Account not found or access denied"
-            )
-
-        # Validate amount is not zero (check business rule before optional checks)
-        if obj_in.amount == 0:
-            raise HTTPException(
-                status_code=400, detail="Transaction amount cannot be zero"
             )
 
         # Validate that the user owns the category if provided
@@ -176,38 +182,29 @@ class TransactionService(BaseService[Transaction]):
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
         try:
-            # Import at top-level name for tests to patch
-            from app.repository.account_repository import (
-                AccountRepository,  # type: ignore
-            )
-
-            account_repo = AccountRepository(self.db)  # type: ignore
-            account = account_repo.get(account_id)
-            return account and account.user_id == user_id
+            account = self.account_service.get(account_id)
+        except HTTPException:
+            return False
         except Exception:
             return False
+
+        return bool(account and account.user_id == user_id)
 
     def _validate_category_ownership(self, user_id: UUID, category_id: UUID) -> bool:
         """Validate that the user owns the category"""
         try:
-            # Import at top-level name for tests to patch
-            from app.repository.category_repository import (
-                CategoryRepository,  # type: ignore
-            )
-
-            category_repo = CategoryRepository(self.db)  # type: ignore
-            category = category_repo.get(category_id)
-            return category and category.user_id == user_id
+            category = self.category_service.get(category_id)
+        except HTTPException:
+            return False
         except Exception:
             return False
+
+        return bool(category and category.user_id == user_id)
 
     def _validate_group_ownership(self, user_id: UUID, group_id: UUID) -> bool:
         """Validate that the user owns the group or is a member of it."""
 
         try:
-            from app.entities.group import Group  # type: ignore
-            from app.entities.group_member import GroupMember  # type: ignore
-
             group = self.db.query(Group).filter(Group.id == group_id).first()
             if group is None:
                 return False
