@@ -1,5 +1,5 @@
 from app.config.db_base import Base
-from app.config.database import engine
+from app.config.database import get_engine
 import app.entities.user  # Import all your models so Base.metadata knows about them
 import app.entities.user_contact
 import app.entities.account
@@ -18,6 +18,7 @@ import app.entities.tags
 import app.entities.transaction_tag
 
 def create_all_tables():
+    engine = get_engine()
     Base.metadata.create_all(bind=engine)
     print("All tables created successfully.")
 

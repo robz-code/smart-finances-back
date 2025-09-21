@@ -4,9 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client, create_client
 
-from app.config.database import engine
-from app.config.db_base import Base
-from app.config.settings import settings
+from app.config.settings import get_settings
 from app.routes import (
     account_route,
     category_route,
@@ -16,8 +14,7 @@ from app.routes import (
     user_route,
 )
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+settings = get_settings()
 
 # Create FastAPI app
 app = FastAPI(

@@ -5,7 +5,7 @@ import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.config.settings import settings
+from app.config.settings import get_settings
 
 bearer_scheme = HTTPBearer(
     description="Enter your JWT token in the format: Bearer <token>",
@@ -17,6 +17,7 @@ def verify_token(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict[str, Any]:
     try:
+        settings = get_settings()
         # Prefer runtime environment secret in tests; fallback to settings
         secret = os.getenv("JWT_SECRET_KEY", settings.JWT_SECRET_KEY)
         payload = jwt.decode(
