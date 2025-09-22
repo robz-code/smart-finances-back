@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.transaction import Transaction
-from app.schemas.transaction_schemas import TransactionSearch
+from app.schemas.transaction_schemas import TransactionSearch, TransactionUpdate
 from app.services.account_service import AccountService
 from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
@@ -268,18 +268,18 @@ class TestTransactionService:
         assert exc_info.value.status_code == 400
         assert "Transaction amount cannot be zero" in str(exc_info.value.detail)
 
-    def test_before_create_no_category_or_group(self, service, sample_transaction):
-        """Test before_create with no category or group (should pass)"""
+    def test_before_create_missing_category(self, service, sample_transaction):
+        """Test before_create without a category should fail"""
         # Arrange
         sample_transaction.category_id = None
-        sample_transaction.group_id = None
 
         with patch.object(service, "_validate_account_ownership", return_value=True):
-            # Act
-            result = service.before_create(sample_transaction)
+            # Act & Assert
+            with pytest.raises(HTTPException) as exc_info:
+                service.before_create(sample_transaction)
 
-            # Assert
-            assert result is True
+        assert exc_info.value.status_code == 400
+        assert "Category is required" in str(exc_info.value.detail)
 
     @patch(
         "app.services.transaction_service.TransactionService._validate_account_ownership"
@@ -341,6 +341,22 @@ class TestTransactionService:
 
         assert exc_info.value.status_code == 404
         assert "Transaction not found" in str(exc_info.value.detail)
+
+    def test_before_update_missing_category(self, service, sample_transaction):
+        """Test before_update rejects removing the category"""
+        # Arrange
+        transaction_id = uuid.uuid4()
+        update_data = TransactionUpdate(category_id=None)
+        service.repository.get.return_value = sample_transaction
+
+        # Act & Assert
+        with pytest.raises(HTTPException) as exc_info:
+            service.before_update(
+                transaction_id, update_data, user_id=sample_transaction.user_id
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "Category is required" in str(exc_info.value.detail)
 
     def test_before_update_unauthorized_user(self, service, sample_transaction):
         """Test before_update with unauthorized user"""

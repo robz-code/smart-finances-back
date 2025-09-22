@@ -42,7 +42,7 @@ def _create_category(client: TestClient, auth_headers: dict, name="Test Category
         "icon": "shopping-cart",
     }
     r = client.post("/api/v1/categories", json=create_payload, headers=auth_headers)
-    assert r.status_code == 200
+    assert r.status_code in {200, 201}
     return r.json()
 
 
@@ -52,10 +52,14 @@ def _create_transaction(
     account_id: str,
     amount: str = "100.00",
     transaction_type: str = "expense",
-    category_id: str = None,
+    category_id: str | None = None,
     transaction_date: str = "2024-01-15",
 ):
     """Helper function to create a transaction for testing"""
+    if category_id is None:
+        category = _create_category(client, auth_headers)
+        category_id = category["id"]
+
     create_payload = {
         "account_id": account_id,
         "category_id": category_id,
@@ -160,9 +164,11 @@ class TestTransactionCRUD:
         """Test creating transaction with minimal required data"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": account["id"],
+            "category_id": category["id"],
             "type": "expense",
             "amount": "50.00",
             "date": "2024-01-15",
@@ -174,6 +180,7 @@ class TestTransactionCRUD:
 
         transaction = r.json()
         assert transaction["account_id"] == account["id"]
+        assert transaction["category_id"] == category["id"]
         assert transaction["type"] == "expense"
         assert transaction["amount"] == "50.00"
         assert transaction["date"] == "2024-01-15"
@@ -216,12 +223,14 @@ class TestTransactionCRUD:
     ):
         """Test creating transaction with non-existent account"""
         _create_user(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": str(uuid.uuid4()),  # Non-existent account
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -234,12 +243,14 @@ class TestTransactionCRUD:
         """Test creating transaction with zero amount (should fail)"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": account["id"],
             "type": "expense",
             "amount": "0.00",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -580,12 +591,15 @@ class TestTransactionValidation:
     ):
         """Test creating transaction with missing required fields"""
         _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         # Missing account_id
         create_payload = {
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -594,9 +608,10 @@ class TestTransactionValidation:
 
         # Missing type
         create_payload = {
-            "account_id": str(uuid.uuid4()),
+            "account_id": account["id"],
             "amount": "100.00",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -605,9 +620,10 @@ class TestTransactionValidation:
 
         # Missing amount
         create_payload = {
-            "account_id": str(uuid.uuid4()),
+            "account_id": account["id"],
             "type": "expense",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -616,9 +632,10 @@ class TestTransactionValidation:
 
         # Missing date
         create_payload = {
-            "account_id": str(uuid.uuid4()),
+            "account_id": account["id"],
             "type": "expense",
             "amount": "100.00",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -630,12 +647,14 @@ class TestTransactionValidation:
     ):
         """Test creating transaction with invalid UUID format"""
         _create_user(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": "invalid-uuid",
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -648,12 +667,14 @@ class TestTransactionValidation:
         """Test creating transaction with invalid date format"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": account["id"],
             "type": "expense",
             "amount": "100.00",
             "date": "invalid-date",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -666,12 +687,14 @@ class TestTransactionValidation:
         """Test creating transaction with invalid amount format"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
 
         create_payload = {
             "account_id": account["id"],
             "type": "expense",
             "amount": "invalid-amount",
             "date": "2024-01-15",
+            "category_id": category["id"],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -686,6 +709,7 @@ class TestTransactionValidation:
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
+            "category_id": str(uuid.uuid4()),
         }
         r = client.post("/api/v1/transactions", json=create_payload)
         assert r.status_code == 401  # Unauthorized

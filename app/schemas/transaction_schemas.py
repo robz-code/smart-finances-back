@@ -11,7 +11,7 @@ from app.entities.transaction import Transaction
 
 class TransactionBase(BaseModel):
     account_id: UUID
-    category_id: UUID = None
+    category_id: UUID
     group_id: Optional[UUID] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
@@ -22,7 +22,10 @@ class TransactionBase(BaseModel):
     source: str = "manual"
     has_installments: bool = False
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {Decimal: lambda value: format(value, ".2f")},
+    }
 
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(

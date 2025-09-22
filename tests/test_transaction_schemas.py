@@ -50,6 +50,7 @@ class TestTransactionBase:
         # Arrange
         data = {
             "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
             "type": "income",
             "amount": "200.00",
             "date": "2024-01-20",
@@ -60,12 +61,12 @@ class TestTransactionBase:
 
         # Assert
         assert str(transaction.account_id) == data["account_id"]
+        assert str(transaction.category_id) == data["category_id"]
         assert transaction.type == "income"
         assert transaction.amount == Decimal("200.00")
         assert transaction.date == date(2024, 1, 20)
         assert transaction.source == "manual"  # default value
         assert transaction.has_installments is False  # default value
-        assert transaction.category_id is None
         assert transaction.currency is None
 
     def test_transaction_base_invalid_uuid(self):
@@ -116,6 +117,7 @@ class TestTransactionBase:
         user_id = uuid.uuid4()
         data = {
             "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
@@ -129,6 +131,7 @@ class TestTransactionBase:
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
         assert str(model.account_id) == data["account_id"]
+        assert str(model.category_id) == data["category_id"]
         assert model.type == "expense"
         assert model.amount == Decimal("100.00")
         assert model.date == date(2024, 1, 15)
@@ -141,6 +144,7 @@ class TestTransactionBase:
         # Arrange
         data = {
             "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
@@ -152,6 +156,7 @@ class TestTransactionBase:
 
         # Assert
         assert result_dict["account_id"] == data["account_id"]
+        assert result_dict["category_id"] == data["category_id"]
         assert result_dict["type"] == "expense"
         assert result_dict["amount"] == Decimal("100.00")
         assert result_dict["date"] == date(2024, 1, 15)
@@ -173,6 +178,7 @@ class TestTransactionCreate:
         user_id = uuid.uuid4()
         data = {
             "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
             "type": "income",
             "amount": "500.00",
             "date": "2024-01-25",
@@ -186,6 +192,7 @@ class TestTransactionCreate:
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
         assert str(model.account_id) == data["account_id"]
+        assert str(model.category_id) == data["category_id"]
         assert model.type == "income"
         assert model.amount == Decimal("500.00")
         assert model.date == date(2024, 1, 25)
@@ -264,6 +271,7 @@ class TestTransactionResponse:
             "id": transaction_id,
             "user_id": user_id,
             "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
@@ -277,6 +285,7 @@ class TestTransactionResponse:
         # Assert
         assert str(transaction_response.id) == transaction_id
         assert str(transaction_response.user_id) == user_id
+        assert str(transaction_response.category_id) == data["category_id"]
         assert transaction_response.type == "expense"
         assert transaction_response.amount == Decimal("100.00")
         assert transaction_response.date == date(2024, 1, 15)

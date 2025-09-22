@@ -9,13 +9,16 @@ from app.config.settings import get_settings
 
 bearer_scheme = HTTPBearer(
     description="Enter your JWT token in the format: Bearer <token>",
-    auto_error=True,
+    auto_error=False,
 )
 
 
 def verify_token(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict[str, Any]:
+    if credentials is None or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
     try:
         settings = get_settings()
         # Prefer runtime environment secret in tests; fallback to settings

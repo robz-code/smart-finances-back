@@ -99,16 +99,20 @@ class TransactionService(BaseService[Transaction]):
                 status_code=400, detail="Transaction amount cannot be zero"
             )
 
+        # Ensure that a category is provided
+        if obj_in.category_id is None:
+            raise HTTPException(
+                status_code=400, detail="Category is required for transactions"
+            )
+
         # Validate that the user owns the account
         if not self._validate_account_ownership(obj_in.user_id, obj_in.account_id):
             raise HTTPException(
                 status_code=403, detail="Account not found or access denied"
             )
 
-        # Validate that the user owns the category if provided
-        if obj_in.category_id and not self._validate_category_ownership(
-            obj_in.user_id, obj_in.category_id
-        ):
+        # Validate that the user owns the category
+        if not self._validate_category_ownership(obj_in.user_id, obj_in.category_id):
             raise HTTPException(
                 status_code=403, detail="Category not found or access denied"
             )
@@ -137,26 +141,51 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Access denied to this transaction"
             )
 
+        # Determine if the payload explicitly contains account/category updates
+        payload: dict[str, Any] = {}
+        model_dump = getattr(obj_in, "model_dump", None)
+        if callable(model_dump):
+            dumped = model_dump(exclude_unset=True)
+            if isinstance(dumped, dict):
+                payload = dumped
+
         # Validate account ownership if account_id is being updated
-        if obj_in.account_id and not self._validate_account_ownership(
-            user_id, obj_in.account_id
+        account_id = (
+            payload.get("account_id")
+            if payload
+            else getattr(obj_in, "account_id", None)
+        )
+        if account_id is not None and not self._validate_account_ownership(
+            user_id, account_id
         ):
             raise HTTPException(
                 status_code=403, detail="Account not found or access denied"
             )
 
         # Validate category ownership if category_id is being updated
-        if obj_in.category_id and not self._validate_category_ownership(
-            user_id, obj_in.category_id
-        ):
-            raise HTTPException(
-                status_code=403, detail="Category not found or access denied"
-            )
+        category_provided = False
+        if payload:
+            category_provided = "category_id" in payload
+            category_id = payload.get("category_id")
+        else:
+            category_id = getattr(obj_in, "category_id", None)
+            category_provided = category_id is not None
+
+        if category_provided:
+            if category_id is None:
+                raise HTTPException(
+                    status_code=400, detail="Category is required for transactions"
+                )
+            if not self._validate_category_ownership(user_id, category_id):
+                raise HTTPException(
+                    status_code=403, detail="Category not found or access denied"
+                )
 
         # Validate group ownership if group_id is being updated
-        if obj_in.group_id and not self._validate_group_ownership(
-            user_id, obj_in.group_id
-        ):
+        group_id = (
+            payload.get("group_id") if payload else getattr(obj_in, "group_id", None)
+        )
+        if group_id and not self._validate_group_ownership(user_id, group_id):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
             )
