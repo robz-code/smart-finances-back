@@ -5,7 +5,7 @@ from sqlalchemy import Column, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import NUMERIC, UUID
 from sqlalchemy.orm import relationship
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
 class RecurringDebt(Base):

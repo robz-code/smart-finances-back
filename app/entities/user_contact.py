@@ -3,7 +3,7 @@ import datetime
 from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
 class UserContact(Base):

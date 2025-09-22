@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import DATE, NUMERIC, UUID
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
 class Credit(Base):

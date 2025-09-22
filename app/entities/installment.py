@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Column, Date, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import NUMERIC, UUID
 
-from app.config.database import Base
+from app.config.db_base import Base
 
 
 class Installment(Base):
