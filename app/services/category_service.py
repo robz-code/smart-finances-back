@@ -19,6 +19,21 @@ class CategoryService(BaseService[Category]):
         repository = CategoryRepository(db)
         super().__init__(db, repository, Category)
 
+    def get_transfer_category(self, user_id: UUID) -> Category:
+        """
+        Get the transfer category for a user.
+
+        Returns:
+            The transfer category for the user.
+        """
+        category = self.repository.get_transfer_category(user_id)
+
+        if not category:
+            self.add(Category(user_id=user_id, type="transfer"))
+            category = self.repository.get_transfer_category(user_id)
+
+        return category
+
     def before_delete(self, id: UUID, **kwargs: Any) -> Category:
         # Basic validation
         category = super().before_delete(id, **kwargs)

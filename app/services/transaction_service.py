@@ -1,6 +1,8 @@
 import logging
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
+
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -14,6 +16,8 @@ from app.schemas.transaction_schemas import TransactionSearch
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
+from app.entities.transaction import TransactionType
+from app.schemas.transaction_schemas import TransferTransactionCreate
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +95,70 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
+
+    def create_transfer_transaction(self, obj_in: TransferTransactionCreate, **kwargs: Any) -> bool:
+        """Validate transfer transaction before creation"""
+
+        user_id = kwargs.get("user_id")
+
+        if not user_id:
+            logger.warning(f"Attempt to create transfer transaction without user ID")
+            raise HTTPException(status_code=400, detail="Invalid user ID provided")
+
+        # Validate that the user owns the from and to accounts
+        if not self._validate_account_ownership(user_id, obj_in.from_account_id):
+            raise HTTPException(
+                status_code=403, detail="From account not found or access denied"
+            )
+        if not self._validate_account_ownership(user_id, obj_in.to_account_id):
+            raise HTTPException(
+                status_code=403, detail="To account not found or access denied"
+            )
+        # Validate that the from and to account are different
+        if obj_in.from_account_id == obj_in.to_account_id:
+            raise HTTPException(
+                status_code=400, detail="From and to account cannot be the same"
+            )
+        # Validate that the amount is greater than zero
+        if obj_in.amount <= 0:
+            raise HTTPException(
+                status_code=400, detail="Transaction amount must be greater than zero"
+            )
+        # Validate that the date is not in the future
+        if obj_in.date > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=400, detail="Transaction date cannot be in the future"
+            )
+
+        # Generate unique transfer id
+        transfer_id = uuid4()
+
+
+        transfer_category = self.category_service.transfer_account(user_id)
+        # Create from transaction
+        from_transaction = Transaction(
+            user_id=user_id,
+            account_id=obj_in.from_account_id,
+            category_id=obj_in.category_id,
+            transfer_id=transfer_id,
+            amount=obj_in.amount,
+            date=obj_in.date,
+            source=TransactionSource.MANUAL,
+            type=TransactionType.EXPENSE,
+        )
+        # Create to transaction
+        to_transaction = Transaction(
+            user_id=user_id,
+            account_id=obj_in.to_account_id,
+            category_id=obj_in.category_id,
+            type=TransactionType.INCOME,
+        )
+        # Add transactions to database
+        self.repository.add(from_transaction)
+        self.repository.add(to_transaction)
+        return True
+
+
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
         """Validate transaction before creation"""
         # Validate amount is not zero before any other business rules
@@ -123,6 +191,12 @@ class TransactionService(BaseService[Transaction]):
         ):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
+            )
+
+        # Validate the transaction is not in the future
+        if obj_in.date > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=400, detail="Transaction date cannot be in the future"
             )
 
         return True

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.entities.transaction import Transaction
+from app.entities.transaction import Transaction, TransactionSource, TransactionType
 
 
 class TransactionBase(BaseModel):
@@ -15,11 +15,11 @@ class TransactionBase(BaseModel):
     group_id: Optional[UUID] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
-    type: str
+    type: TransactionType
     amount: Decimal
     currency: Optional[str] = None
     date: date
-    source: str = "manual"
+    source: TransactionSource = TransactionSource.MANUAL
     has_installments: bool = False
 
     model_config = {
@@ -107,6 +107,26 @@ class TransactionUpdate(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
+class TransferTransactionCreate(BaseModel):
+    from_account_id: UUID
+    to_account_id: UUID
+    amount: Decimal
+    date: date
+    tag: Optional[UUID] = None
+
+    model_config = {"from_attributes": True}
+
+    def build_from_transaction(self, user_id: UUID, transfer_id: UUID) -> Transaction:
+            return Transaction(
+            user_id=user_id,
+            account_id=self.from_account_id,
+            transfer_id=transfer_id,
+            amount=self.amount,
+            date=self.date,
+            source=TransactionSource.MANUAL,
+            type=TransactionType.EXPENSE,
+        )
 
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None

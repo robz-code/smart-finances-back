@@ -12,13 +12,11 @@ from app.config.db_base import Base
 class TransactionType(str, Enum):
     INCOME = "income"
     EXPENSE = "expense"
-    TRANSFER = "transfer"
 
 
 class TransactionSource(str, Enum):
     MANUAL = "manual"
     RECURRING = "recurring"
-    TRANSFER = "transfer"
 
 
 class Transaction(Base):

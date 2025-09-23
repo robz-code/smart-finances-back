@@ -12,6 +12,7 @@ from app.schemas.transaction_schemas import (
     TransactionResponse,
     TransactionSearch,
     TransactionUpdate,
+    TransferTransactionCreate,
 )
 from app.services.transaction_service import TransactionService
 
@@ -83,6 +84,22 @@ async def create_transaction(
     """
     return service.add(transaction_data.to_model(cast(UUID, current_user.id)))
 
+
+@router.post("/transfer", 
+                response_model=TransactionResponse, 
+                summary="Create a new transfer transaction", 
+                description=("Create a new transfer transaction with the provided data. "
+                "Requires a valid JWT token in the Authorization header."),
+                )
+async def create_transfer_transaction(
+    transaction_data: TransferTransactionCreate,
+    service: TransactionService = Depends(get_transaction_service),
+    current_user: User = Depends(get_current_user),
+) -> TransactionResponse:
+    """
+    Create a new transfer transaction.
+    """
+    return service.create_transfer_transaction(transaction_data, user_id=cast(UUID, current_user.id))
 
 @router.put(
     "/{transaction_id}",
