@@ -125,7 +125,11 @@ class TransactionService(BaseService[Transaction]):
                 status_code=400, detail="Transaction amount must be greater than zero"
             )
         # Validate that the date is not in the future
-        if obj_in.date > datetime.now(timezone.utc):
+        transaction_date = (
+            obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
+        )
+        current_date = datetime.now(timezone.utc).date()
+        if transaction_date > current_date:
             raise HTTPException(
                 status_code=400, detail="Transaction date cannot be in the future"
             )
@@ -180,7 +184,11 @@ class TransactionService(BaseService[Transaction]):
             )
 
         # Validate the transaction is not in the future
-        if obj_in.date > datetime.now(timezone.utc):
+        transaction_date = (
+            obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
+        )
+        current_date = datetime.now(timezone.utc).date()
+        if transaction_date > current_date:
             raise HTTPException(
                 status_code=400, detail="Transaction date cannot be in the future"
             )

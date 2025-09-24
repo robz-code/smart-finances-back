@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from collections.abc import Callable
-from datetime import date, datetime, timezone
+from datetime import date as Date, datetime, timezone
 from decimal import Decimal
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 
@@ -18,7 +20,7 @@ class TransactionBase(BaseModel):
     type: TransactionType
     amount: Decimal
     currency: Optional[str] = None
-    date: date
+    date: Date
     source: TransactionSource = TransactionSource.MANUAL
     has_installments: bool = False
 
@@ -77,7 +79,7 @@ class TransactionCreate(BaseModel):
     type: TransactionType
     amount: Decimal
     currency: Optional[str] = None
-    date: date
+    date: Date
     source: TransactionSource = TransactionSource.MANUAL
     has_installments: bool = False
 
@@ -85,6 +87,13 @@ class TransactionCreate(BaseModel):
         "from_attributes": True,
         "json_encoders": {Decimal: lambda value: format(value, ".2f")},
     }
+
+    @field_validator("date", mode="before")
+    @classmethod
+    def ensure_date(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.date()
+        return value
 
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(
@@ -111,23 +120,32 @@ class TransactionUpdate(BaseModel):
     type: Optional[str] = None
     amount: Optional[Decimal] = None
     currency: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[Date] = None
     source: Optional[str] = None
     has_installments: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 
+    @field_validator("date", mode="before")
+    @classmethod
+    def ensure_date(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
 class TransferTransactionCreate(BaseModel):
     from_account_id: UUID
     to_account_id: UUID
     amount: Decimal
-    date: date
+    date: Date
     tag: Optional[UUID] = None
 
     model_config = {"from_attributes": True}
 
-    def build_from_transaction(self, user_id: UUID, transfer_id: UUID, transfer_category: UUID) -> Transaction:
-            return Transaction(
+    def build_from_transaction(
+        self, user_id: UUID, transfer_id: UUID, transfer_category: UUID
+    ) -> Transaction:
+        return Transaction(
             user_id=user_id,
             account_id=self.from_account_id,
             transfer_id=transfer_id,
@@ -137,6 +155,7 @@ class TransferTransactionCreate(BaseModel):
             source=TransactionSource.MANUAL,
             type=TransactionType.EXPENSE,
         )
+
     def build_to_transaction(self, user_id: UUID, transfer_id: UUID, transfer_category: UUID) -> Transaction:
         return Transaction(
             user_id=user_id,
@@ -155,8 +174,8 @@ class TransactionSearch(BaseModel):
     group_id: Optional[UUID] = None
     type: Optional[str] = None
     currency: Optional[str] = None
-    date_from: Optional[date] = None
-    date_to: Optional[date] = None
+    date_from: Optional[Date] = None
+    date_to: Optional[Date] = None
     amount_min: Optional[Decimal] = None
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
