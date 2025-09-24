@@ -64,23 +64,34 @@ class TransactionBase(BaseModel):
             "created_at": datetime.now(timezone.utc),
         }
 
-
 class TransactionResponse(TransactionBase):
     id: UUID
     user_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+class TransactionCreate(BaseModel):
+    account_id: UUID
+    category_id: UUID
+    group_id: Optional[UUID] = None
+    type: TransactionType
+    amount: Decimal
+    currency: Optional[str] = None
+    date: date
+    source: TransactionSource = TransactionSource.MANUAL
+    has_installments: bool = False
 
-class TransactionCreate(TransactionBase):
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {Decimal: lambda value: format(value, ".2f")},
+    }
+
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(
             user_id=current_user_id,
             account_id=self.account_id,
             category_id=self.category_id,
             group_id=self.group_id,
-            recurrent_transaction_id=self.recurrent_transaction_id,
-            transfer_id=self.transfer_id,
             type=self.type,
             amount=self.amount,
             currency=self.currency,
@@ -90,7 +101,6 @@ class TransactionCreate(TransactionBase):
             created_at=datetime.now(timezone.utc),
             updated_at=None,
         )
-
 
 class TransactionUpdate(BaseModel):
     account_id: Optional[UUID] = None
@@ -107,7 +117,6 @@ class TransactionUpdate(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
 class TransferTransactionCreate(BaseModel):
     from_account_id: UUID
     to_account_id: UUID
@@ -117,15 +126,27 @@ class TransferTransactionCreate(BaseModel):
 
     model_config = {"from_attributes": True}
 
-    def build_from_transaction(self, user_id: UUID, transfer_id: UUID) -> Transaction:
+    def build_from_transaction(self, user_id: UUID, transfer_id: UUID, transfer_category: UUID) -> Transaction:
             return Transaction(
             user_id=user_id,
             account_id=self.from_account_id,
             transfer_id=transfer_id,
+            category_id=transfer_category,
             amount=self.amount,
             date=self.date,
             source=TransactionSource.MANUAL,
             type=TransactionType.EXPENSE,
+        )
+    def build_to_transaction(self, user_id: UUID, transfer_id: UUID, transfer_category: UUID) -> Transaction:
+        return Transaction(
+            user_id=user_id,
+            account_id=self.to_account_id,
+            transfer_id=transfer_id,
+            category_id=transfer_category,
+            amount=self.amount,
+            date=self.date,
+            source=TransactionSource.MANUAL,
+            type=TransactionType.INCOME,
         )
 
 class TransactionSearch(BaseModel):

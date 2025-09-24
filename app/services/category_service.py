@@ -19,6 +19,13 @@ class CategoryService(BaseService[Category]):
         repository = CategoryRepository(db)
         super().__init__(db, repository, Category)
 
+    # def get_by_user_id(self, user_id):
+    #     categories = super().get_by_user_id(user_id)
+    #     # Exclude transfer category
+    #     categories = [cat for cat in categories if cat.type != "transfer"]
+    #     return categories
+
+
     def get_transfer_category(self, user_id: UUID) -> Category:
         """
         Get the transfer category for a user.
