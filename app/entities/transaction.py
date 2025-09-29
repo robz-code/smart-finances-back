@@ -32,7 +32,7 @@ class Transaction(Base):
     recurrent_transaction_id = Column(
         UUID(as_uuid=True), ForeignKey("recurring_transactions.id")
     )
-    transfer_id = Column(UUID(as_uuid=True), ForeignKey("transactions.id"))
+    transfer_id = Column(UUID(as_uuid=True))
     type = Column(Text, nullable=False)
     amount = Column(NUMERIC, nullable=False)
     currency = Column(Text)

@@ -95,7 +95,7 @@ erDiagram
         UUID category_id FK
         UUID group_id FK
         UUID recurrent_transaction_id FK
-        UUID transfer_id FK
+        UUID transfer_id
         TEXT type
         NUMERIC amount
         TEXT currency
