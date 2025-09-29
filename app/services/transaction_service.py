@@ -16,8 +16,7 @@ from app.schemas.transaction_schemas import TransactionSearch
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
-from app.entities.transaction import TransactionType
-from app.schemas.transaction_schemas import TransferTransactionCreate
+from app.schemas.transaction_schemas import TransferTransactionCreate, TransferResponse
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +145,18 @@ class TransactionService(BaseService[Transaction]):
         # Add transactions to database
         self.repository.add(from_transaction)
         self.repository.add(to_transaction)
-        return True
+        
+        return TransferResponse(
+            id=from_transaction.id,
+            user_id=from_transaction.user_id,
+            from_account_id=from_transaction.account_id,
+            to_account_id=to_transaction.account_id,
+            transfer_id=from_transaction.id,
+            amount=from_transaction.amount,
+            currency=from_transaction.currency,
+            created_at=from_transaction.created_at,
+            updated_at=from_transaction.updated_at
+        )
 
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:

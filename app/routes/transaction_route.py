@@ -13,6 +13,7 @@ from app.schemas.transaction_schemas import (
     TransactionSearch,
     TransactionUpdate,
     TransferTransactionCreate,
+    TransferResponse
 )
 from app.services.transaction_service import TransactionService
 
@@ -86,7 +87,7 @@ async def create_transaction(
 
 
 @router.post("/transfer", 
-                response_model=TransactionResponse, 
+                response_model=TransferResponse, 
                 summary="Create a new transfer transaction", 
                 description=("Create a new transfer transaction with the provided data. "
                 "Requires a valid JWT token in the Authorization header."),

@@ -72,6 +72,17 @@ class TransactionResponse(TransactionBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+class TransferResponse(BaseModel):
+    id: UUID
+    from_account_id: UUID
+    to_account_id: UUID
+    transfer_id: UUID
+    amount: Decimal
+    currency: Optional[str] = None
+    tag: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
