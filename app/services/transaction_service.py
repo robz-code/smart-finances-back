@@ -138,7 +138,7 @@ class TransactionService(BaseService[Transaction]):
         transfer_id = uuid4()
 
 
-        transfer_category = self.category_service.transfer_account(user_id)
+        transfer_category = self.category_service.get_transfer_category(user_id)
         # Create from transaction
         from_transaction = obj_in.build_from_transaction(user_id, transfer_id, transfer_category.id)
         # Create to transaction

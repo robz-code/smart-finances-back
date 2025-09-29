@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.category import Category
+from app.schemas.category_schemas import CategoryCreate
 from app.repository.category_repository import CategoryRepository
 
 # from app.schemas.category_schemas import CategoryUpdate  # unused in service
@@ -36,8 +37,7 @@ class CategoryService(BaseService[Category]):
         category = self.repository.get_transfer_category(user_id)
 
         if not category:
-            self.add(Category(user_id=user_id, type="transfer"))
-            category = self.repository.get_transfer_category(user_id)
+            category = self.add(CategoryCreate(name="transfer").to_model(user_id))
 
         return category
 

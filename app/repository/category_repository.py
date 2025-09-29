@@ -12,4 +12,4 @@ class CategoryRepository(BaseRepository[Category]):
         
         return self.db.query(self.model).filter(
             self.model.user_id == user_id and 
-            self.model.type == "transfer").first()
+            self.model.name == "transfer").first()
