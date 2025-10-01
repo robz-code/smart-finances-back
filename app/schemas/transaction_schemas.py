@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date as Date, datetime, timezone
+from datetime import date as Date
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, ClassVar, Optional
 from uuid import UUID
