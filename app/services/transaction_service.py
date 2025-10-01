@@ -94,8 +94,9 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-
-    def create_transfer_transaction(self, obj_in: TransferTransactionCreate, **kwargs: Any) -> bool:
+    def create_transfer_transaction(
+        self, obj_in: TransferTransactionCreate, **kwargs: Any
+    ) -> bool:
         """Validate transfer transaction before creation"""
 
         user_id = kwargs.get("user_id")
@@ -136,16 +137,19 @@ class TransactionService(BaseService[Transaction]):
         # Generate unique transfer id
         transfer_id = uuid4()
 
-
         transfer_category = self.category_service.get_transfer_category(user_id)
         # Create from transaction
-        from_transaction = obj_in.build_from_transaction(user_id, transfer_id, transfer_category.id)
+        from_transaction = obj_in.build_from_transaction(
+            user_id, transfer_id, transfer_category.id
+        )
         # Create to transaction
-        to_transaction = obj_in.build_to_transaction(user_id, transfer_id, transfer_category.id)
+        to_transaction = obj_in.build_to_transaction(
+            user_id, transfer_id, transfer_category.id
+        )
         # Add transactions to database
         self.repository.add(from_transaction)
         self.repository.add(to_transaction)
-        
+
         return TransferResponse(
             id=from_transaction.id,
             user_id=from_transaction.user_id,
@@ -155,9 +159,8 @@ class TransactionService(BaseService[Transaction]):
             amount=from_transaction.amount,
             currency=from_transaction.currency,
             created_at=from_transaction.created_at,
-            updated_at=from_transaction.updated_at
+            updated_at=from_transaction.updated_at,
         )
-
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
         """Validate transaction before creation"""

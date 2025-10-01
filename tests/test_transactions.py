@@ -721,8 +721,10 @@ class TestTransactionValidation:
         # Try to get specific transaction without auth
         r = client.get(f"/api/v1/transactions/{uuid.uuid4()}")
         assert r.status_code == 401  # Unauthorized
-    
-    def test_create_transaction_invalid_type(self, client: TestClient, auth_headers: dict):
+
+    def test_create_transaction_invalid_type(
+        self, client: TestClient, auth_headers: dict
+    ):
         """Test creating transaction with invalid type"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)

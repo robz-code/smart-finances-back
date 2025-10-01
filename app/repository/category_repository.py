@@ -9,7 +9,9 @@ class CategoryRepository(BaseRepository[Category]):
         super().__init__(db, Category)
 
     def get_transfer_category(self, user_id: str) -> Category:
-        
-        return self.db.query(self.model).filter(
-            self.model.user_id == user_id and 
-            self.model.name == "transfer").first()
+
+        return (
+            self.db.query(self.model)
+            .filter(self.model.user_id == user_id and self.model.name == "transfer")
+            .first()
+        )

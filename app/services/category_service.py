@@ -26,7 +26,6 @@ class CategoryService(BaseService[Category]):
     #     categories = [cat for cat in categories if cat.type != "transfer"]
     #     return categories
 
-
     def get_transfer_category(self, user_id: UUID) -> Category:
         """
         Get the transfer category for a user.

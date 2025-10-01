@@ -66,11 +66,13 @@ class TransactionBase(BaseModel):
             "created_at": datetime.now(timezone.utc),
         }
 
+
 class TransactionResponse(TransactionBase):
     id: UUID
     user_id: UUID
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
 
 class TransferResponse(BaseModel):
     id: UUID
@@ -82,6 +84,7 @@ class TransferResponse(BaseModel):
     tag: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
 
 class TransactionCreate(BaseModel):
     account_id: UUID
@@ -122,6 +125,7 @@ class TransactionCreate(BaseModel):
             updated_at=None,
         )
 
+
 class TransactionUpdate(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
@@ -143,6 +147,7 @@ class TransactionUpdate(BaseModel):
         if isinstance(value, datetime):
             return value.date()
         return value
+
 
 class TransferTransactionCreate(BaseModel):
     from_account_id: UUID
@@ -167,7 +172,9 @@ class TransferTransactionCreate(BaseModel):
             type=TransactionType.EXPENSE,
         )
 
-    def build_to_transaction(self, user_id: UUID, transfer_id: UUID, transfer_category: UUID) -> Transaction:
+    def build_to_transaction(
+        self, user_id: UUID, transfer_id: UUID, transfer_category: UUID
+    ) -> Transaction:
         return Transaction(
             user_id=user_id,
             account_id=self.to_account_id,
@@ -178,6 +185,7 @@ class TransferTransactionCreate(BaseModel):
             source=TransactionSource.MANUAL,
             type=TransactionType.INCOME,
         )
+
 
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None
