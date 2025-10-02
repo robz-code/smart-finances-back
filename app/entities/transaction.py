@@ -12,13 +12,11 @@ from app.config.db_base import Base
 class TransactionType(str, Enum):
     INCOME = "income"
     EXPENSE = "expense"
-    TRANSFER = "transfer"
 
 
 class TransactionSource(str, Enum):
     MANUAL = "manual"
     RECURRING = "recurring"
-    TRANSFER = "transfer"
 
 
 class Transaction(Base):
@@ -34,7 +32,7 @@ class Transaction(Base):
     recurrent_transaction_id = Column(
         UUID(as_uuid=True), ForeignKey("recurring_transactions.id")
     )
-    transfer_id = Column(UUID(as_uuid=True), ForeignKey("transactions.id"))
+    transfer_id = Column(UUID(as_uuid=True))
     type = Column(Text, nullable=False)
     amount = Column(NUMERIC, nullable=False)
     currency = Column(Text)

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.category import Category
 from app.repository.category_repository import CategoryRepository
+from app.schemas.category_schemas import CategoryCreate
 
 # from app.schemas.category_schemas import CategoryUpdate  # unused in service
 from app.services.base_service import BaseService
@@ -18,6 +19,26 @@ class CategoryService(BaseService[Category]):
     def __init__(self, db: Session) -> None:
         repository = CategoryRepository(db)
         super().__init__(db, repository, Category)
+
+    # def get_by_user_id(self, user_id):
+    #     categories = super().get_by_user_id(user_id)
+    #     # Exclude transfer category
+    #     categories = [cat for cat in categories if cat.type != "transfer"]
+    #     return categories
+
+    def get_transfer_category(self, user_id: UUID) -> Category:
+        """
+        Get the transfer category for a user.
+
+        Returns:
+            The transfer category for the user.
+        """
+        category = self.repository.get_transfer_category(user_id)
+
+        if not category:
+            category = self.add(CategoryCreate(name="transfer").to_model(user_id))
+
+        return category
 
     def before_delete(self, id: UUID, **kwargs: Any) -> Category:
         # Basic validation

@@ -89,7 +89,7 @@ CREATE TABLE transactions (
   category_id UUID REFERENCES categories(id),
   group_id UUID REFERENCES groups(id),
   recurrent_transaction_id UUID REFERENCES recurring_transactions(id),
-  transfer_id UUID REFERENCES transactions(id),
+  transfer_id UUID,
   type TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   currency TEXT,

@@ -168,9 +168,20 @@ class TestTransactionBase:
 class TestTransactionCreate:
     """Test TransactionCreate schema"""
 
-    def test_transaction_create_inheritance(self):
-        """Test that TransactionCreate inherits from TransactionBase"""
-        assert issubclass(TransactionCreate, TransactionBase)
+    def test_transaction_create_fields(self):
+        """TransactionCreate exposes only creation-specific fields"""
+        field_names = set(TransactionCreate.model_fields)
+        assert field_names == {
+            "account_id",
+            "category_id",
+            "group_id",
+            "type",
+            "amount",
+            "currency",
+            "date",
+            "source",
+            "has_installments",
+        }
 
     def test_transaction_create_to_model(self):
         """Test TransactionCreate to_model method"""

@@ -1,16 +1,21 @@
 import logging
+from datetime import datetime, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.group import Group
 from app.entities.group_member import GroupMember
-from app.entities.transaction import Transaction
+from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
-from app.schemas.transaction_schemas import TransactionSearch
+from app.schemas.transaction_schemas import (
+    TransactionSearch,
+    TransferResponse,
+    TransferTransactionCreate,
+)
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
@@ -91,8 +96,81 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
+    def create_transfer_transaction(
+        self, obj_in: TransferTransactionCreate, **kwargs: Any
+    ) -> bool:
+        """Validate transfer transaction before creation"""
+
+        user_id = kwargs.get("user_id")
+
+        if not user_id:
+            logger.warning(f"Attempt to create transfer transaction without user ID")
+            raise HTTPException(status_code=400, detail="Invalid user ID provided")
+
+        # Validate that the user owns the from and to accounts
+        if not self._validate_account_ownership(user_id, obj_in.from_account_id):
+            raise HTTPException(
+                status_code=403, detail="From account not found or access denied"
+            )
+        if not self._validate_account_ownership(user_id, obj_in.to_account_id):
+            raise HTTPException(
+                status_code=403, detail="To account not found or access denied"
+            )
+        # Validate that the from and to account are different
+        if obj_in.from_account_id == obj_in.to_account_id:
+            raise HTTPException(
+                status_code=400, detail="From and to account cannot be the same"
+            )
+        # Validate that the amount is greater than zero
+        if obj_in.amount <= 0:
+            raise HTTPException(
+                status_code=400, detail="Transaction amount must be greater than zero"
+            )
+        # Validate that the date is not in the future
+        transaction_date = (
+            obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
+        )
+        current_date = datetime.now(timezone.utc).date()
+        if transaction_date > current_date:
+            raise HTTPException(
+                status_code=400, detail="Transaction date cannot be in the future"
+            )
+
+        # Generate unique transfer id
+        transfer_id = uuid4()
+
+        transfer_category = self.category_service.get_transfer_category(user_id)
+        # Create from transaction
+        from_transaction = obj_in.build_from_transaction(
+            user_id, transfer_id, transfer_category.id
+        )
+        # Create to transaction
+        to_transaction = obj_in.build_to_transaction(
+            user_id, transfer_id, transfer_category.id
+        )
+        # Add transactions to database
+        self.repository.add(from_transaction)
+        self.repository.add(to_transaction)
+
+        return TransferResponse(
+            id=from_transaction.id,
+            user_id=from_transaction.user_id,
+            from_account_id=from_transaction.account_id,
+            to_account_id=to_transaction.account_id,
+            transfer_id=from_transaction.id,
+            amount=from_transaction.amount,
+            currency=from_transaction.currency,
+            created_at=from_transaction.created_at,
+            updated_at=from_transaction.updated_at,
+        )
+
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
         """Validate transaction before creation"""
+        # Validate transaction type before other business rules
+        valid_types = {t.value for t in TransactionType}
+        if obj_in.type not in valid_types:
+            raise HTTPException(status_code=400, detail="Invalid transaction type")
+
         # Validate amount is not zero before any other business rules
         if obj_in.amount == 0:
             raise HTTPException(
@@ -123,6 +201,16 @@ class TransactionService(BaseService[Transaction]):
         ):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
+            )
+
+        # Validate the transaction is not in the future
+        transaction_date = (
+            obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
+        )
+        current_date = datetime.now(timezone.utc).date()
+        if transaction_date > current_date:
+            raise HTTPException(
+                status_code=400, detail="Transaction date cannot be in the future"
             )
 
         return True
@@ -189,6 +277,18 @@ class TransactionService(BaseService[Transaction]):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
             )
+
+        # Validate transaction type when being updated
+        type_value = None
+        if payload:
+            type_value = payload.get("type")
+        else:
+            type_value = getattr(obj_in, "type", None)
+
+        if isinstance(type_value, str):
+            valid_types = {t.value for t in TransactionType}
+            if type_value not in valid_types:
+                raise HTTPException(status_code=400, detail="Invalid transaction type")
 
         return True
 
