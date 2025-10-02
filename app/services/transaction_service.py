@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.entities.group import Group
 from app.entities.group_member import GroupMember
-from app.entities.transaction import Transaction
+from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.transaction_schemas import (
@@ -166,6 +166,11 @@ class TransactionService(BaseService[Transaction]):
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
         """Validate transaction before creation"""
+        # Validate transaction type before other business rules
+        valid_types = {t.value for t in TransactionType}
+        if obj_in.type not in valid_types:
+            raise HTTPException(status_code=400, detail="Invalid transaction type")
+
         # Validate amount is not zero before any other business rules
         if obj_in.amount == 0:
             raise HTTPException(
@@ -272,6 +277,18 @@ class TransactionService(BaseService[Transaction]):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
             )
+
+        # Validate transaction type when being updated
+        type_value = None
+        if payload:
+            type_value = payload.get("type")
+        else:
+            type_value = getattr(obj_in, "type", None)
+
+        if isinstance(type_value, str):
+            valid_types = {t.value for t in TransactionType}
+            if type_value not in valid_types:
+                raise HTTPException(status_code=400, detail="Invalid transaction type")
 
         return True
 

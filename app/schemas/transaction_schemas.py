@@ -18,11 +18,11 @@ class TransactionBase(BaseModel):
     group_id: Optional[UUID] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
-    type: TransactionType
+    type: str
     amount: Decimal
     currency: Optional[str] = None
     date: Date
-    source: TransactionSource = TransactionSource.MANUAL
+    source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
 
     model_config = {
@@ -91,11 +91,11 @@ class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
     group_id: Optional[UUID] = None
-    type: TransactionType
+    type: str
     amount: Decimal
     currency: Optional[str] = None
     date: Date
-    source: TransactionSource = TransactionSource.MANUAL
+    source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
 
     model_config = {
