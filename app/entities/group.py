@@ -3,6 +3,7 @@ import uuid
 
 from sqlalchemy import Column, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 
 from app.config.db_base import Base
 
@@ -19,3 +20,4 @@ class Group(Base):
         default=datetime.datetime.utcnow,
         onupdate=datetime.datetime.utcnow,
     )
+    transactions = relationship("Transaction", back_populates="group")

@@ -1,7 +1,7 @@
 from typing import List
 from uuid import UUID
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.entities.transaction import Transaction
 from app.repository.base_repository import BaseRepository
@@ -16,7 +16,16 @@ class TransactionRepository(BaseRepository[Transaction]):
         self, user_id: UUID, search_params: TransactionSearch
     ) -> List[Transaction]:
         """Search transactions based on various criteria"""
-        query = self.db.query(Transaction).filter(Transaction.user_id == user_id)
+        query = (
+            self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.group),
+                selectinload(Transaction.installments),
+            )
+            .filter(Transaction.user_id == user_id)
+        )
 
         for filter_condition in search_params.build_filters():
             query = query.filter(filter_condition)
@@ -30,6 +39,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Get transactions by account ID for a specific user"""
         return (
             self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.group),
+                selectinload(Transaction.installments),
+            )
             .filter(
                 Transaction.user_id == user_id, Transaction.account_id == account_id
             )
@@ -41,6 +56,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Get transactions by category ID for a specific user"""
         return (
             self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.group),
+                selectinload(Transaction.installments),
+            )
             .filter(
                 Transaction.user_id == user_id, Transaction.category_id == category_id
             )
@@ -52,6 +73,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Get transactions by group ID for a specific user"""
         return (
             self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.group),
+                selectinload(Transaction.installments),
+            )
             .filter(Transaction.user_id == user_id, Transaction.group_id == group_id)
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()
@@ -63,6 +90,12 @@ class TransactionRepository(BaseRepository[Transaction]):
         """Get transactions within a date range for a specific user"""
         return (
             self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.group),
+                selectinload(Transaction.installments),
+            )
             .filter(
                 Transaction.user_id == user_id,
                 Transaction.date >= date_from,

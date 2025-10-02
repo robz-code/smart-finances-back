@@ -7,6 +7,9 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.entities.account import Account
+from app.entities.category import Category
+from app.entities.group import Group
 from app.entities.transaction import Transaction
 from app.schemas.transaction_schemas import TransactionSearch, TransactionUpdate
 from app.services.account_service import AccountService
@@ -34,6 +37,13 @@ class TestTransactionService:
         svc.repository = mock_repository
         svc.account_service = Mock(spec=AccountService)
         svc.category_service = Mock(spec=CategoryService)
+        account = Mock()
+        account.name = "Primary Account"
+        svc.account_service.get.return_value = account
+        category = Mock()
+        category.name = "General Category"
+        svc.category_service.get.return_value = category
+        mock_db.query.return_value.filter.return_value.first.return_value = None
         return svc
 
     @pytest.fixture
@@ -53,12 +63,50 @@ class TestTransactionService:
             has_installments=False,
         )
 
+    def _create_transaction(
+        self, user_id: uuid.UUID, amount: str = "100.00", group_id: uuid.UUID | None = None
+    ) -> Transaction:
+        transaction = Transaction(
+            id=uuid.uuid4(),
+            user_id=user_id,
+            account_id=uuid.uuid4(),
+            category_id=uuid.uuid4(),
+            group_id=group_id,
+            type="expense",
+            amount=Decimal(amount),
+            currency="USD",
+            date=date(2024, 1, 15),
+            source="manual",
+            has_installments=False,
+        )
+        account = Account(name="Primary Account")
+        account.id = transaction.account_id
+        transaction.account = account
+
+        category = Category(name="General Category")
+        category.id = transaction.category_id
+        transaction.category = category
+
+        if group_id:
+            group = Group(name="Shared Group")
+            group.id = group_id
+            transaction.group = group
+        else:
+            transaction.group = None
+
+        transaction.installments = []
+
+        return transaction
+
     def test_search_transactions_success(self, service, mock_repository):
         """Test successful transaction search"""
         # Arrange
         user_id = uuid.uuid4()
         search_params = TransactionSearch(type="expense")
-        mock_transactions = [Mock(), Mock()]
+        mock_transactions = [
+            self._create_transaction(user_id, "100.00"),
+            self._create_transaction(user_id, "200.00"),
+        ]
         mock_repository.search.return_value = mock_transactions
 
         # Act
@@ -66,7 +114,8 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert result.results == mock_transactions
+        assert all(r.account_name == "Primary Account" for r in result.results)
+        assert all(r.category_name == "General Category" for r in result.results)
         mock_repository.search.assert_called_once_with(user_id, search_params)
 
     def test_search_transactions_error(self, service, mock_repository):
@@ -88,7 +137,10 @@ class TestTransactionService:
         # Arrange
         user_id = uuid.uuid4()
         account_id = uuid.uuid4()
-        mock_transactions = [Mock(), Mock()]
+        mock_transactions = [
+            self._create_transaction(user_id),
+            self._create_transaction(user_id, "75.00"),
+        ]
         mock_repository.get_by_account_id.return_value = mock_transactions
 
         # Act
@@ -96,7 +148,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert result.results == mock_transactions
+        assert all(r.account_name == "Primary Account" for r in result.results)
         mock_repository.get_by_account_id.assert_called_once_with(user_id, account_id)
 
     def test_get_by_category_id_success(self, service, mock_repository):
@@ -104,7 +156,10 @@ class TestTransactionService:
         # Arrange
         user_id = uuid.uuid4()
         category_id = uuid.uuid4()
-        mock_transactions = [Mock(), Mock()]
+        mock_transactions = [
+            self._create_transaction(user_id),
+            self._create_transaction(user_id, "60.00"),
+        ]
         mock_repository.get_by_category_id.return_value = mock_transactions
 
         # Act
@@ -112,7 +167,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert result.results == mock_transactions
+        assert all(r.category_name == "General Category" for r in result.results)
         mock_repository.get_by_category_id.assert_called_once_with(user_id, category_id)
 
     def test_get_by_group_id_success(self, service, mock_repository):
@@ -120,7 +175,10 @@ class TestTransactionService:
         # Arrange
         user_id = uuid.uuid4()
         group_id = uuid.uuid4()
-        mock_transactions = [Mock(), Mock()]
+        mock_transactions = [
+            self._create_transaction(user_id, group_id=group_id),
+            self._create_transaction(user_id, amount="150.00", group_id=group_id),
+        ]
         mock_repository.get_by_group_id.return_value = mock_transactions
 
         # Act
@@ -128,7 +186,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert result.results == mock_transactions
+        assert all(r.group_name == "Shared Group" for r in result.results)
         mock_repository.get_by_group_id.assert_called_once_with(user_id, group_id)
 
     def test_get_by_date_range_success(self, service, mock_repository):
@@ -137,7 +195,10 @@ class TestTransactionService:
         user_id = uuid.uuid4()
         date_from = "2024-01-01"
         date_to = "2024-01-31"
-        mock_transactions = [Mock(), Mock()]
+        mock_transactions = [
+            self._create_transaction(user_id, amount="120.00"),
+            self._create_transaction(user_id, amount="80.00"),
+        ]
         mock_repository.get_by_date_range.return_value = mock_transactions
 
         # Act
@@ -145,7 +206,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert result.results == mock_transactions
+        assert all(r.account_name == "Primary Account" for r in result.results)
         mock_repository.get_by_date_range.assert_called_once_with(
             user_id, date_from, date_to
         )
@@ -467,6 +528,9 @@ class TestTransactionService:
         # Arrange
         user_id = uuid.uuid4()
         group_id = uuid.uuid4()
+        mock_group = Mock()
+        mock_group.created_by = user_id
+        service.db.query.return_value.filter.return_value.first.return_value = mock_group
 
         # Act
         result = service._validate_group_ownership(user_id, group_id)

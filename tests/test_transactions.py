@@ -111,8 +111,10 @@ class TestTransactionCRUD:
         transaction_id = transaction["id"]
 
         # Verify created transaction
-        assert transaction["account_id"] == account_id
-        assert transaction["category_id"] == category_id
+        assert "account_id" not in transaction
+        assert transaction["account_name"] == account["name"]
+        assert "category_id" not in transaction
+        assert transaction["category_name"] == category["name"]
         assert transaction["type"] == "expense"
         assert transaction["amount"] == "150.50"
         assert transaction["currency"] == "USD"
@@ -129,6 +131,8 @@ class TestTransactionCRUD:
         retrieved = r.json()
         assert retrieved["id"] == transaction_id
         assert retrieved["amount"] == "150.50"
+        assert retrieved["account_name"] == account["name"]
+        assert retrieved["category_name"] == category["name"]
 
         # Update transaction
         update_payload = {
@@ -145,8 +149,8 @@ class TestTransactionCRUD:
         assert updated["amount"] == "200.00"
         assert updated["type"] == "income"
         # Verify other fields remain unchanged
-        assert updated["account_id"] == account_id
-        assert updated["category_id"] == category_id
+        assert updated["account_name"] == account["name"]
+        assert updated["category_name"] == category["name"]
 
         # Delete transaction
         r = client.delete(
@@ -179,8 +183,8 @@ class TestTransactionCRUD:
         assert r.status_code == 200
 
         transaction = r.json()
-        assert transaction["account_id"] == account["id"]
-        assert transaction["category_id"] == category["id"]
+        assert transaction["account_name"] == account["name"]
+        assert transaction["category_name"] == category["name"]
         assert transaction["type"] == "expense"
         assert transaction["amount"] == "50.00"
         assert transaction["date"] == "2024-01-15"
@@ -211,7 +215,8 @@ class TestTransactionCRUD:
         assert r.status_code == 200
 
         transaction = r.json()
-        assert transaction["category_id"] == category["id"]
+        assert transaction["account_name"] == account["name"]
+        assert transaction["category_name"] == category["name"]
         assert transaction["type"] == "income"
         assert transaction["amount"] == "1000.00"
         assert transaction["currency"] == "EUR"
@@ -276,7 +281,7 @@ class TestTransactionCRUD:
         assert updated["amount"] == "75.25"
         # Verify other fields remain unchanged
         assert updated["type"] == "expense"
-        assert updated["account_id"] == account["id"]
+        assert updated["account_name"] == account["name"]
 
     def test_update_transaction_not_found(self, client: TestClient, auth_headers: dict):
         """Test updating non-existent transaction"""
@@ -355,7 +360,10 @@ class TestTransactionSearch:
 
         result = r.json()
         assert result["total"] >= 1
-        assert all(t["account_id"] == account1["id"] for t in result["results"])
+        assert all(
+            t["account_name"] == account1["name"] and "account_id" not in t
+            for t in result["results"]
+        )
 
     def test_search_transactions_by_type(self, client: TestClient, auth_headers: dict):
         """Test searching transactions by type"""
@@ -488,7 +496,8 @@ class TestTransactionSearch:
         # Verify all filters are applied
         for transaction in result["results"]:
             assert transaction["type"] == "expense"
-            assert transaction["category_id"] == category["id"]
+            assert transaction["category_name"] == category["name"]
+            assert "category_id" not in transaction
             assert Decimal(transaction["amount"]) >= Decimal("50.00")
 
 
@@ -523,7 +532,10 @@ class TestTransactionConvenienceEndpoints:
 
         result = r.json()
         assert result["total"] >= 1
-        assert all(t["account_id"] == account1["id"] for t in result["results"])
+        assert all(
+            t["account_name"] == account1["name"] and "account_id" not in t
+            for t in result["results"]
+        )
 
     def test_get_transactions_by_category(self, client: TestClient, auth_headers: dict):
         """Test getting transactions by category endpoint"""
@@ -560,7 +572,10 @@ class TestTransactionConvenienceEndpoints:
 
         result = r.json()
         assert result["total"] >= 1
-        assert all(t["category_id"] == category1["id"] for t in result["results"])
+        assert all(
+            t["category_name"] == category1["name"] and "category_id" not in t
+            for t in result["results"]
+        )
 
     def test_get_transactions_by_group(self, client: TestClient, auth_headers: dict):
         """Test getting transactions by group endpoint"""

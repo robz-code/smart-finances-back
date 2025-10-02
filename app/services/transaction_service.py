@@ -1,17 +1,20 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.entities.installment import Installment
 from app.entities.group import Group
 from app.entities.group_member import GroupMember
 from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
+from app.schemas.installment_schemas import InstallmentBase
 from app.schemas.transaction_schemas import (
+    TransactionResponse,
     TransactionSearch,
     TransferResponse,
     TransferTransactionCreate,
@@ -30,7 +33,7 @@ class TransactionService(BaseService[Transaction]):
         self.account_service = AccountService(db)
         self.category_service = CategoryService(db)
 
-    def get(self, transaction_id: UUID, user_id: UUID) -> Transaction:
+    def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
 
         transaction = super().get(transaction_id)
@@ -39,66 +42,80 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Access denied to this transaction"
             )
 
-        return transaction
+        return self._build_transaction_response(transaction)
 
     def search(
         self, user_id: UUID, search_params: TransactionSearch
-    ) -> SearchResponse[Transaction]:
+    ) -> SearchResponse[TransactionResponse]:
         """Search transactions with validation and error handling"""
         try:
             result = self.repository.search(user_id, search_params)
-            return SearchResponse(total=len(result), results=result)
+            return self._build_search_response(result)
         except Exception as e:
             logger.error(f"Error searching transactions: {str(e)}")
             raise HTTPException(status_code=500, detail="Error searching transactions")
 
     def get_by_account_id(
         self, user_id: UUID, account_id: UUID
-    ) -> SearchResponse[Transaction]:
+    ) -> SearchResponse[TransactionResponse]:
         """Get transactions by account ID with validation"""
         try:
             result = self.repository.get_by_account_id(user_id, account_id)
-            return SearchResponse(total=len(result), results=result)
+            return self._build_search_response(result)
         except Exception as e:
             logger.error(f"Error getting transactions by account: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
     def get_by_category_id(
         self, user_id: UUID, category_id: UUID
-    ) -> SearchResponse[Transaction]:
+    ) -> SearchResponse[TransactionResponse]:
         """Get transactions by category ID with validation"""
         try:
             result = self.repository.get_by_category_id(user_id, category_id)
-            return SearchResponse(total=len(result), results=result)
+            return self._build_search_response(result)
         except Exception as e:
             logger.error(f"Error getting transactions by category: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
     def get_by_group_id(
         self, user_id: UUID, group_id: UUID
-    ) -> SearchResponse[Transaction]:
+    ) -> SearchResponse[TransactionResponse]:
         """Get transactions by group ID with validation"""
         try:
             result = self.repository.get_by_group_id(user_id, group_id)
-            return SearchResponse(total=len(result), results=result)
+            return self._build_search_response(result)
         except Exception as e:
             logger.error(f"Error getting transactions by group: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
     def get_by_date_range(
         self, user_id: UUID, date_from: str, date_to: str
-    ) -> SearchResponse[Transaction]:
+    ) -> SearchResponse[TransactionResponse]:
         """Get transactions by date range with validation"""
         try:
             result = self.repository.get_by_date_range(user_id, date_from, date_to)
-            return SearchResponse(total=len(result), results=result)
+            return self._build_search_response(result)
         except Exception as e:
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
+    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+        """Create a transaction and return its response representation."""
+
+        created_transaction = super().add(obj_in, **kwargs)
+        return self._build_transaction_response(created_transaction)
+
+    def update(
+        self, id: UUID, obj_in: Any, **kwargs: Any
+    ) -> TransactionResponse:
+        """Update a transaction and return its response representation."""
+
+        updated_transaction = super().update(id, obj_in, **kwargs)
+        return self._build_transaction_response(updated_transaction)
+
     def create_transfer_transaction(
         self, obj_in: TransferTransactionCreate, **kwargs: Any
-    ) -> bool:
+    ) -> TransferResponse:
         """Validate transfer transaction before creation"""
 
         user_id = kwargs.get("user_id")
@@ -307,6 +324,96 @@ class TransactionService(BaseService[Transaction]):
             )
 
         return existing_transaction
+
+    def _build_search_response(
+        self, transactions: List[Transaction]
+    ) -> SearchResponse[TransactionResponse]:
+        responses = [self._build_transaction_response(transaction) for transaction in transactions]
+        return SearchResponse(total=len(responses), results=responses)
+
+    def _build_transaction_response(self, transaction: Transaction) -> TransactionResponse:
+        """Compose a transaction response with related entity metadata."""
+
+        account_name = self._resolve_account_name(transaction)
+        category_name = self._resolve_category_name(transaction)
+        group_name = self._resolve_group_name(transaction)
+        installments = self._resolve_installments(transaction)
+
+        return TransactionResponse(
+            id=transaction.id,
+            user_id=transaction.user_id,
+            account_id=transaction.account_id,
+            account_name=account_name,
+            category_id=transaction.category_id,
+            category_name=category_name,
+            group_id=transaction.group_id,
+            group_name=group_name,
+            recurrent_transaction_id=transaction.recurrent_transaction_id,
+            transfer_id=transaction.transfer_id,
+            type=transaction.type,
+            amount=transaction.amount,
+            currency=transaction.currency,
+            date=transaction.date,
+            source=transaction.source,
+            has_installments=transaction.has_installments,
+            installments=installments,
+            created_at=transaction.created_at,
+            updated_at=transaction.updated_at,
+        )
+
+    def _resolve_account_name(self, transaction: Transaction) -> str:
+        account = getattr(transaction, "account", None)
+        if account and getattr(account, "name", None):
+            return account.name
+
+        account_obj = self.account_service.get(transaction.account_id)
+        return account_obj.name
+
+    def _resolve_category_name(self, transaction: Transaction) -> str:
+        category = getattr(transaction, "category", None)
+        if category and getattr(category, "name", None):
+            return category.name
+
+        category_obj = self.category_service.get(transaction.category_id)
+        return category_obj.name
+
+    def _resolve_group_name(self, transaction: Transaction) -> Optional[str]:
+        if transaction.group_id is None:
+            return None
+
+        group = getattr(transaction, "group", None)
+        if group and getattr(group, "name", None):
+            return group.name
+
+        group_obj = self.db.query(Group).filter(Group.id == transaction.group_id).first()
+        return group_obj.name if group_obj else None
+
+    def _resolve_installments(
+        self, transaction: Transaction
+    ) -> Optional[List[InstallmentBase]]:
+        installments_rel = getattr(transaction, "installments", None)
+        if installments_rel:
+            return [
+                InstallmentBase.model_validate(installment)
+                for installment in installments_rel
+            ]
+
+        if not transaction.has_installments:
+            return None
+
+        installments = (
+            self.db.query(Installment)
+            .filter(Installment.transaction_id == transaction.id)
+            .order_by(Installment.installment_number.asc())
+            .all()
+        )
+
+        if not installments:
+            return None
+
+        return [
+            InstallmentBase.model_validate(installment) for installment in installments
+        ]
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""

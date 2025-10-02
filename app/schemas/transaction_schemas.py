@@ -4,18 +4,22 @@ from collections.abc import Callable
 from datetime import date as Date
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
+from app.schemas.installment_schemas import InstallmentBase
 
 
 class TransactionBase(BaseModel):
-    account_id: UUID
-    category_id: UUID
-    group_id: Optional[UUID] = None
+    account_id: UUID = Field(..., exclude=True)
+    account_name: str
+    category_id: UUID = Field(..., exclude=True)
+    category_name: str
+    group_id: Optional[UUID] = Field(default=None, exclude=True)
+    group_name: Optional[str] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
     type: str
@@ -24,6 +28,7 @@ class TransactionBase(BaseModel):
     date: Date
     source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
+    installments: Optional[List[InstallmentBase]] = None
 
     model_config = {
         "from_attributes": True,
@@ -50,8 +55,11 @@ class TransactionBase(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         return {
             "account_id": str(self.account_id) if self.account_id else None,
+            "account_name": self.account_name,
             "category_id": str(self.category_id) if self.category_id else None,
+            "category_name": self.category_name,
             "group_id": str(self.group_id) if self.group_id else None,
+            "group_name": self.group_name,
             "recurrent_transaction_id": (
                 str(self.recurrent_transaction_id)
                 if self.recurrent_transaction_id

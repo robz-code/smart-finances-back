@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import Column, Date, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import NUMERIC, UUID
+from sqlalchemy.orm import relationship
 
 from app.config.db_base import Base
 
@@ -14,3 +15,4 @@ class Installment(Base):
     installment_number = Column(Integer)
     due_date = Column(Date)
     amount = Column(NUMERIC, nullable=False)
+    transaction = relationship("Transaction", back_populates="installments")

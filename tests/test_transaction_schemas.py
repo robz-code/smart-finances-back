@@ -18,12 +18,21 @@ from app.schemas.transaction_schemas import (
 class TestTransactionBase:
     """Test TransactionBase schema"""
 
+    def _build_payload(self) -> dict[str, str]:
+        return {
+            "account_id": str(uuid.uuid4()),
+            "account_name": "Checking Account",
+            "category_id": str(uuid.uuid4()),
+            "category_name": "Groceries",
+        }
+
     def test_transaction_base_valid_data(self):
         """Test TransactionBase with valid data"""
         # Arrange
         data = {
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
+            **self._build_payload(),
+            "group_id": str(uuid.uuid4()),
+            "group_name": "Family Budget",
             "type": "expense",
             "amount": "100.50",
             "currency": "USD",
@@ -35,9 +44,13 @@ class TestTransactionBase:
         # Act
         transaction = TransactionBase(**data)
 
-        # Assert
+        # Assert - attributes
         assert str(transaction.account_id) == data["account_id"]
+        assert transaction.account_name == data["account_name"]
         assert str(transaction.category_id) == data["category_id"]
+        assert transaction.category_name == data["category_name"]
+        assert str(transaction.group_id) == data["group_id"]
+        assert transaction.group_name == data["group_name"]
         assert transaction.type == "expense"
         assert transaction.amount == Decimal("100.50")
         assert transaction.currency == "USD"
@@ -45,12 +58,20 @@ class TestTransactionBase:
         assert transaction.source == "manual"
         assert transaction.has_installments is False
 
+        # Assert - serialized output hides foreign keys
+        serialized = transaction.model_dump()
+        assert "account_id" not in serialized
+        assert serialized["account_name"] == data["account_name"]
+        assert "category_id" not in serialized
+        assert serialized["category_name"] == data["category_name"]
+        assert "group_id" not in serialized
+        assert serialized["group_name"] == data["group_name"]
+
     def test_transaction_base_minimal_data(self):
         """Test TransactionBase with minimal required data"""
         # Arrange
         data = {
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
+            **self._build_payload(),
             "type": "income",
             "amount": "200.00",
             "date": "2024-01-20",
@@ -61,7 +82,11 @@ class TestTransactionBase:
 
         # Assert
         assert str(transaction.account_id) == data["account_id"]
+        assert transaction.account_name == data["account_name"]
         assert str(transaction.category_id) == data["category_id"]
+        assert transaction.category_name == data["category_name"]
+        assert transaction.group_id is None
+        assert transaction.group_name is None
         assert transaction.type == "income"
         assert transaction.amount == Decimal("200.00")
         assert transaction.date == date(2024, 1, 20)
@@ -71,63 +96,54 @@ class TestTransactionBase:
 
     def test_transaction_base_invalid_uuid(self):
         """Test TransactionBase with invalid UUID"""
-        # Arrange
         data = {
+            **self._build_payload(),
             "account_id": "invalid-uuid",
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
         }
 
-        # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
 
     def test_transaction_base_invalid_amount(self):
         """Test TransactionBase with invalid amount"""
-        # Arrange
         data = {
-            "account_id": str(uuid.uuid4()),
+            **self._build_payload(),
             "type": "expense",
             "amount": "invalid-amount",
             "date": "2024-01-15",
         }
 
-        # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
 
     def test_transaction_base_invalid_date(self):
         """Test TransactionBase with invalid date"""
-        # Arrange
         data = {
-            "account_id": str(uuid.uuid4()),
+            **self._build_payload(),
             "type": "expense",
             "amount": "100.00",
             "date": "invalid-date",
         }
 
-        # Act & Assert
         with pytest.raises(ValidationError):
             TransactionBase(**data)
 
     def test_transaction_base_to_model(self):
         """Test TransactionBase to_model method"""
-        # Arrange
         user_id = uuid.uuid4()
         data = {
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
+            **self._build_payload(),
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
         }
         transaction_base = TransactionBase(**data)
 
-        # Act
         model = transaction_base.to_model(user_id)
 
-        # Assert
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
         assert str(model.account_id) == data["account_id"]
@@ -141,22 +157,24 @@ class TestTransactionBase:
 
     def test_transaction_base_to_dict(self):
         """Test TransactionBase to_dict method"""
-        # Arrange
         data = {
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
+            **self._build_payload(),
+            "group_id": str(uuid.uuid4()),
+            "group_name": "Family Budget",
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
         }
         transaction_base = TransactionBase(**data)
 
-        # Act
         result_dict = transaction_base.to_dict()
 
-        # Assert
         assert result_dict["account_id"] == data["account_id"]
+        assert result_dict["account_name"] == data["account_name"]
         assert result_dict["category_id"] == data["category_id"]
+        assert result_dict["category_name"] == data["category_name"]
+        assert result_dict["group_id"] == data["group_id"]
+        assert result_dict["group_name"] == data["group_name"]
         assert result_dict["type"] == "expense"
         assert result_dict["amount"] == Decimal("100.00")
         assert result_dict["date"] == date(2024, 1, 15)
@@ -278,13 +296,21 @@ class TestTransactionResponse:
         # Arrange
         transaction_id = str(uuid.uuid4())
         user_id = str(uuid.uuid4())
+        account_id = str(uuid.uuid4())
+        category_id = str(uuid.uuid4())
+        group_id = str(uuid.uuid4())
         data = {
             "id": transaction_id,
             "user_id": user_id,
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
+            "account_id": account_id,
+            "account_name": "Checking Account",
+            "category_id": category_id,
+            "category_name": "Groceries",
+            "group_id": group_id,
+            "group_name": "Family Budget",
             "type": "expense",
             "amount": "100.00",
+            "currency": "USD",
             "date": "2024-01-15",
             "created_at": "2024-01-15T10:00:00Z",
             "updated_at": "2024-01-15T11:00:00Z",
@@ -296,10 +322,24 @@ class TestTransactionResponse:
         # Assert
         assert str(transaction_response.id) == transaction_id
         assert str(transaction_response.user_id) == user_id
-        assert str(transaction_response.category_id) == data["category_id"]
+        assert str(transaction_response.account_id) == account_id
+        assert transaction_response.account_name == "Checking Account"
+        assert str(transaction_response.category_id) == category_id
+        assert transaction_response.category_name == "Groceries"
+        assert str(transaction_response.group_id) == group_id
+        assert transaction_response.group_name == "Family Budget"
         assert transaction_response.type == "expense"
         assert transaction_response.amount == Decimal("100.00")
+        assert transaction_response.currency == "USD"
         assert transaction_response.date == date(2024, 1, 15)
+
+        serialized = transaction_response.model_dump()
+        assert "account_id" not in serialized
+        assert serialized["account_name"] == "Checking Account"
+        assert "category_id" not in serialized
+        assert serialized["category_name"] == "Groceries"
+        assert "group_id" not in serialized
+        assert serialized["group_name"] == "Family Budget"
 
 
 class TestTransactionSearch:
