@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -98,6 +98,20 @@ class TransactionService(BaseService[Transaction]):
         except Exception as e:
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
+
+    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+        """Create a transaction and return its response representation."""
+
+        created_transaction = super().add(obj_in, **kwargs)
+        return self._build_transaction_response(created_transaction)
+
+    def update(
+        self, id: UUID, obj_in: Any, **kwargs: Any
+    ) -> TransactionResponse:
+        """Update a transaction and return its response representation."""
+
+        updated_transaction = super().update(id, obj_in, **kwargs)
+        return self._build_transaction_response(updated_transaction)
 
     def create_transfer_transaction(
         self, obj_in: TransferTransactionCreate, **kwargs: Any
@@ -314,38 +328,16 @@ class TransactionService(BaseService[Transaction]):
     def _build_search_response(
         self, transactions: List[Transaction]
     ) -> SearchResponse[TransactionResponse]:
-        responses = self._build_transaction_responses(transactions)
+        responses = [self._build_transaction_response(transaction) for transaction in transactions]
         return SearchResponse(total=len(responses), results=responses)
 
-    def _build_transaction_responses(
-        self, transactions: List[Transaction]
-    ) -> List[TransactionResponse]:
-        account_cache: Dict[UUID, str] = {}
-        category_cache: Dict[UUID, str] = {}
-        group_cache: Dict[UUID, Optional[str]] = {}
-
-        return [
-            self._build_transaction_response(
-                transaction, account_cache, category_cache, group_cache
-            )
-            for transaction in transactions
-        ]
-
-    def _build_transaction_response(
-        self,
-        transaction: Transaction,
-        account_cache: Optional[Dict[UUID, str]] = None,
-        category_cache: Optional[Dict[UUID, str]] = None,
-        group_cache: Optional[Dict[UUID, Optional[str]]] = None,
-    ) -> TransactionResponse:
+    def _build_transaction_response(self, transaction: Transaction) -> TransactionResponse:
         """Compose a transaction response with related entity metadata."""
 
-        account_name = self._get_account_name(transaction.account_id, account_cache)
-        category_name = self._get_category_name(
-            transaction.category_id, category_cache
-        )
-        group_name = self._get_group_name(transaction.group_id, group_cache)
-        installments = self._get_installments(transaction)
+        account_name = self._resolve_account_name(transaction)
+        category_name = self._resolve_category_name(transaction)
+        group_name = self._resolve_group_name(transaction)
+        installments = self._resolve_installments(transaction)
 
         return TransactionResponse(
             id=transaction.id,
@@ -369,48 +361,43 @@ class TransactionService(BaseService[Transaction]):
             updated_at=transaction.updated_at,
         )
 
-    def _get_account_name(
-        self, account_id: UUID, cache: Optional[Dict[UUID, str]] = None
-    ) -> str:
-        if cache is not None and account_id in cache:
-            return cache[account_id]
+    def _resolve_account_name(self, transaction: Transaction) -> str:
+        account = getattr(transaction, "account", None)
+        if account and getattr(account, "name", None):
+            return account.name
 
-        account = self.account_service.get(account_id)
-        if cache is not None:
-            cache[account_id] = account.name
-        return account.name
+        account_obj = self.account_service.get(transaction.account_id)
+        return account_obj.name
 
-    def _get_category_name(
-        self, category_id: UUID, cache: Optional[Dict[UUID, str]] = None
-    ) -> str:
-        if cache is not None and category_id in cache:
-            return cache[category_id]
+    def _resolve_category_name(self, transaction: Transaction) -> str:
+        category = getattr(transaction, "category", None)
+        if category and getattr(category, "name", None):
+            return category.name
 
-        category = self.category_service.get(category_id)
-        if cache is not None:
-            cache[category_id] = category.name
-        return category.name
+        category_obj = self.category_service.get(transaction.category_id)
+        return category_obj.name
 
-    def _get_group_name(
-        self, group_id: Optional[UUID], cache: Optional[Dict[UUID, Optional[str]]] = None
-    ) -> Optional[str]:
-        if group_id is None:
+    def _resolve_group_name(self, transaction: Transaction) -> Optional[str]:
+        if transaction.group_id is None:
             return None
 
-        if cache is not None and group_id in cache:
-            return cache[group_id]
+        group = getattr(transaction, "group", None)
+        if group and getattr(group, "name", None):
+            return group.name
 
-        group = self.db.query(Group).filter(Group.id == group_id).first()
-        group_name = group.name if group else None
+        group_obj = self.db.query(Group).filter(Group.id == transaction.group_id).first()
+        return group_obj.name if group_obj else None
 
-        if cache is not None:
-            cache[group_id] = group_name
-
-        return group_name
-
-    def _get_installments(
+    def _resolve_installments(
         self, transaction: Transaction
     ) -> Optional[List[InstallmentBase]]:
+        installments_rel = getattr(transaction, "installments", None)
+        if installments_rel:
+            return [
+                InstallmentBase.model_validate(installment)
+                for installment in installments_rel
+            ]
+
         if not transaction.has_installments:
             return None
 
