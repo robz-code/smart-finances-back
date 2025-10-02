@@ -15,12 +15,14 @@ def test_accounts_crud_flow(client, auth_headers):
         "type": "cash",
         "currency": "MXN",
         "initial_balance": 100.5,
+        "color": "#336699",
     }
     r = client.post("/api/v1/accounts", json=create_payload, headers=auth_headers)
     assert r.status_code == 200
     acc = r.json()
     acc_id = acc["id"]
     assert acc["name"] == "Main Wallet"
+    assert acc["color"] == "#336699"
 
     # Read list
     r = client.get("/api/v1/accounts", headers=auth_headers)
@@ -34,15 +36,17 @@ def test_accounts_crud_flow(client, auth_headers):
     assert r.status_code == 200
     one = r.json()
     assert one["id"] == acc_id
+    assert one["color"] == "#336699"
 
     # Update
-    update_payload = {"name": "Updated Wallet"}
+    update_payload = {"name": "Updated Wallet", "color": "#112233"}
     r = client.put(
         f"/api/v1/accounts/{acc_id}", json=update_payload, headers=auth_headers
     )
     assert r.status_code == 200
     updated = r.json()
     assert updated["name"] == "Updated Wallet"
+    assert updated["color"] == "#112233"
 
     # Delete
     r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)

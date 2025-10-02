@@ -28,6 +28,7 @@ CREATE TABLE accounts (
   name TEXT NOT NULL,
   type TEXT NOT NULL,
   currency TEXT,
+  color TEXT,
   initial_balance NUMERIC DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),

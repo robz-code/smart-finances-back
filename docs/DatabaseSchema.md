@@ -40,6 +40,7 @@ erDiagram
         TEXT name
         TEXT type
         TEXT currency
+        TEXT color
         NUMERIC initial_balance
         TIMESTAMP created_at
         TIMESTAMP updated_at
@@ -232,7 +233,7 @@ erDiagram
 - **user_contacts**: User contact relationships
 
 ### Financial Management
-- **accounts**: User financial accounts (bank, credit, etc.)
+- **accounts**: User financial accounts (bank, credit, etc.) with optional color metadata for UI theming
 - **credits**: Credit card and loan information
 - **categories**: Transaction categorization
 - **tags**: User-specific transaction tags
