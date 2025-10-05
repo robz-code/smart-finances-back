@@ -337,7 +337,7 @@ class TransactionService(BaseService[Transaction]):
         """Compose a transaction response with related entity metadata."""
 
         account_name = self._resolve_account_name(transaction)
-        category_name = self._resolve_category_name(transaction)
+        category_summary = self._resolve_category_summary(transaction)
         group_name = self._resolve_group_name(transaction)
         installments = self._resolve_installments(transaction)
 
@@ -345,12 +345,7 @@ class TransactionService(BaseService[Transaction]):
             id=transaction.account_id,
             name=account_name,
         )
-        category_entity = CategoryResponseBase(
-            id=transaction.category_id,
-            name=category_name,
-            icon=transaction.category.icon,
-            color=transaction.category.color,
-        )
+        category_entity = category_summary
         group_entity = (
             TransactionRelatedEntity(id=transaction.group_id, name=group_name)
             if transaction.group_id
@@ -384,13 +379,23 @@ class TransactionService(BaseService[Transaction]):
         account_obj = self.account_service.get(transaction.account_id)
         return account_obj.name
 
-    def _resolve_category_name(self, transaction: Transaction) -> str:
+    def _resolve_category_summary(self, transaction: Transaction) -> CategoryResponseBase:
         category = getattr(transaction, "category", None)
         if category and getattr(category, "name", None):
-            return category.name
+            return CategoryResponseBase(
+                id=transaction.category_id,
+                name=category.name,
+                icon=getattr(category, "icon", None),
+                color=getattr(category, "color", None),
+            )
 
         category_obj = self.category_service.get(transaction.category_id)
-        return category_obj.name
+        return CategoryResponseBase(
+            id=transaction.category_id,
+            name=category_obj.name,
+            icon=getattr(category_obj, "icon", None),
+            color=getattr(category_obj, "color", None),
+        )
 
     def _resolve_group_name(self, transaction: Transaction) -> Optional[str]:
         if transaction.group_id is None:

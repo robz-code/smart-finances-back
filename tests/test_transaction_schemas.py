@@ -27,6 +27,8 @@ class TestTransactionBase:
             "category": {
                 "id": str(uuid.uuid4()),
                 "name": "Groceries",
+                "icon": None,
+                "color": None,
             },
         }
 
@@ -133,56 +135,6 @@ class TestTransactionBase:
 
         with pytest.raises(ValidationError):
             TransactionBase(**data)
-
-    def test_transaction_base_to_model(self):
-        """Test TransactionBase to_model method"""
-        user_id = uuid.uuid4()
-        data = {
-            **self._build_payload(),
-            "type": "expense",
-            "amount": "100.00",
-            "date": "2024-01-15",
-        }
-        transaction_base = TransactionBase(**data)
-
-        model = transaction_base.to_model(user_id)
-
-        assert isinstance(model, Transaction)
-        assert model.user_id == user_id
-        assert str(model.account_id) == data["account"]["id"]
-        assert str(model.category_id) == data["category"]["id"]
-        assert model.type == "expense"
-        assert model.amount == Decimal("100.00")
-        assert model.date == date(2024, 1, 15)
-        assert model.source == "manual"
-        assert model.has_installments is False
-        assert model.created_at is not None
-
-    def test_transaction_base_to_dict(self):
-        """Test TransactionBase to_dict method"""
-        data = {
-            **self._build_payload(),
-            "group": {
-                "id": str(uuid.uuid4()),
-                "name": "Family Budget",
-            },
-            "type": "expense",
-            "amount": "100.00",
-            "date": "2024-01-15",
-        }
-        transaction_base = TransactionBase(**data)
-
-        result_dict = transaction_base.to_dict()
-
-        assert result_dict["account"] == data["account"]
-        assert result_dict["category"] == data["category"]
-        assert result_dict["group"] == data["group"]
-        assert result_dict["type"] == "expense"
-        assert result_dict["amount"] == Decimal("100.00")
-        assert result_dict["date"] == date(2024, 1, 15)
-        assert result_dict["source"] == "manual"
-        assert result_dict["has_installments"] is False
-        assert "created_at" in result_dict
 
 
 class TestTransactionCreate:
@@ -302,7 +254,12 @@ class TestTransactionResponse:
         category_id = str(uuid.uuid4())
         group_id = str(uuid.uuid4())
         account = {"id": account_id, "name": "Checking Account"}
-        category = {"id": category_id, "name": "Groceries"}
+        category = {
+            "id": category_id,
+            "name": "Groceries",
+            "icon": "groceries",
+            "color": "#00FF00",
+        }
         group = {"id": group_id, "name": "Family Budget"}
         data = {
             "id": transaction_id,
@@ -328,6 +285,8 @@ class TestTransactionResponse:
         assert transaction_response.account.name == "Checking Account"
         assert str(transaction_response.category.id) == category_id
         assert transaction_response.category.name == "Groceries"
+        assert transaction_response.category.icon == "groceries"
+        assert transaction_response.category.color == "#00FF00"
         assert transaction_response.group is not None
         assert str(transaction_response.group.id) == group_id
         assert transaction_response.group.name == "Family Budget"

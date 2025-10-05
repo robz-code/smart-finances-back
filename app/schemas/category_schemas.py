@@ -11,8 +11,8 @@ from app.entities.category import Category
 class CategoryResponseBase(BaseModel):
     id: UUID
     name: str
-    icon: str
-    color: str
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 class CategoryUpdate(BaseModel):
     name: Optional[str]
