@@ -13,7 +13,9 @@ from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.installment_schemas import InstallmentBase
+from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.transaction_schemas import (
+    TransactionRelatedEntity,
     TransactionResponse,
     TransactionSearch,
     TransferResponse,
@@ -339,15 +341,28 @@ class TransactionService(BaseService[Transaction]):
         group_name = self._resolve_group_name(transaction)
         installments = self._resolve_installments(transaction)
 
+        account_entity = TransactionRelatedEntity(
+            id=transaction.account_id,
+            name=account_name,
+        )
+        category_entity = CategoryResponseBase(
+            id=transaction.category_id,
+            name=category_name,
+            icon=transaction.category.icon,
+            color=transaction.category.color,
+        )
+        group_entity = (
+            TransactionRelatedEntity(id=transaction.group_id, name=group_name)
+            if transaction.group_id
+            else None
+        )
+
         return TransactionResponse(
             id=transaction.id,
             user_id=transaction.user_id,
-            account_id=transaction.account_id,
-            account_name=account_name,
-            category_id=transaction.category_id,
-            category_name=category_name,
-            group_id=transaction.group_id,
-            group_name=group_name,
+            account=account_entity,
+            category=category_entity,
+            group=group_entity,
             recurrent_transaction_id=transaction.recurrent_transaction_id,
             transfer_id=transaction.transfer_id,
             type=transaction.type,

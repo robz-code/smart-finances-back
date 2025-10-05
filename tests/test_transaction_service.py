@@ -114,8 +114,8 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.account_name == "Primary Account" for r in result.results)
-        assert all(r.category_name == "General Category" for r in result.results)
+        assert all(r.account.name == "Primary Account" for r in result.results)
+        assert all(r.category.name == "General Category" for r in result.results)
         mock_repository.search.assert_called_once_with(user_id, search_params)
 
     def test_search_transactions_error(self, service, mock_repository):
@@ -148,7 +148,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.account_name == "Primary Account" for r in result.results)
+        assert all(r.account.name == "Primary Account" for r in result.results)
         mock_repository.get_by_account_id.assert_called_once_with(user_id, account_id)
 
     def test_get_by_category_id_success(self, service, mock_repository):
@@ -167,7 +167,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.category_name == "General Category" for r in result.results)
+        assert all(r.category.name == "General Category" for r in result.results)
         mock_repository.get_by_category_id.assert_called_once_with(user_id, category_id)
 
     def test_get_by_group_id_success(self, service, mock_repository):
@@ -186,7 +186,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.group_name == "Shared Group" for r in result.results)
+        assert all(r.group is not None and r.group.name == "Shared Group" for r in result.results)
         mock_repository.get_by_group_id.assert_called_once_with(user_id, group_id)
 
     def test_get_by_date_range_success(self, service, mock_repository):
@@ -206,7 +206,7 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.account_name == "Primary Account" for r in result.results)
+        assert all(r.account.name == "Primary Account" for r in result.results)
         mock_repository.get_by_date_range.assert_called_once_with(
             user_id, date_from, date_to
         )

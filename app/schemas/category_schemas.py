@@ -8,6 +8,12 @@ from pydantic import UUID4, BaseModel, field_validator
 from app.entities.category import Category
 
 
+class CategoryResponseBase(BaseModel):
+    id: UUID
+    name: str
+    icon: str
+    color: str
+
 class CategoryUpdate(BaseModel):
     name: Optional[str]
     icon: Optional[str] = None

@@ -7,19 +7,27 @@ from decimal import Decimal
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, field_validator
 
+from app.schemas.category_schemas import CategoryResponseBase
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.installment_schemas import InstallmentBase
 
 
+class TransactionRelatedEntity(BaseModel):
+    id: UUID
+    name: Optional[str] = None
+
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {UUID: str},
+    }
+
+
 class TransactionBase(BaseModel):
-    account_id: UUID = Field(..., exclude=True)
-    account_name: str
-    category_id: UUID = Field(..., exclude=True)
-    category_name: str
-    group_id: Optional[UUID] = Field(default=None, exclude=True)
-    group_name: Optional[str] = None
+    account: TransactionRelatedEntity
+    category: CategoryResponseBase
+    group: Optional[TransactionRelatedEntity] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
     type: str
@@ -38,9 +46,9 @@ class TransactionBase(BaseModel):
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(
             user_id=current_user_id,
-            account_id=self.account_id,
-            category_id=self.category_id,
-            group_id=self.group_id,
+            account_id=self.account.id,
+            category_id=self.category.id,
+            group_id=self.group.id if self.group else None,
             recurrent_transaction_id=self.recurrent_transaction_id,
             transfer_id=self.transfer_id,
             type=self.type,
@@ -54,12 +62,24 @@ class TransactionBase(BaseModel):
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "account_id": str(self.account_id) if self.account_id else None,
-            "account_name": self.account_name,
-            "category_id": str(self.category_id) if self.category_id else None,
-            "category_name": self.category_name,
-            "group_id": str(self.group_id) if self.group_id else None,
-            "group_name": self.group_name,
+            "account": {
+                "id": str(self.account.id) if self.account and self.account.id else None,
+                "name": self.account.name if self.account else None,
+            },
+            "category": {
+                "id": str(self.category.id) if self.category and self.category.id else None,
+                "name": self.category.name if self.category else None,
+                "icon": self.category.icon if self.category else None,
+                "color": self.category.color if self.category else None,
+            },
+            "group": (
+                {
+                    "id": str(self.group.id) if self.group and self.group.id else None,
+                    "name": self.group.name if self.group else None,
+                }
+                if self.group
+                else None
+            ),
             "recurrent_transaction_id": (
                 str(self.recurrent_transaction_id)
                 if self.recurrent_transaction_id
