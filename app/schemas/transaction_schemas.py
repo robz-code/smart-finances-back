@@ -9,8 +9,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, field_validator
 
-from app.schemas.category_schemas import CategoryResponseBase
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
+from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
 
 
