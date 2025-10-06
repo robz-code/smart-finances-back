@@ -39,6 +39,7 @@ class Transaction(Base):
     date = Column(DATE, nullable=False)
     source = Column(Text, default=TransactionSource.MANUAL.value)
     has_installments = Column(Boolean, default=False)
+    has_debt = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
         DateTime,

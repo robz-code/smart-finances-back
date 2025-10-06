@@ -103,6 +103,7 @@ erDiagram
         DATE date
         TEXT source
         BOOLEAN has_installments
+        BOOLEAN has_debt
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }

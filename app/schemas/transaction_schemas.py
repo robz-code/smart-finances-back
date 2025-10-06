@@ -36,6 +36,7 @@ class TransactionBase(BaseModel):
     date: Date
     source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
+    has_debt: bool = False
     installments: Optional[List[InstallmentBase]] = None
 
     model_config = {
@@ -73,6 +74,7 @@ class TransactionCreate(BaseModel):
     date: Date
     source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
+    has_debt: bool = False
 
     model_config = {
         "from_attributes": True,
@@ -98,6 +100,7 @@ class TransactionCreate(BaseModel):
             date=self.date,
             source=self.source,
             has_installments=self.has_installments,
+            has_debt=self.has_debt,
             created_at=datetime.now(timezone.utc),
             updated_at=None,
         )
@@ -115,6 +118,7 @@ class TransactionUpdate(BaseModel):
     date: Optional[Date] = None
     source: Optional[str] = None
     has_installments: Optional[bool] = None
+    has_debt: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 
@@ -176,6 +180,7 @@ class TransactionSearch(BaseModel):
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
     has_installments: Optional[bool] = None
+    has_debt: Optional[bool] = None
 
     model_config = {
         "from_attributes": True,
@@ -191,6 +196,7 @@ class TransactionSearch(BaseModel):
                 "amount_max": "1000.00",
                 "source": "manual",
                 "has_installments": False,
+                "has_debt": False,
             }
         },
     }
@@ -207,6 +213,7 @@ class TransactionSearch(BaseModel):
         "amount_max": lambda value: Transaction.amount <= value,
         "source": lambda value: Transaction.source == value,
         "has_installments": lambda value: Transaction.has_installments == value,
+        "has_debt": lambda value: Transaction.has_debt == value,
     }
 
     def build_filters(self) -> list[Any]:

@@ -47,6 +47,7 @@ class TestTransactionRepository:
             date=date(2024, 1, 15),
             source="manual",
             has_installments=False,
+            has_debt=False,
         )
 
     def test_search_transactions_no_filters(self, repository, mock_db, mock_query):
@@ -244,6 +245,27 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + has_installments filters
+        mock_query.options.assert_called_once()
+
+    def test_search_transactions_with_debt_filter(
+        self, repository, mock_db, mock_query
+    ):
+        """Test searching transactions with debt filter"""
+        # Arrange
+        user_id = uuid.uuid4()
+        search_params = TransactionSearch(has_debt=True)
+        mock_transactions = [Mock()]
+
+        mock_db.query.return_value = mock_query
+        mock_query.all.return_value = mock_transactions
+
+        # Act
+        result = repository.search(user_id, search_params)
+
+        # Assert
+        assert result == mock_transactions
+        # Verify filter was applied
+        assert mock_query.filter.call_count >= 2  # user_id + has_debt filters
         mock_query.options.assert_called_once()
 
     def test_search_transactions_with_multiple_filters(
