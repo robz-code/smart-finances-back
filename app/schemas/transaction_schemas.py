@@ -4,18 +4,30 @@ from collections.abc import Callable
 from datetime import date as Date
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
+from app.schemas.category_schemas import CategoryResponseBase
+from app.schemas.installment_schemas import InstallmentBase
+
+
+class TransactionRelatedEntity(BaseModel):
+    id: UUID
+    name: Optional[str] = None
+
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {UUID: str},
+    }
 
 
 class TransactionBase(BaseModel):
-    account_id: UUID
-    category_id: UUID
-    group_id: Optional[UUID] = None
+    account: TransactionRelatedEntity
+    category: CategoryResponseBase
+    group: Optional[TransactionRelatedEntity] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
     type: str
@@ -24,48 +36,12 @@ class TransactionBase(BaseModel):
     date: Date
     source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
+    installments: Optional[List[InstallmentBase]] = None
 
     model_config = {
         "from_attributes": True,
         "json_encoders": {Decimal: lambda value: format(value, ".2f")},
     }
-
-    def to_model(self, current_user_id: UUID) -> Transaction:
-        return Transaction(
-            user_id=current_user_id,
-            account_id=self.account_id,
-            category_id=self.category_id,
-            group_id=self.group_id,
-            recurrent_transaction_id=self.recurrent_transaction_id,
-            transfer_id=self.transfer_id,
-            type=self.type,
-            amount=self.amount,
-            currency=self.currency,
-            date=self.date,
-            source=self.source,
-            has_installments=self.has_installments,
-            created_at=datetime.now(timezone.utc),
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "account_id": str(self.account_id) if self.account_id else None,
-            "category_id": str(self.category_id) if self.category_id else None,
-            "group_id": str(self.group_id) if self.group_id else None,
-            "recurrent_transaction_id": (
-                str(self.recurrent_transaction_id)
-                if self.recurrent_transaction_id
-                else None
-            ),
-            "transfer_id": str(self.transfer_id) if self.transfer_id else None,
-            "type": self.type,
-            "amount": self.amount,
-            "currency": self.currency,
-            "date": self.date,
-            "source": self.source,
-            "has_installments": self.has_installments,
-            "created_at": datetime.now(timezone.utc),
-        }
 
 
 class TransactionResponse(TransactionBase):

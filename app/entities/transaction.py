@@ -47,6 +47,10 @@ class Transaction(Base):
     )
 
     # Relationships
+    account = relationship("Account", back_populates="transactions")
+    category = relationship("Category", back_populates="transactions")
+    group = relationship("Group", back_populates="transactions")
     transaction_tags = relationship("TransactionTag", back_populates="transaction")
     user = relationship("User", back_populates="transactions")
     user_debts = relationship("UserDebt", back_populates="transaction")
+    installments = relationship("Installment", back_populates="transaction")

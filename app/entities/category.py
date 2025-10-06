@@ -24,3 +24,4 @@ class Category(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"))
 
     user = relationship("User", back_populates="categories")
+    transactions = relationship("Transaction", back_populates="category")
