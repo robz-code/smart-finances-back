@@ -22,7 +22,11 @@ class TestTransactionRepository:
     @pytest.fixture
     def mock_query(self):
         """Mock SQLAlchemy query"""
-        return Mock()
+        mock_query = Mock()
+        mock_query.filter.return_value = mock_query
+        mock_query.order_by.return_value = mock_query
+        mock_query.options.return_value = mock_query
+        return mock_query
 
     @pytest.fixture
     def repository(self, mock_db):
@@ -53,8 +57,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock(), Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -63,6 +65,7 @@ class TestTransactionRepository:
         # Assert
         assert result == mock_transactions
         mock_db.query.assert_called_once_with(Transaction)
+        mock_query.options.assert_called_once()
         mock_query.filter.assert_called_once()
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
@@ -78,8 +81,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -89,6 +90,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + account_id filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_category_filter(
         self, repository, mock_db, mock_query
@@ -101,8 +103,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -112,6 +112,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + category_id filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_type_filter(
         self, repository, mock_db, mock_query
@@ -123,8 +124,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -134,6 +133,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + type filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_currency_filter(
         self, repository, mock_db, mock_query
@@ -145,8 +145,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -156,6 +154,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + currency filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_date_range(self, repository, mock_db, mock_query):
         """Test searching transactions with date range filter"""
@@ -167,8 +166,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -180,6 +177,7 @@ class TestTransactionRepository:
         assert (
             mock_query.filter.call_count >= 3
         )  # user_id + date_from + date_to filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_amount_range(
         self, repository, mock_db, mock_query
@@ -193,8 +191,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -206,6 +202,7 @@ class TestTransactionRepository:
         assert (
             mock_query.filter.call_count >= 3
         )  # user_id + amount_min + amount_max filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_source_filter(
         self, repository, mock_db, mock_query
@@ -217,8 +214,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -228,6 +223,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + source filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_installments_filter(
         self, repository, mock_db, mock_query
@@ -239,8 +235,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -250,6 +244,7 @@ class TestTransactionRepository:
         assert result == mock_transactions
         # Verify filter was applied
         assert mock_query.filter.call_count >= 2  # user_id + has_installments filters
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_with_multiple_filters(
         self, repository, mock_db, mock_query
@@ -268,8 +263,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -281,6 +274,7 @@ class TestTransactionRepository:
         assert (
             mock_query.filter.call_count >= 5
         )  # user_id + account_id + category_id + type + currency
+        mock_query.options.assert_called_once()
 
     def test_search_transactions_ordering(self, repository, mock_db, mock_query):
         """Test that transactions are ordered correctly"""
@@ -290,14 +284,13 @@ class TestTransactionRepository:
         mock_transactions = [Mock(), Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
         repository.search(user_id, search_params)
 
         # Assert
+        mock_query.options.assert_called_once()
         mock_query.order_by.assert_called_once()
         # Verify order_by was called with date and created_at
 
@@ -309,8 +302,6 @@ class TestTransactionRepository:
         mock_transactions = [Mock(), Mock()]
 
         mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
@@ -378,6 +369,7 @@ class TestTransactionRepository:
         mock_db.query.return_value = mock_query
         mock_query.filter.return_value = mock_query
         mock_query.order_by.return_value = mock_query
+        mock_query.options.return_value = mock_query
         mock_query.all.return_value = mock_transactions
 
         # Act
