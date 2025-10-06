@@ -64,7 +64,10 @@ class TestTransactionService:
         )
 
     def _create_transaction(
-        self, user_id: uuid.UUID, amount: str = "100.00", group_id: uuid.UUID | None = None
+        self,
+        user_id: uuid.UUID,
+        amount: str = "100.00",
+        group_id: uuid.UUID | None = None,
     ) -> Transaction:
         transaction = Transaction(
             id=uuid.uuid4(),
@@ -186,7 +189,10 @@ class TestTransactionService:
 
         # Assert
         assert result.total == 2
-        assert all(r.group is not None and r.group.name == "Shared Group" for r in result.results)
+        assert all(
+            r.group is not None and r.group.name == "Shared Group"
+            for r in result.results
+        )
         mock_repository.get_by_group_id.assert_called_once_with(user_id, group_id)
 
     def test_get_by_date_range_success(self, service, mock_repository):
@@ -530,7 +536,9 @@ class TestTransactionService:
         group_id = uuid.uuid4()
         mock_group = Mock()
         mock_group.created_by = user_id
-        service.db.query.return_value.filter.return_value.first.return_value = mock_group
+        service.db.query.return_value.filter.return_value.first.return_value = (
+            mock_group
+        )
 
         # Act
         result = service._validate_group_ownership(user_id, group_id)

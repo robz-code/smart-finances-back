@@ -14,6 +14,7 @@ class CategoryResponseBase(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
 
+
 class CategoryUpdate(BaseModel):
     name: Optional[str]
     icon: Optional[str] = None

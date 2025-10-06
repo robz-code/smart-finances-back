@@ -108,9 +108,7 @@ class TransactionService(BaseService[Transaction]):
         created_transaction = super().add(obj_in, **kwargs)
         return self._build_transaction_response(created_transaction)
 
-    def update(
-        self, id: UUID, obj_in: Any, **kwargs: Any
-    ) -> TransactionResponse:
+    def update(self, id: UUID, obj_in: Any, **kwargs: Any) -> TransactionResponse:
         """Update a transaction and return its response representation."""
 
         updated_transaction = super().update(id, obj_in, **kwargs)
@@ -331,10 +329,15 @@ class TransactionService(BaseService[Transaction]):
     def _build_search_response(
         self, transactions: List[Transaction]
     ) -> SearchResponse[TransactionResponse]:
-        responses = [self._build_transaction_response(transaction) for transaction in transactions]
+        responses = [
+            self._build_transaction_response(transaction)
+            for transaction in transactions
+        ]
         return SearchResponse(total=len(responses), results=responses)
 
-    def _build_transaction_response(self, transaction: Transaction) -> TransactionResponse:
+    def _build_transaction_response(
+        self, transaction: Transaction
+    ) -> TransactionResponse:
         """Compose a transaction response with related entity metadata."""
 
         account_name = self._resolve_account_name(transaction)
@@ -380,7 +383,9 @@ class TransactionService(BaseService[Transaction]):
         account_obj = self.account_service.get(transaction.account_id)
         return account_obj.name
 
-    def _resolve_category_summary(self, transaction: Transaction) -> CategoryResponseBase:
+    def _resolve_category_summary(
+        self, transaction: Transaction
+    ) -> CategoryResponseBase:
         category = getattr(transaction, "category", None)
         if category and getattr(category, "name", None):
             return CategoryResponseBase(
@@ -406,7 +411,9 @@ class TransactionService(BaseService[Transaction]):
         if group and getattr(group, "name", None):
             return group.name
 
-        group_obj = self.db.query(Group).filter(Group.id == transaction.group_id).first()
+        group_obj = (
+            self.db.query(Group).filter(Group.id == transaction.group_id).first()
+        )
         return group_obj.name if group_obj else None
 
     def _resolve_installments(
@@ -420,7 +427,6 @@ class TransactionService(BaseService[Transaction]):
             return [InstallmentBase.model_validate(i) for i in installments_rel]
 
         return []
-
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""

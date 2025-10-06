@@ -43,6 +43,7 @@ class TransactionBase(BaseModel):
         "json_encoders": {Decimal: lambda value: format(value, ".2f")},
     }
 
+
 class TransactionResponse(TransactionBase):
     id: UUID
     user_id: UUID
