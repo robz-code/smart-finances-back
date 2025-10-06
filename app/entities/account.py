@@ -23,6 +23,7 @@ class Account(Base):
     name = Column(Text, nullable=False)
     type = Column(Text, nullable=False, default=AccountType.CASH.value)
     currency = Column(Text, default="MXN")
+    color = Column(Text, nullable=True)
     initial_balance = Column(NUMERIC, default=0)
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(
