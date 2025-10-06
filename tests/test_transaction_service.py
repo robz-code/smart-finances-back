@@ -61,6 +61,7 @@ class TestTransactionService:
             date=date(2024, 1, 15),
             source="manual",
             has_installments=False,
+            has_debt=False,
         )
 
     def _create_transaction(
@@ -81,6 +82,7 @@ class TestTransactionService:
             date=date(2024, 1, 15),
             source="manual",
             has_installments=False,
+            has_debt=False,
         )
         account = Account(name="Primary Account")
         account.id = transaction.account_id
@@ -98,6 +100,7 @@ class TestTransactionService:
             transaction.group = None
 
         transaction.installments = []
+        transaction.has_debt = False
 
         return transaction
 
@@ -119,6 +122,7 @@ class TestTransactionService:
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
         assert all(r.category.name == "General Category" for r in result.results)
+        assert all(r.has_debt is False for r in result.results)
         mock_repository.search.assert_called_once_with(user_id, search_params)
 
     def test_search_transactions_error(self, service, mock_repository):
@@ -152,6 +156,7 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
+        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_account_id.assert_called_once_with(user_id, account_id)
 
     def test_get_by_category_id_success(self, service, mock_repository):
@@ -171,6 +176,7 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.category.name == "General Category" for r in result.results)
+        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_category_id.assert_called_once_with(user_id, category_id)
 
     def test_get_by_group_id_success(self, service, mock_repository):
@@ -193,6 +199,7 @@ class TestTransactionService:
             r.group is not None and r.group.name == "Shared Group"
             for r in result.results
         )
+        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_group_id.assert_called_once_with(user_id, group_id)
 
     def test_get_by_date_range_success(self, service, mock_repository):
@@ -213,6 +220,7 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
+        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_date_range.assert_called_once_with(
             user_id, date_from, date_to
         )

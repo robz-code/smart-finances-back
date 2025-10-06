@@ -69,6 +69,7 @@ def _create_transaction(
         "date": transaction_date,
         "source": "manual",
         "has_installments": False,
+        "has_debt": False,
     }
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
     assert r.status_code == 200
@@ -102,6 +103,7 @@ class TestTransactionCRUD:
             "date": "2024-01-15",
             "source": "manual",
             "has_installments": False,
+            "has_debt": False,
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -123,6 +125,7 @@ class TestTransactionCRUD:
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"
         assert transaction["has_installments"] is False
+        assert transaction["has_debt"] is False
         assert "id" in transaction
         assert "user_id" in transaction
         assert "created_at" in transaction
@@ -135,6 +138,7 @@ class TestTransactionCRUD:
         assert retrieved["amount"] == "150.50"
         assert retrieved["account"]["name"] == account["name"]
         assert retrieved["category"]["name"] == category["name"]
+        assert retrieved["has_debt"] is False
 
         # Update transaction
         update_payload = {
@@ -153,6 +157,7 @@ class TestTransactionCRUD:
         # Verify other fields remain unchanged
         assert updated["account"]["name"] == account["name"]
         assert updated["category"]["name"] == category["name"]
+        assert updated["has_debt"] is False
 
         # Delete transaction
         r = client.delete(
@@ -192,6 +197,7 @@ class TestTransactionCRUD:
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"  # default value
         assert transaction["has_installments"] is False  # default value
+        assert transaction["has_debt"] is False  # default value
 
     def test_create_transaction_with_all_fields(
         self, client: TestClient, auth_headers: dict
@@ -210,6 +216,7 @@ class TestTransactionCRUD:
             "date": "2024-01-20",
             "source": "bank_transfer",
             "has_installments": True,
+            "has_debt": True,
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -224,6 +231,7 @@ class TestTransactionCRUD:
         assert transaction["currency"] == "EUR"
         assert transaction["source"] == "bank_transfer"
         assert transaction["has_installments"] is True
+        assert transaction["has_debt"] is True
 
     def test_create_transaction_invalid_account(
         self, client: TestClient, auth_headers: dict

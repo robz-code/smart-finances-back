@@ -47,6 +47,7 @@ class TestTransactionBase:
             "date": "2024-01-15",
             "source": "manual",
             "has_installments": False,
+            "has_debt": True,
         }
 
         # Act
@@ -66,6 +67,7 @@ class TestTransactionBase:
         assert transaction.date == date(2024, 1, 15)
         assert transaction.source == "manual"
         assert transaction.has_installments is False
+        assert transaction.has_debt is True
 
         # Assert - serialized output keeps nested structure
         serialized = transaction.model_dump(mode="json")
@@ -97,6 +99,7 @@ class TestTransactionBase:
         assert transaction.date == date(2024, 1, 20)
         assert transaction.source == "manual"  # default value
         assert transaction.has_installments is False  # default value
+        assert transaction.has_debt is False  # default value
         assert transaction.currency is None
 
     def test_transaction_base_invalid_uuid(self):
@@ -153,6 +156,7 @@ class TestTransactionCreate:
             "date",
             "source",
             "has_installments",
+            "has_debt",
         }
 
     def test_transaction_create_to_model(self):
@@ -180,6 +184,7 @@ class TestTransactionCreate:
         assert model.amount == Decimal("500.00")
         assert model.date == date(2024, 1, 25)
         assert model.updated_at is None
+        assert model.has_debt is False
 
 
 class TestTransactionUpdate:
@@ -202,6 +207,7 @@ class TestTransactionUpdate:
         assert transaction_update.date is None
         assert transaction_update.source is None
         assert transaction_update.has_installments is None
+        assert transaction_update.has_debt is None
 
     def test_transaction_update_partial_data(self):
         """Test TransactionUpdate with partial data"""
@@ -273,6 +279,8 @@ class TestTransactionResponse:
             "date": "2024-01-15",
             "created_at": "2024-01-15T10:00:00Z",
             "updated_at": "2024-01-15T11:00:00Z",
+            "has_installments": True,
+            "has_debt": True,
         }
 
         # Act
@@ -294,6 +302,8 @@ class TestTransactionResponse:
         assert transaction_response.amount == Decimal("100.00")
         assert transaction_response.currency == "USD"
         assert transaction_response.date == date(2024, 1, 15)
+        assert transaction_response.has_installments is True
+        assert transaction_response.has_debt is True
 
         serialized = transaction_response.model_dump(mode="json")
         assert serialized["account"] == account
@@ -321,6 +331,7 @@ class TestTransactionSearch:
         assert search.amount_max is None
         assert search.source is None
         assert search.has_installments is None
+        assert search.has_debt is None
 
     def test_transaction_search_with_filters(self):
         """Test TransactionSearch with various filters"""
@@ -342,6 +353,7 @@ class TestTransactionSearch:
             amount_max="500.00",
             source="manual",
             has_installments=True,
+            has_debt=False,
         )
 
         # Assert
@@ -356,6 +368,7 @@ class TestTransactionSearch:
         assert search.amount_max == Decimal("500.00")
         assert search.source == "manual"
         assert search.has_installments is True
+        assert search.has_debt is False
 
     def test_transaction_search_with_decimal_amounts(self):
         """Test TransactionSearch with decimal amount filters"""

@@ -370,6 +370,7 @@ class TransactionService(BaseService[Transaction]):
             date=transaction.date,
             source=transaction.source,
             has_installments=transaction.has_installments,
+            has_debt=transaction.has_debt,
             installments=installments,
             created_at=transaction.created_at,
             updated_at=transaction.updated_at,

@@ -97,6 +97,7 @@ CREATE TABLE transactions (
   date DATE NOT NULL,
   source TEXT DEFAULT 'manual',
   has_installments BOOLEAN DEFAULT FALSE,
+  has_debt BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
