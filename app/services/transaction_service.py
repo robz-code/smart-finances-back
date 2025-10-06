@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from app.entities.installment import Installment
 from app.entities.group import Group
-from app.entities.group_member import GroupMember
 from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
@@ -24,6 +23,7 @@ from app.schemas.transaction_schemas import (
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
+from app.services.group_service import GroupService
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ class TransactionService(BaseService[Transaction]):
         super().__init__(db, repository, Transaction)
         self.account_service = AccountService(db)
         self.category_service = CategoryService(db)
+        self.group_service = GroupService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -447,22 +448,7 @@ class TransactionService(BaseService[Transaction]):
         """Validate that the user owns the group or is a member of it."""
 
         try:
-            group = self.db.query(Group).filter(Group.id == group_id).first()
-            if group is None:
-                return False
-
-            if getattr(group, "created_by", None) == user_id:
-                return True
-
-            membership = (
-                self.db.query(GroupMember)
-                .filter(
-                    GroupMember.group_id == group_id,
-                    GroupMember.user_id == user_id,
-                )
-                .first()
-            )
-            return membership is not None
+            return self.group_service.user_has_access(group_id, user_id)
         except Exception as exc:
             logger.warning(
                 "Error validating group ownership for user %s and group %s: %s",
