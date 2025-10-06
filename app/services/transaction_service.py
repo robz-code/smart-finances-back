@@ -411,29 +411,15 @@ class TransactionService(BaseService[Transaction]):
     def _resolve_installments(
         self, transaction: Transaction
     ) -> Optional[List[InstallmentBase]]:
-        installments_rel = getattr(transaction, "installments", None)
-        if installments_rel:
-            return [
-                InstallmentBase.model_validate(installment)
-                for installment in installments_rel
-            ]
-
         if not transaction.has_installments:
             return None
 
-        installments = (
-            self.db.query(Installment)
-            .filter(Installment.transaction_id == transaction.id)
-            .order_by(Installment.installment_number.asc())
-            .all()
-        )
+        installments_rel = getattr(transaction, "installments", None)
+        if installments_rel is not None:
+            return [InstallmentBase.model_validate(i) for i in installments_rel]
 
-        if not installments:
-            return None
+        return []
 
-        return [
-            InstallmentBase.model_validate(installment) for installment in installments
-        ]
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
