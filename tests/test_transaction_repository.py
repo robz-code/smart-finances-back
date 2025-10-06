@@ -310,6 +310,7 @@ class TestTransactionRepository:
         # Assert
         assert result == mock_transactions
         mock_db.query.assert_called_once_with(Transaction)
+        mock_query.options.assert_called_once()
         mock_query.filter.assert_called()
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
@@ -332,6 +333,7 @@ class TestTransactionRepository:
         # Assert
         assert result == mock_transactions
         mock_db.query.assert_called_once_with(Transaction)
+        mock_query.options.assert_called_once()
         mock_query.filter.assert_called()
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
@@ -354,6 +356,7 @@ class TestTransactionRepository:
         # Assert
         assert result == mock_transactions
         mock_db.query.assert_called_once_with(Transaction)
+        mock_query.options.assert_called_once()
         mock_query.filter.assert_called()
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
@@ -378,6 +381,7 @@ class TestTransactionRepository:
         # Assert
         assert result == mock_transactions
         mock_db.query.assert_called_once_with(Transaction)
+        mock_query.options.assert_called_once()
         mock_query.filter.assert_called()
         mock_query.order_by.assert_called_once()
         mock_query.all.assert_called_once()
