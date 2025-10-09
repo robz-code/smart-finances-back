@@ -157,6 +157,7 @@ class TestTransactionCreate:
             "source",
             "has_installments",
             "has_debt",
+            "installments",
         }
 
     def test_transaction_create_to_model(self):
@@ -185,6 +186,26 @@ class TestTransactionCreate:
         assert model.date == date(2024, 1, 25)
         assert model.updated_at is None
         assert model.has_debt is False
+
+    def test_transaction_create_to_model_with_installments(self):
+        """TransactionCreate marks has_installments when details are provided"""
+        user_id = uuid.uuid4()
+        data = {
+            "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
+            "type": "expense",
+            "amount": "250.00",
+            "date": "2024-02-01",
+            "installments": [
+                {"due_date": "2024-03-01", "amount": "125.00"},
+                {"due_date": "2024-04-01", "amount": "125.00"},
+            ],
+        }
+
+        transaction_create = TransactionCreate(**data)
+        model = transaction_create.to_model(user_id)
+
+        assert model.has_installments is True
 
 
 class TestTransactionUpdate:

@@ -11,7 +11,7 @@ from pydantic import BaseModel, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
-from app.schemas.installment_schemas import InstallmentBase
+from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -75,6 +75,7 @@ class TransactionCreate(BaseModel):
     source: str = TransactionSource.MANUAL.value
     has_installments: bool = False
     has_debt: bool = False
+    installments: Optional[List[InstallmentCreate]] = None
 
     model_config = {
         "from_attributes": True,
@@ -89,6 +90,8 @@ class TransactionCreate(BaseModel):
         return value
 
     def to_model(self, current_user_id: UUID) -> Transaction:
+        has_installments = self.has_installments or bool(self.installments)
+
         return Transaction(
             user_id=current_user_id,
             account_id=self.account_id,
@@ -99,7 +102,7 @@ class TransactionCreate(BaseModel):
             currency=self.currency,
             date=self.date,
             source=self.source,
-            has_installments=self.has_installments,
+            has_installments=has_installments,
             has_debt=self.has_debt,
             created_at=datetime.now(timezone.utc),
             updated_at=None,
