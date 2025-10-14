@@ -75,9 +75,7 @@ class InstallmentService(BaseService[Installment]):
         self, transaction_id: UUID, user_id: UUID
     ) -> Transaction | None:
         transaction = (
-            self.db.query(Transaction)
-            .filter(Transaction.id == transaction_id)
-            .first()
+            self.db.query(Transaction).filter(Transaction.id == transaction_id).first()
         )
         if transaction is None:
             return None
