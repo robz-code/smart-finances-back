@@ -83,10 +83,9 @@ async def create_transaction(
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
     """
-    transaction_model = transaction_data.to_model(cast(UUID, current_user.id))
     return service.add(
-        transaction_model,
-        installments_data=transaction_data.installments,
+        transaction_data,
+        user_id=cast(UUID, current_user.id),
     )
 
 

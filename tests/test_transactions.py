@@ -68,7 +68,6 @@ def _create_transaction(
         "currency": "USD",
         "date": transaction_date,
         "source": "manual",
-        "has_installments": False,
         "has_debt": False,
     }
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
@@ -102,7 +101,6 @@ class TestTransactionCRUD:
             "currency": "USD",
             "date": "2024-01-15",
             "source": "manual",
-            "has_installments": False,
             "has_debt": False,
         }
         r = client.post(
@@ -215,8 +213,11 @@ class TestTransactionCRUD:
             "currency": "EUR",
             "date": "2024-01-20",
             "source": "bank_transfer",
-            "has_installments": True,
             "has_debt": True,
+            "installments": [
+                {"due_date": "2024-02-20", "amount": "500.00"},
+                {"due_date": "2024-03-20", "amount": "500.00"},
+            ],
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers

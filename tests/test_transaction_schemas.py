@@ -155,10 +155,10 @@ class TestTransactionCreate:
             "currency",
             "date",
             "source",
-            "has_installments",
             "has_debt",
             "installments",
         }
+        assert "has_installments" in TransactionCreate.model_computed_fields
 
     def test_transaction_create_to_model(self):
         """Test TransactionCreate to_model method"""
@@ -177,6 +177,7 @@ class TestTransactionCreate:
         model = transaction_create.to_model(user_id)
 
         # Assert
+        assert transaction_create.has_installments is False
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
         assert str(model.account_id) == data["account_id"]

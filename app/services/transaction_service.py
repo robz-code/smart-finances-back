@@ -13,6 +13,7 @@ from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
 from app.schemas.transaction_schemas import (
+    TransactionCreate,
     TransactionRelatedEntity,
     TransactionResponse,
     TransactionSearch,
@@ -103,15 +104,21 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+    def add(self, obj_in: TransactionCreate, **kwargs: Any) -> TransactionResponse:
         """Create a transaction and return its response representation."""
 
-        installments_data = kwargs.pop("installments_data", None)
+        user_id = kwargs.pop("user_id", None)
+        if user_id is None:
+            raise HTTPException(
+                status_code=400, detail="User ID is required to create transaction"
+            )
 
+        installments_data = obj_in.installments
+        transaction_model = obj_in.to_model(user_id)
         if installments_data:
-            obj_in.has_installments = True
+            transaction_model.has_installments = True
 
-        created_transaction = super().add(obj_in, **kwargs)
+        created_transaction = super().add(transaction_model, **kwargs)
 
         if installments_data:
             self.installment_service.create_for_transaction(
