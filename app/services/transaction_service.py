@@ -7,13 +7,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.group import Group
-from app.entities.installment import Installment
 from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
 from app.schemas.transaction_schemas import (
+    TransactionCreate,
     TransactionRelatedEntity,
     TransactionResponse,
     TransactionSearch,
@@ -24,6 +24,7 @@ from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
 from app.services.group_service import GroupService
+from app.services.installment_service import InstallmentService
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class TransactionService(BaseService[Transaction]):
         self.account_service = AccountService(db)
         self.category_service = CategoryService(db)
         self.group_service = GroupService(db)
+        self.installment_service = InstallmentService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -102,10 +104,28 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+    def add(self, obj_in: TransactionCreate, **kwargs: Any) -> TransactionResponse:
         """Create a transaction and return its response representation."""
 
-        created_transaction = super().add(obj_in, **kwargs)
+        user_id = kwargs.pop("user_id", None)
+        if user_id is None:
+            raise HTTPException(
+                status_code=400, detail="User ID is required to create transaction"
+            )
+
+        installments_data = obj_in.installments
+        transaction_model = obj_in.to_model(user_id)
+        if installments_data:
+            transaction_model.has_installments = True
+
+        created_transaction = super().add(transaction_model, **kwargs)
+
+        if installments_data:
+            self.installment_service.create_for_transaction(
+                created_transaction, installments_data
+            )
+            self.db.refresh(created_transaction)
+
         return self._build_transaction_response(created_transaction)
 
     def update(self, id: UUID, obj_in: Any, **kwargs: Any) -> TransactionResponse:
@@ -326,6 +346,14 @@ class TransactionService(BaseService[Transaction]):
 
         return existing_transaction
 
+    def delete(self, id: UUID, **kwargs: Any) -> Transaction:
+        existing_transaction = self.before_delete(id, **kwargs)
+
+        if existing_transaction.has_installments:
+            self.installment_service.delete_by_transaction_id(existing_transaction.id)
+
+        return super().delete(id, **kwargs)
+
     def _build_search_response(
         self, transactions: List[Transaction]
     ) -> SearchResponse[TransactionResponse]:
@@ -427,7 +455,10 @@ class TransactionService(BaseService[Transaction]):
         if installments_rel is not None:
             return [InstallmentBase.model_validate(i) for i in installments_rel]
 
-        return []
+        installments = self.installment_service.repository.get_by_transaction_id(
+            transaction.id
+        )
+        return [InstallmentBase.model_validate(i) for i in installments]
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""

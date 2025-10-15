@@ -9,6 +9,7 @@ from app.routes import (
     account_route,
     category_route,
     contact_route,
+    installment_route,
     tag_route,
     transaction_route,
     user_route,
@@ -55,6 +56,11 @@ app.include_router(
     category_route.router,
     prefix=f"{settings.API_V1_STR}/categories",
     tags=["Categories"],
+)
+app.include_router(
+    installment_route.router,
+    prefix=f"{settings.API_V1_STR}/installments",
+    tags=["Installments"],
 )
 app.include_router(
     transaction_route.router,

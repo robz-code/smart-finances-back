@@ -7,11 +7,11 @@ from decimal import Decimal
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, computed_field, field_validator, model_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
-from app.schemas.installment_schemas import InstallmentBase
+from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -73,8 +73,8 @@ class TransactionCreate(BaseModel):
     currency: Optional[str] = None
     date: Date
     source: str = TransactionSource.MANUAL.value
-    has_installments: bool = False
     has_debt: bool = False
+    installments: Optional[List[InstallmentCreate]] = None
 
     model_config = {
         "from_attributes": True,
@@ -87,6 +87,12 @@ class TransactionCreate(BaseModel):
         if isinstance(value, datetime):
             return value.date()
         return value
+
+    @computed_field(return_type=bool)
+    @property
+    def has_installments(self) -> bool:
+        """Expose whether installments were provided without requiring client input."""
+        return bool(self.installments)
 
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(

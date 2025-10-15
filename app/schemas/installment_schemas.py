@@ -23,3 +23,37 @@ class InstallmentBase(BaseModel):
             "due_date": self.due_date,
             "amount": self.amount,
         }
+
+
+class InstallmentCreate(BaseModel):
+    due_date: Date
+    amount: Decimal
+
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {Decimal: lambda value: format(value, ".2f")},
+    }
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def ensure_date(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
+
+class InstallmentUpdate(BaseModel):
+    due_date: Optional[Date] = None
+    amount: Optional[Decimal] = None
+
+    model_config = {
+        "from_attributes": True,
+        "json_encoders": {Decimal: lambda value: format(value, ".2f")},
+    }
+
+    @field_validator("due_date", mode="before")
+    @classmethod
+    def ensure_date(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.date()
+        return value
