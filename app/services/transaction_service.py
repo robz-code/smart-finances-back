@@ -4,14 +4,18 @@ from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.entities.group import Group
+from app.entities.tags import Tag
 from app.entities.transaction import Transaction, TransactionType
+from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
+from app.schemas.tag_schemas import TagCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionRelatedEntity,
@@ -25,6 +29,7 @@ from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
 from app.services.group_service import GroupService
 from app.services.installment_service import InstallmentService
+from app.services.tag_service import TagService
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,7 @@ class TransactionService(BaseService[Transaction]):
         self.category_service = CategoryService(db)
         self.group_service = GroupService(db)
         self.installment_service = InstallmentService(db)
+        self.tag_service = TagService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -104,27 +110,39 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def add(self, obj_in: TransactionCreate, **kwargs: Any) -> TransactionResponse:
-        """Create a transaction and return its response representation."""
+    def create_transaction(
+        self, payload: TransactionCreate, *, user_id: UUID
+    ) -> TransactionResponse:
+        """Create a transaction from a payload, handling tag linkage and installments."""
 
-        user_id = kwargs.pop("user_id", None)
-        if user_id is None:
-            raise HTTPException(
-                status_code=400, detail="User ID is required to create transaction"
-            )
+        tag_id = self._ensure_tag(user_id, payload.tag_id, payload.tag)
+        transaction_model = payload.to_model(user_id)
 
-        installments_data = obj_in.installments
-        transaction_model = obj_in.to_model(user_id)
+        return self.add(
+            transaction_model,
+            tag_id=tag_id,
+            installments_data=payload.installments,
+        )
+
+    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+        """Persist a transaction entity and attach related records."""
+
+        installments_data = kwargs.pop("installments_data", None)
+        tag_id = kwargs.get("tag_id")
+
         if installments_data:
-            transaction_model.has_installments = True
+            obj_in.has_installments = True
 
-        created_transaction = super().add(transaction_model, **kwargs)
+        created_transaction = super().add(obj_in, **kwargs)
 
         if installments_data:
             self.installment_service.create_for_transaction(
                 created_transaction, installments_data
             )
             self.db.refresh(created_transaction)
+
+        if tag_id:
+            self._attach_tag(created_transaction, tag_id)
 
         return self._build_transaction_response(created_transaction)
 
@@ -241,6 +259,12 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Group not found or access denied"
             )
 
+        tag_id = kwargs.get("tag_id")
+        if tag_id and not self._validate_tag_ownership(obj_in.user_id, tag_id):
+            raise HTTPException(
+                status_code=403, detail="Tag not found or access denied"
+            )
+
         # Validate the transaction is not in the future
         transaction_date = (
             obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
@@ -352,6 +376,8 @@ class TransactionService(BaseService[Transaction]):
         if existing_transaction.has_installments:
             self.installment_service.delete_by_transaction_id(existing_transaction.id)
 
+        self._remove_transaction_tags(existing_transaction.id)
+
         return super().delete(id, **kwargs)
 
     def _build_search_response(
@@ -372,6 +398,7 @@ class TransactionService(BaseService[Transaction]):
         category_summary = self._resolve_category_summary(transaction)
         group_name = self._resolve_group_name(transaction)
         installments = self._resolve_installments(transaction)
+        tag_entity = self._resolve_tag(transaction)
 
         account_entity = TransactionRelatedEntity(
             id=transaction.account_id,
@@ -390,6 +417,7 @@ class TransactionService(BaseService[Transaction]):
             account=account_entity,
             category=category_entity,
             group=group_entity,
+            tag=tag_entity,
             recurrent_transaction_id=transaction.recurrent_transaction_id,
             transfer_id=transaction.transfer_id,
             type=transaction.type,
@@ -460,6 +488,112 @@ class TransactionService(BaseService[Transaction]):
         )
         return [InstallmentBase.model_validate(i) for i in installments]
 
+    def _resolve_tag(
+        self, transaction: Transaction
+    ) -> Optional[TransactionRelatedEntity]:
+        tags_rel = getattr(transaction, "transaction_tags", None)
+        association = None
+
+        if tags_rel:
+            association = next(iter(tags_rel), None)
+        if association is None:
+            association = (
+                self.db.query(TransactionTag)
+                .filter(TransactionTag.transaction_id == transaction.id)
+                .first()
+            )
+
+        if association is None:
+            return None
+
+        tag_obj = getattr(association, "tag", None)
+        if tag_obj is None:
+            tag_obj = self.db.query(Tag).filter(Tag.id == association.tag_id).first()
+
+        if tag_obj is None:
+            return TransactionRelatedEntity(id=association.tag_id, name=None)
+
+        return TransactionRelatedEntity(id=tag_obj.id, name=tag_obj.name)
+
+    def _ensure_tag(
+        self,
+        user_id: UUID,
+        tag_id: Optional[UUID],
+        tag_payload: Optional[TagCreate],
+    ) -> Optional[UUID]:
+        if tag_id:
+            tag = self.db.query(Tag).filter(Tag.id == tag_id).first()
+            if tag is None:
+                if tag_payload:
+                    created_tag = self.tag_service.add(tag_payload.to_model(user_id))
+                    return created_tag.id
+                raise HTTPException(status_code=404, detail="Tag not found")
+            if tag.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Tag not found or access denied"
+                )
+            return tag_id
+
+        if tag_payload:
+            created_tag = self.tag_service.add(tag_payload.to_model(user_id))
+            return created_tag.id
+
+        return None
+
+    def _attach_tag(self, transaction: Transaction, tag_id: UUID) -> None:
+        existing = (
+            self.db.query(TransactionTag)
+            .filter(
+                TransactionTag.transaction_id == transaction.id,
+                TransactionTag.tag_id == tag_id,
+            )
+            .first()
+        )
+        if existing:
+            return
+
+        association = TransactionTag(transaction_id=transaction.id, tag_id=tag_id)
+        try:
+            self.db.add(association)
+            self.db.commit()
+            self.db.refresh(transaction)
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error linking tag %s to transaction %s: %s",
+                tag_id,
+                transaction.id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error linking tag to transaction"
+            )
+
+    def _remove_transaction_tags(self, transaction_id: UUID) -> None:
+        try:
+            deleted = (
+                self.db.query(TransactionTag)
+                .filter(TransactionTag.transaction_id == transaction_id)
+                .delete(synchronize_session=False)
+            )
+            if deleted:
+                logger.info(
+                    "Removed %s tag associations for transaction %s",
+                    deleted,
+                    transaction_id,
+                )
+            self.db.commit()
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error removing tag associations for transaction %s: %s",
+                transaction_id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error removing transaction tags"
+            )
+
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
         try:
@@ -495,3 +629,8 @@ class TransactionService(BaseService[Transaction]):
                 exc,
             )
             return False
+
+    def _validate_tag_ownership(self, user_id: UUID, tag_id: UUID) -> bool:
+        """Validate that the user owns the tag."""
+        tag = self.db.query(Tag).filter(Tag.id == tag_id).first()
+        return bool(tag and tag.user_id == user_id)

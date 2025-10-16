@@ -37,6 +37,10 @@ class TestTransactionBase:
         # Arrange
         data = {
             **self._build_payload(),
+            "tag": {
+                "id": str(uuid.uuid4()),
+                "name": "Shared Tag",
+            },
             "group": {
                 "id": str(uuid.uuid4()),
                 "name": "Family Budget",
@@ -61,6 +65,9 @@ class TestTransactionBase:
         assert transaction.group is not None
         assert str(transaction.group.id) == data["group"]["id"]
         assert transaction.group.name == data["group"]["name"]
+        assert transaction.tag is not None
+        assert str(transaction.tag.id) == data["tag"]["id"]
+        assert transaction.tag.name == data["tag"]["name"]
         assert transaction.type == "expense"
         assert transaction.amount == Decimal("100.50")
         assert transaction.currency == "USD"
@@ -74,6 +81,7 @@ class TestTransactionBase:
         assert serialized["account"] == data["account"]
         assert serialized["category"] == data["category"]
         assert serialized["group"] == data["group"]
+        assert serialized["tag"] == data["tag"]
 
     def test_transaction_base_minimal_data(self):
         """Test TransactionBase with minimal required data"""
@@ -94,6 +102,7 @@ class TestTransactionBase:
         assert str(transaction.category.id) == data["category"]["id"]
         assert transaction.category.name == data["category"]["name"]
         assert transaction.group is None
+        assert transaction.tag is None
         assert transaction.type == "income"
         assert transaction.amount == Decimal("200.00")
         assert transaction.date == date(2024, 1, 20)
@@ -150,6 +159,8 @@ class TestTransactionCreate:
             "account_id",
             "category_id",
             "group_id",
+            "tag_id",
+            "tag",
             "type",
             "amount",
             "currency",
@@ -207,6 +218,25 @@ class TestTransactionCreate:
         model = transaction_create.to_model(user_id)
 
         assert model.has_installments is True
+
+    def test_transaction_create_with_new_tag(self):
+        """TransactionCreate accepts new tag payloads"""
+        data = {
+            "account_id": str(uuid.uuid4()),
+            "category_id": str(uuid.uuid4()),
+            "type": "expense",
+            "amount": "75.00",
+            "date": "2024-01-10",
+            "tag": {
+                "name": "Dining",
+                "color": "#FFAA00",
+            },
+        }
+
+        transaction_create = TransactionCreate(**data)
+
+        assert transaction_create.tag is not None
+        assert transaction_create.tag.name == "Dining"
 
 
 class TestTransactionUpdate:
@@ -281,6 +311,7 @@ class TestTransactionResponse:
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
         group_id = str(uuid.uuid4())
+        tag_id = str(uuid.uuid4())
         account = {"id": account_id, "name": "Checking Account"}
         category = {
             "id": category_id,
@@ -289,12 +320,14 @@ class TestTransactionResponse:
             "color": "#00FF00",
         }
         group = {"id": group_id, "name": "Family Budget"}
+        tag = {"id": tag_id, "name": "Essentials"}
         data = {
             "id": transaction_id,
             "user_id": user_id,
             "account": account,
             "category": category,
             "group": group,
+            "tag": tag,
             "type": "expense",
             "amount": "100.00",
             "currency": "USD",
@@ -320,6 +353,9 @@ class TestTransactionResponse:
         assert transaction_response.group is not None
         assert str(transaction_response.group.id) == group_id
         assert transaction_response.group.name == "Family Budget"
+        assert transaction_response.tag is not None
+        assert str(transaction_response.tag.id) == tag_id
+        assert transaction_response.tag.name == "Essentials"
         assert transaction_response.type == "expense"
         assert transaction_response.amount == Decimal("100.00")
         assert transaction_response.currency == "USD"
@@ -331,6 +367,7 @@ class TestTransactionResponse:
         assert serialized["account"] == account
         assert serialized["category"] == category
         assert serialized["group"] == group
+        assert serialized["tag"] == tag
 
 
 class TestTransactionSearch:

@@ -46,6 +46,17 @@ def _create_category(client: TestClient, auth_headers: dict, name="Test Category
     return r.json()
 
 
+def _create_tag(client: TestClient, auth_headers: dict, name="Test Tag"):
+    """Helper function to create a tag for testing"""
+    create_payload = {
+        "name": name,
+        "color": "#00FF00",
+    }
+    r = client.post("/api/v1/tags", json=create_payload, headers=auth_headers)
+    assert r.status_code == 201
+    return r.json()
+
+
 def _create_transaction(
     client: TestClient,
     auth_headers: dict,
@@ -54,6 +65,8 @@ def _create_transaction(
     transaction_type: str = "expense",
     category_id: str | None = None,
     transaction_date: str = "2024-01-15",
+    tag_id: str | None = None,
+    tag: dict | None = None,
 ):
     """Helper function to create a transaction for testing"""
     if category_id is None:
@@ -70,6 +83,10 @@ def _create_transaction(
         "source": "manual",
         "has_debt": False,
     }
+    if tag_id:
+        create_payload["tag_id"] = tag_id
+    if tag:
+        create_payload["tag"] = tag
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
     assert r.status_code == 200
     return r.json()
@@ -124,6 +141,7 @@ class TestTransactionCRUD:
         assert transaction["source"] == "manual"
         assert transaction["has_installments"] is False
         assert transaction["has_debt"] is False
+        assert transaction["tag"] is None
         assert "id" in transaction
         assert "user_id" in transaction
         assert "created_at" in transaction
@@ -137,6 +155,7 @@ class TestTransactionCRUD:
         assert retrieved["account"]["name"] == account["name"]
         assert retrieved["category"]["name"] == category["name"]
         assert retrieved["has_debt"] is False
+        assert retrieved["tag"] is None
 
         # Update transaction
         update_payload = {
@@ -196,6 +215,7 @@ class TestTransactionCRUD:
         assert transaction["source"] == "manual"  # default value
         assert transaction["has_installments"] is False  # default value
         assert transaction["has_debt"] is False  # default value
+        assert transaction["tag"] is None
 
     def test_create_transaction_with_all_fields(
         self, client: TestClient, auth_headers: dict
@@ -204,6 +224,10 @@ class TestTransactionCRUD:
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
+        tag_payload = {
+            "name": "High Priority",
+            "color": "#FF00FF",
+        }
 
         create_payload = {
             "account_id": account["id"],
@@ -218,6 +242,7 @@ class TestTransactionCRUD:
                 {"due_date": "2024-02-20", "amount": "500.00"},
                 {"due_date": "2024-03-20", "amount": "500.00"},
             ],
+            "tag": tag_payload,
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -233,6 +258,33 @@ class TestTransactionCRUD:
         assert transaction["source"] == "bank_transfer"
         assert transaction["has_installments"] is True
         assert transaction["has_debt"] is True
+        assert transaction["tag"]["name"] == tag_payload["name"]
+        assert "id" in transaction["tag"]
+
+        tags_response = client.get("/api/v1/tags", headers=auth_headers)
+        assert tags_response.status_code == 200
+        tags_payload = tags_response.json()
+        assert any(tag["name"] == tag_payload["name"] for tag in tags_payload["results"])
+
+    def test_create_transaction_with_existing_tag(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test creating a transaction referencing an existing tag"""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
+        tag = _create_tag(client, auth_headers, name="Recurring")
+
+        transaction = _create_transaction(
+            client,
+            auth_headers,
+            account_id=account["id"],
+            category_id=category["id"],
+            tag_id=tag["id"],
+        )
+
+        assert transaction["tag"]["id"] == tag["id"]
+        assert transaction["tag"]["name"] == tag["name"]
 
     def test_create_transaction_invalid_account(
         self, client: TestClient, auth_headers: dict

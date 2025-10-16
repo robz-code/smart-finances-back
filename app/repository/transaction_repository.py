@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session, selectinload
 
 from app.entities.transaction import Transaction
+from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 from app.schemas.transaction_schemas import TransactionSearch
 
@@ -23,6 +24,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(Transaction.user_id == user_id)
         )
@@ -44,6 +48,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id, Transaction.account_id == account_id
@@ -61,6 +68,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id, Transaction.category_id == category_id
@@ -78,6 +88,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(Transaction.user_id == user_id, Transaction.group_id == group_id)
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())

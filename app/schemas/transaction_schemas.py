@@ -7,11 +7,12 @@ from decimal import Decimal
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, computed_field, field_validator, model_validator
+from pydantic import BaseModel, computed_field, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
+from app.schemas.tag_schemas import TagCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -28,6 +29,7 @@ class TransactionBase(BaseModel):
     account: TransactionRelatedEntity
     category: CategoryResponseBase
     group: Optional[TransactionRelatedEntity] = None
+    tag: Optional[TransactionRelatedEntity] = None
     recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
     type: str
@@ -68,6 +70,8 @@ class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
     group_id: Optional[UUID] = None
+    tag_id: Optional[UUID] = None
+    tag: Optional[TagCreate] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None
