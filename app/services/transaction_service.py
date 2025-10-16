@@ -521,6 +521,7 @@ class TransactionService(BaseService[Transaction]):
         tag_id: Optional[UUID],
         tag_payload: Optional[TagCreate],
     ) -> Optional[UUID]:
+        """Return a tag id ensuring it exists and belongs to the user, creating it if needed."""
         if tag_id:
             tag = self.db.query(Tag).filter(Tag.id == tag_id).first()
             if tag is None:
@@ -541,6 +542,7 @@ class TransactionService(BaseService[Transaction]):
         return None
 
     def _attach_tag(self, transaction: Transaction, tag_id: UUID) -> None:
+        """Link the transaction with the given tag if not already associated."""
         existing = (
             self.db.query(TransactionTag)
             .filter(
@@ -570,6 +572,7 @@ class TransactionService(BaseService[Transaction]):
             )
 
     def _remove_transaction_tags(self, transaction_id: UUID) -> None:
+        """Remove all tag associations for the provided transaction."""
         try:
             deleted = (
                 self.db.query(TransactionTag)
