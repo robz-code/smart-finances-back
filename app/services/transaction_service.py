@@ -524,6 +524,9 @@ class TransactionService(BaseService[Transaction]):
     ) -> Optional[Tag]:
         """Return a tag id ensuring it exists and belongs to the user, creating it if needed."""
 
+        if tag_payload is None:
+            return None
+
         if tag_payload.id is None:
             created_tag = self.tag_service.add(tag_payload.to_model(user_id))
             return created_tag

@@ -65,7 +65,6 @@ def _create_transaction(
     transaction_type: str = "expense",
     category_id: str | None = None,
     transaction_date: str = "2024-01-15",
-    tag_id: str | None = None,
     tag: dict | None = None,
 ):
     """Helper function to create a transaction for testing"""
@@ -83,8 +82,6 @@ def _create_transaction(
         "source": "manual",
         "has_debt": False,
     }
-    if tag_id:
-        create_payload["tag_id"] = tag_id
     if tag:
         create_payload["tag"] = tag
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
@@ -282,7 +279,7 @@ class TestTransactionCRUD:
             auth_headers,
             account_id=account["id"],
             category_id=category["id"],
-            tag_id=tag["id"],
+            tag={"id": tag["id"], "name": tag["name"]},
         )
 
         assert transaction["tag"]["id"] == tag["id"]

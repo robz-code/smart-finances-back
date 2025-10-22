@@ -159,7 +159,6 @@ class TestTransactionCreate:
             "account_id",
             "category_id",
             "group_id",
-            "tag_id",
             "tag",
             "type",
             "amount",
