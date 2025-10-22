@@ -2,10 +2,9 @@ import logging
 from typing import List
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
-
-from fastapi import HTTPException
 
 from app.entities.tags import Tag
 from app.entities.transaction import Transaction

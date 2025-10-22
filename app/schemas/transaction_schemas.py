@@ -12,7 +12,7 @@ from pydantic import BaseModel, computed_field, field_validator
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
-from app.schemas.tag_schemas import TagTransactionCreate, TagResponse
+from app.schemas.tag_schemas import TagResponse, TagTransactionCreate
 
 
 class TransactionRelatedEntity(BaseModel):

@@ -1,5 +1,6 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
+
+from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
 from app.repository.base_repository import BaseRepository
