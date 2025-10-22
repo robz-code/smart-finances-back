@@ -12,7 +12,7 @@ from pydantic import BaseModel, computed_field, field_validator
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
-from app.schemas.tag_schemas import TagCreate
+from app.schemas.tag_schemas import TagTransactionCreate, TagResponse
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -61,7 +61,7 @@ class TransferResponse(BaseModel):
     transfer_id: UUID
     amount: Decimal
     currency: Optional[str] = None
-    tag: Optional[UUID] = None
+    tag: Optional[TagResponse] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -70,8 +70,7 @@ class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
     group_id: Optional[UUID] = None
-    tag_id: Optional[UUID] = None
-    tag: Optional[TagCreate] = None
+    tag: Optional[TagTransactionCreate] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None

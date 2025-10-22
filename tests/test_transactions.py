@@ -264,7 +264,9 @@ class TestTransactionCRUD:
         tags_response = client.get("/api/v1/tags", headers=auth_headers)
         assert tags_response.status_code == 200
         tags_payload = tags_response.json()
-        assert any(tag["name"] == tag_payload["name"] for tag in tags_payload["results"])
+        assert any(
+            tag["name"] == tag_payload["name"] for tag in tags_payload["results"]
+        )
 
     def test_create_transaction_with_existing_tag(
         self, client: TestClient, auth_headers: dict

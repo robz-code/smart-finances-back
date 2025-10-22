@@ -15,7 +15,7 @@ from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
-from app.schemas.tag_schemas import TagCreate
+from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionRelatedEntity,
@@ -115,12 +115,12 @@ class TransactionService(BaseService[Transaction]):
     ) -> TransactionResponse:
         """Create a transaction from a payload, handling tag linkage and installments."""
 
-        tag_id = self._ensure_tag(user_id, payload.tag_id, payload.tag)
+        tag = self._ensure_tag(user_id, payload.tag)
         transaction_model = payload.to_model(user_id)
 
         return self.add(
             transaction_model,
-            tag_id=tag_id,
+            tag=tag,
             installments_data=payload.installments,
         )
 
@@ -128,7 +128,7 @@ class TransactionService(BaseService[Transaction]):
         """Persist a transaction entity and attach related records."""
 
         installments_data = kwargs.pop("installments_data", None)
-        tag_id = kwargs.get("tag_id")
+        tag = kwargs.get("tag")
 
         if installments_data:
             obj_in.has_installments = True
@@ -141,8 +141,8 @@ class TransactionService(BaseService[Transaction]):
             )
             self.db.refresh(created_transaction)
 
-        if tag_id:
-            self._attach_tag(created_transaction, tag_id)
+        if tag:
+            self.repository.attach_tag(created_transaction, tag)
 
         return self._build_transaction_response(created_transaction)
 
@@ -259,8 +259,10 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Group not found or access denied"
             )
 
-        tag_id = kwargs.get("tag_id")
-        if tag_id and not self._validate_tag_ownership(obj_in.user_id, tag_id):
+        tag = kwargs.get("tag")
+        if tag and not self.tag_service.repository.validate_tag_ownership(
+            obj_in.user_id, tag.id
+        ):
             raise HTTPException(
                 status_code=403, detail="Tag not found or access denied"
             )
@@ -518,58 +520,23 @@ class TransactionService(BaseService[Transaction]):
     def _ensure_tag(
         self,
         user_id: UUID,
-        tag_id: Optional[UUID],
-        tag_payload: Optional[TagCreate],
-    ) -> Optional[UUID]:
+        tag_payload: Optional[TagTransactionCreate],
+    ) -> Optional[Tag]:
         """Return a tag id ensuring it exists and belongs to the user, creating it if needed."""
-        if tag_id:
-            tag = self.db.query(Tag).filter(Tag.id == tag_id).first()
-            if tag is None:
-                if tag_payload:
-                    created_tag = self.tag_service.add(tag_payload.to_model(user_id))
-                    return created_tag.id
-                raise HTTPException(status_code=404, detail="Tag not found")
-            if tag.user_id != user_id:
-                raise HTTPException(
-                    status_code=403, detail="Tag not found or access denied"
-                )
-            return tag_id
 
-        if tag_payload:
+        if tag_payload.id is None:
             created_tag = self.tag_service.add(tag_payload.to_model(user_id))
-            return created_tag.id
+            return created_tag
 
-        return None
+        tag = self.tag_service.get(tag_payload.id)
 
-    def _attach_tag(self, transaction: Transaction, tag_id: UUID) -> None:
-        """Link the transaction with the given tag if not already associated."""
-        existing = (
-            self.db.query(TransactionTag)
-            .filter(
-                TransactionTag.transaction_id == transaction.id,
-                TransactionTag.tag_id == tag_id,
-            )
-            .first()
-        )
-        if existing:
-            return
-
-        association = TransactionTag(transaction_id=transaction.id, tag_id=tag_id)
-        try:
-            self.db.add(association)
-            self.db.commit()
-            self.db.refresh(transaction)
-        except SQLAlchemyError as exc:
-            self.db.rollback()
-            logger.error(
-                "Error linking tag %s to transaction %s: %s",
-                tag_id,
-                transaction.id,
-                exc,
-            )
+        if tag is None:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        if tag.user_id != user_id:
             raise HTTPException(
-                status_code=500, detail="Error linking tag to transaction"
+                status_code=403, detail="Tag not found or access denied"
             )
+        return tag
 
     def _remove_transaction_tags(self, transaction_id: UUID) -> None:
         """Remove all tag associations for the provided transaction."""
@@ -632,8 +599,3 @@ class TransactionService(BaseService[Transaction]):
                 exc,
             )
             return False
-
-    def _validate_tag_ownership(self, user_id: UUID, tag_id: UUID) -> bool:
-        """Validate that the user owns the tag."""
-        tag = self.db.query(Tag).filter(Tag.id == tag_id).first()
-        return bool(tag and tag.user_id == user_id)

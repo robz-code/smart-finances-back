@@ -70,3 +70,7 @@ class TagResponse(TagBase):
             "color": self.color,
             "created_at": datetime.now(timezone.utc),
         }
+
+
+class TagTransactionCreate(TagCreate):
+    id: Optional[UUID] = None

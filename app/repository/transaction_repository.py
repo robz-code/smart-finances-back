@@ -1,12 +1,19 @@
+import logging
 from typing import List
 from uuid import UUID
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from fastapi import HTTPException
+
+from app.entities.tags import Tag
 from app.entities.transaction import Transaction
 from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 from app.schemas.transaction_schemas import TransactionSearch
+
+logger = logging.getLogger(__name__)
 
 
 class TransactionRepository(BaseRepository[Transaction]):
@@ -58,6 +65,25 @@ class TransactionRepository(BaseRepository[Transaction]):
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()
         )
+
+    def attach_tag(self, transaction: Transaction, tag: Tag) -> None:
+        """Persist the relationship between a transaction and a tag."""
+        association = TransactionTag(transaction_id=transaction.id, tag_id=tag.id)
+        try:
+            self.db.add(association)
+            self.db.commit()
+            self.db.refresh(transaction)
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error linking tag %s to transaction %s: %s",
+                tag.id,
+                transaction.id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error linking tag to transaction"
+            ) from exc
 
     def get_by_category_id(self, user_id: UUID, category_id: UUID) -> List[Transaction]:
         """Get transactions by category ID for a specific user"""
