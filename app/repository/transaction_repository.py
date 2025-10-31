@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -82,6 +82,42 @@ class TransactionRepository(BaseRepository[Transaction]):
             )
             raise HTTPException(
                 status_code=500, detail="Error linking tag to transaction"
+            ) from exc
+
+    def get_tag_association(self, transaction_id: UUID) -> Optional[TransactionTag]:
+        """Return the first tag association for the given transaction."""
+        return (
+            self.db.query(TransactionTag)
+            .options(selectinload(TransactionTag.tag))
+            .filter(TransactionTag.transaction_id == transaction_id)
+            .first()
+        )
+
+    def remove_tags(self, transaction_id: UUID) -> int:
+        """Delete all tag associations for the given transaction."""
+        try:
+            deleted = (
+                self.db.query(TransactionTag)
+                .filter(TransactionTag.transaction_id == transaction_id)
+                .delete(synchronize_session=False)
+            )
+            if deleted:
+                logger.info(
+                    "Removed %s tag associations for transaction %s",
+                    deleted,
+                    transaction_id,
+                )
+            self.db.commit()
+            return deleted
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error removing tag associations for transaction %s: %s",
+                transaction_id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error removing transaction tags"
             ) from exc
 
     def get_by_category_id(self, user_id: UUID, category_id: UUID) -> List[Transaction]:

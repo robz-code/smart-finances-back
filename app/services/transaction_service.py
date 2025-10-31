@@ -4,13 +4,10 @@ from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.entities.group import Group
 from app.entities.tags import Tag
 from app.entities.transaction import Transaction, TransactionType
-from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
@@ -470,9 +467,7 @@ class TransactionService(BaseService[Transaction]):
         if group and getattr(group, "name", None):
             return group.name
 
-        group_obj = (
-            self.db.query(Group).filter(Group.id == transaction.group_id).first()
-        )
+        group_obj = self.group_service.repository.get(transaction.group_id)
         return group_obj.name if group_obj else None
 
     def _resolve_installments(
@@ -499,18 +494,14 @@ class TransactionService(BaseService[Transaction]):
         if tags_rel:
             association = next(iter(tags_rel), None)
         if association is None:
-            association = (
-                self.db.query(TransactionTag)
-                .filter(TransactionTag.transaction_id == transaction.id)
-                .first()
-            )
+            association = self.repository.get_tag_association(transaction.id)
 
         if association is None:
             return None
 
         tag_obj = getattr(association, "tag", None)
         if tag_obj is None:
-            tag_obj = self.db.query(Tag).filter(Tag.id == association.tag_id).first()
+            tag_obj = self.tag_service.repository.get(association.tag_id)
 
         if tag_obj is None:
             return TransactionRelatedEntity(id=association.tag_id, name=None)
@@ -543,29 +534,7 @@ class TransactionService(BaseService[Transaction]):
 
     def _remove_transaction_tags(self, transaction_id: UUID) -> None:
         """Remove all tag associations for the provided transaction."""
-        try:
-            deleted = (
-                self.db.query(TransactionTag)
-                .filter(TransactionTag.transaction_id == transaction_id)
-                .delete(synchronize_session=False)
-            )
-            if deleted:
-                logger.info(
-                    "Removed %s tag associations for transaction %s",
-                    deleted,
-                    transaction_id,
-                )
-            self.db.commit()
-        except SQLAlchemyError as exc:
-            self.db.rollback()
-            logger.error(
-                "Error removing tag associations for transaction %s: %s",
-                transaction_id,
-                exc,
-            )
-            raise HTTPException(
-                status_code=500, detail="Error removing transaction tags"
-            )
+        self.repository.remove_tags(transaction_id)
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
