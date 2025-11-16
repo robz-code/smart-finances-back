@@ -169,6 +169,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id,
