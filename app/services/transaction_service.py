@@ -7,8 +7,8 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
-from app.entities.transaction_tag import TransactionTag
 from app.entities.transaction import Transaction, TransactionType
+from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
