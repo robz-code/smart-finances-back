@@ -38,7 +38,7 @@ class TagCreate(TagBase):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str) -> str:
-        if v and not re.match(r"^#[0-9a-fA-F]{6}$", v):
+        if v and not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", v):
             raise ValueError("Invalid color format")
         return v
 
@@ -106,7 +106,7 @@ class TagTransactionCreate(BaseModel):
     @field_validator("color")
     @classmethod
     def validate_color(cls, v: str) -> str:
-        if v and not re.match(r"^#[0-9a-fA-F]{6}$", v):
+        if v and not re.match(r"^#(?:[0-9a-fA-F]{3}){1,2}$", v):
             raise ValueError("Invalid color format")
         return v
 

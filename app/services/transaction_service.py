@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.entities.tags import Tag
+from app.entities.transaction_tag import TransactionTag
 from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
@@ -489,11 +490,14 @@ class TransactionService(BaseService[Transaction]):
         self, transaction: Transaction
     ) -> Optional[TransactionRelatedEntity]:
         tags_rel = getattr(transaction, "transaction_tags", None)
-        association = None
+        association: Optional[TransactionTag] = None
 
         if tags_rel:
-            association = next(iter(tags_rel), None)
-        if association is None:
+            association_candidate = next(iter(tags_rel), None)
+            if isinstance(association_candidate, TransactionTag):
+                association = association_candidate
+
+        if association is None and isinstance(self.repository, TransactionRepository):
             association = self.repository.get_tag_association(transaction.id)
 
         if association is None:
