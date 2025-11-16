@@ -82,8 +82,10 @@ async def create_transaction(
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
+    Optionally include `tag_id` to link an existing tag or provide a `tag`
+    object (name and color) to create and link a new tag automatically.
     """
-    return service.add(
+    return service.create_transaction(
         transaction_data,
         user_id=cast(UUID, current_user.id),
     )
@@ -102,7 +104,7 @@ async def create_transfer_transaction(
     transaction_data: TransferTransactionCreate,
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
-) -> TransactionResponse:
+) -> TransferResponse:
     """
     Create a new transfer transaction.
     """

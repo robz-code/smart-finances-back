@@ -6,12 +6,14 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.entities.group import Group
+from app.entities.tags import Tag
 from app.entities.transaction import Transaction, TransactionType
+from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.installment_schemas import InstallmentBase
+from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionRelatedEntity,
@@ -25,6 +27,7 @@ from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
 from app.services.group_service import GroupService
 from app.services.installment_service import InstallmentService
+from app.services.tag_service import TagService
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,7 @@ class TransactionService(BaseService[Transaction]):
         self.category_service = CategoryService(db)
         self.group_service = GroupService(db)
         self.installment_service = InstallmentService(db)
+        self.tag_service = TagService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -104,27 +108,39 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def add(self, obj_in: TransactionCreate, **kwargs: Any) -> TransactionResponse:
-        """Create a transaction and return its response representation."""
+    def create_transaction(
+        self, payload: TransactionCreate, *, user_id: UUID
+    ) -> TransactionResponse:
+        """Create a transaction from a payload, handling tag linkage and installments."""
 
-        user_id = kwargs.pop("user_id", None)
-        if user_id is None:
-            raise HTTPException(
-                status_code=400, detail="User ID is required to create transaction"
-            )
+        tag = self._ensure_tag(user_id, payload.tag)
+        transaction_model = payload.to_model(user_id)
 
-        installments_data = obj_in.installments
-        transaction_model = obj_in.to_model(user_id)
+        return self.add(
+            transaction_model,
+            tag=tag,
+            installments_data=payload.installments,
+        )
+
+    def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
+        """Persist a transaction entity and attach related records."""
+
+        installments_data = kwargs.pop("installments_data", None)
+        tag = kwargs.get("tag")
+
         if installments_data:
-            transaction_model.has_installments = True
+            obj_in.has_installments = True
 
-        created_transaction = super().add(transaction_model, **kwargs)
+        created_transaction = super().add(obj_in, **kwargs)
 
         if installments_data:
             self.installment_service.create_for_transaction(
                 created_transaction, installments_data
             )
             self.db.refresh(created_transaction)
+
+        if tag:
+            self.repository.attach_tag(created_transaction, tag)
 
         return self._build_transaction_response(created_transaction)
 
@@ -187,19 +203,21 @@ class TransactionService(BaseService[Transaction]):
             user_id, transfer_id, transfer_category.id
         )
         # Add transactions to database
-        self.repository.add(from_transaction)
-        self.repository.add(to_transaction)
+        created_from_transaction = self.repository.add(from_transaction)
+        created_to_transaction = self.repository.add(to_transaction)
+
+        # Refresh transactions to ensure relationships are loaded
+        self.db.refresh(created_from_transaction)
+        self.db.refresh(created_to_transaction)
+
+        # Build full transaction responses
+        from_response = self._build_transaction_response(created_from_transaction)
+        to_response = self._build_transaction_response(created_to_transaction)
 
         return TransferResponse(
-            id=from_transaction.id,
-            user_id=from_transaction.user_id,
-            from_account_id=from_transaction.account_id,
-            to_account_id=to_transaction.account_id,
-            transfer_id=from_transaction.id,
-            amount=from_transaction.amount,
-            currency=from_transaction.currency,
-            created_at=from_transaction.created_at,
-            updated_at=from_transaction.updated_at,
+            transfer_id=transfer_id,
+            from_transaction=from_response,
+            to_transaction=to_response,
         )
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
@@ -239,6 +257,14 @@ class TransactionService(BaseService[Transaction]):
         ):
             raise HTTPException(
                 status_code=403, detail="Group not found or access denied"
+            )
+
+        tag = kwargs.get("tag")
+        if tag and not self.tag_service.repository.validate_tag_ownership(
+            obj_in.user_id, tag.id
+        ):
+            raise HTTPException(
+                status_code=403, detail="Tag not found or access denied"
             )
 
         # Validate the transaction is not in the future
@@ -352,6 +378,8 @@ class TransactionService(BaseService[Transaction]):
         if existing_transaction.has_installments:
             self.installment_service.delete_by_transaction_id(existing_transaction.id)
 
+        self._remove_transaction_tags(existing_transaction.id)
+
         return super().delete(id, **kwargs)
 
     def _build_search_response(
@@ -372,6 +400,7 @@ class TransactionService(BaseService[Transaction]):
         category_summary = self._resolve_category_summary(transaction)
         group_name = self._resolve_group_name(transaction)
         installments = self._resolve_installments(transaction)
+        tag_entity = self._resolve_tag(transaction)
 
         account_entity = TransactionRelatedEntity(
             id=transaction.account_id,
@@ -390,6 +419,7 @@ class TransactionService(BaseService[Transaction]):
             account=account_entity,
             category=category_entity,
             group=group_entity,
+            tag=tag_entity,
             recurrent_transaction_id=transaction.recurrent_transaction_id,
             transfer_id=transaction.transfer_id,
             type=transaction.type,
@@ -440,9 +470,7 @@ class TransactionService(BaseService[Transaction]):
         if group and getattr(group, "name", None):
             return group.name
 
-        group_obj = (
-            self.db.query(Group).filter(Group.id == transaction.group_id).first()
-        )
+        group_obj = self.group_service.repository.get(transaction.group_id)
         return group_obj.name if group_obj else None
 
     def _resolve_installments(
@@ -459,6 +487,60 @@ class TransactionService(BaseService[Transaction]):
             transaction.id
         )
         return [InstallmentBase.model_validate(i) for i in installments]
+
+    def _resolve_tag(
+        self, transaction: Transaction
+    ) -> Optional[TransactionRelatedEntity]:
+        tags_rel = getattr(transaction, "transaction_tags", None)
+        association: Optional[TransactionTag] = None
+
+        if tags_rel:
+            association_candidate = next(iter(tags_rel), None)
+            if isinstance(association_candidate, TransactionTag):
+                association = association_candidate
+
+        if association is None and isinstance(self.repository, TransactionRepository):
+            association = self.repository.get_tag_association(transaction.id)
+
+        if association is None:
+            return None
+
+        tag_obj = getattr(association, "tag", None)
+        if tag_obj is None:
+            tag_obj = self.tag_service.repository.get(association.tag_id)
+
+        if tag_obj is None:
+            return TransactionRelatedEntity(id=association.tag_id, name=None)
+
+        return TransactionRelatedEntity(id=tag_obj.id, name=tag_obj.name)
+
+    def _ensure_tag(
+        self,
+        user_id: UUID,
+        tag_payload: Optional[TagTransactionCreate],
+    ) -> Optional[Tag]:
+        """Return a tag id ensuring it exists and belongs to the user, creating it if needed."""
+
+        if tag_payload is None:
+            return None
+
+        if tag_payload.id is None:
+            created_tag = self.tag_service.add(tag_payload.to_model(user_id))
+            return created_tag
+
+        tag = self.tag_service.get(tag_payload.id)
+
+        if tag is None:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        if tag.user_id != user_id:
+            raise HTTPException(
+                status_code=403, detail="Tag not found or access denied"
+            )
+        return tag
+
+    def _remove_transaction_tags(self, transaction_id: UUID) -> None:
+        """Remove all tag associations for the provided transaction."""
+        self.repository.remove_tags(transaction_id)
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""

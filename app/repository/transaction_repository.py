@@ -1,11 +1,18 @@
-from typing import List
+import logging
+from typing import List, Optional
 from uuid import UUID
 
+from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from app.entities.tags import Tag
 from app.entities.transaction import Transaction
+from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 from app.schemas.transaction_schemas import TransactionSearch
+
+logger = logging.getLogger(__name__)
 
 
 class TransactionRepository(BaseRepository[Transaction]):
@@ -23,6 +30,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(Transaction.user_id == user_id)
         )
@@ -44,6 +54,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id, Transaction.account_id == account_id
@@ -51,6 +64,61 @@ class TransactionRepository(BaseRepository[Transaction]):
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()
         )
+
+    def attach_tag(self, transaction: Transaction, tag: Tag) -> None:
+        """Persist the relationship between a transaction and a tag."""
+        association = TransactionTag(transaction_id=transaction.id, tag_id=tag.id)
+        try:
+            self.db.add(association)
+            self.db.commit()
+            self.db.refresh(transaction)
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error linking tag %s to transaction %s: %s",
+                tag.id,
+                transaction.id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error linking tag to transaction"
+            ) from exc
+
+    def get_tag_association(self, transaction_id: UUID) -> Optional[TransactionTag]:
+        """Return the first tag association for the given transaction."""
+        return (
+            self.db.query(TransactionTag)
+            .options(selectinload(TransactionTag.tag))
+            .filter(TransactionTag.transaction_id == transaction_id)
+            .first()
+        )
+
+    def remove_tags(self, transaction_id: UUID) -> int:
+        """Delete all tag associations for the given transaction."""
+        try:
+            deleted = (
+                self.db.query(TransactionTag)
+                .filter(TransactionTag.transaction_id == transaction_id)
+                .delete(synchronize_session=False)
+            )
+            if deleted:
+                logger.info(
+                    "Removed %s tag associations for transaction %s",
+                    deleted,
+                    transaction_id,
+                )
+            self.db.commit()
+            return deleted
+        except SQLAlchemyError as exc:
+            self.db.rollback()
+            logger.error(
+                "Error removing tag associations for transaction %s: %s",
+                transaction_id,
+                exc,
+            )
+            raise HTTPException(
+                status_code=500, detail="Error removing transaction tags"
+            ) from exc
 
     def get_by_category_id(self, user_id: UUID, category_id: UUID) -> List[Transaction]:
         """Get transactions by category ID for a specific user"""
@@ -61,6 +129,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id, Transaction.category_id == category_id
@@ -78,6 +149,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(Transaction.user_id == user_id, Transaction.group_id == group_id)
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
@@ -95,6 +169,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 selectinload(Transaction.category),
                 selectinload(Transaction.group),
                 selectinload(Transaction.installments),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
             )
             .filter(
                 Transaction.user_id == user_id,
