@@ -89,8 +89,10 @@ class TagTransactionCreate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: str) -> str:
-        if not v or not v.strip():
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        if not v.strip():
             raise ValueError("Tag name cannot be empty")
         if len(v.strip()) < 2:
             raise ValueError("Tag name must be at least 2 characters long")

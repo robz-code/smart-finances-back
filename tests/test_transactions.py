@@ -285,6 +285,62 @@ class TestTransactionCRUD:
         assert transaction["tag"]["id"] == tag["id"]
         assert transaction["tag"]["name"] == tag["name"]
 
+    def test_create_transaction_with_existing_tag_id_only(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test creating a transaction referencing an existing tag by ID only (no name)"""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
+        tag = _create_tag(client, auth_headers, name="Work Expense")
+
+        # Reference tag by ID only, without providing name
+        transaction = _create_transaction(
+            client,
+            auth_headers,
+            account_id=account["id"],
+            category_id=category["id"],
+            tag={"id": tag["id"]},
+        )
+
+        assert transaction["tag"]["id"] == tag["id"]
+        assert transaction["tag"]["name"] == tag["name"]
+        assert transaction["tag"]["name"] == "Work Expense"
+
+    def test_create_transaction_creates_new_tag(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test creating a transaction with a new tag (tag is created automatically)"""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
+
+        # Create transaction with tag name and color - tag should be created automatically
+        transaction = _create_transaction(
+            client,
+            auth_headers,
+            account_id=account["id"],
+            category_id=category["id"],
+            tag={"name": "Personal", "color": "#FF5733"},
+        )
+
+        assert transaction["tag"] is not None
+        assert transaction["tag"]["name"] == "Personal"
+        assert "id" in transaction["tag"]
+
+        # Verify the tag was actually created and can be retrieved with all fields
+        tags_response = client.get("/api/v1/tags", headers=auth_headers)
+        assert tags_response.status_code == 200
+        tags_payload = tags_response.json()
+        created_tag = next(
+            (tag for tag in tags_payload["results"] if tag["name"] == "Personal"),
+            None,
+        )
+        assert created_tag is not None
+        assert created_tag["name"] == "Personal"
+        assert created_tag["color"] == "#FF5733"
+        assert created_tag["id"] == transaction["tag"]["id"]
+
     def test_create_transaction_invalid_account(
         self, client: TestClient, auth_headers: dict
     ):
