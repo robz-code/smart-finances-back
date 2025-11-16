@@ -211,7 +211,7 @@ class TransactionService(BaseService[Transaction]):
             user_id=from_transaction.user_id,
             from_account_id=from_transaction.account_id,
             to_account_id=to_transaction.account_id,
-            transfer_id=from_transaction.id,
+            transfer_id=transfer_id,
             amount=from_transaction.amount,
             currency=from_transaction.currency,
             created_at=from_transaction.created_at,
