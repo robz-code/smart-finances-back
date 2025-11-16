@@ -203,19 +203,21 @@ class TransactionService(BaseService[Transaction]):
             user_id, transfer_id, transfer_category.id
         )
         # Add transactions to database
-        self.repository.add(from_transaction)
-        self.repository.add(to_transaction)
+        created_from_transaction = self.repository.add(from_transaction)
+        created_to_transaction = self.repository.add(to_transaction)
+
+        # Refresh transactions to ensure relationships are loaded
+        self.db.refresh(created_from_transaction)
+        self.db.refresh(created_to_transaction)
+
+        # Build full transaction responses
+        from_response = self._build_transaction_response(created_from_transaction)
+        to_response = self._build_transaction_response(created_to_transaction)
 
         return TransferResponse(
-            id=from_transaction.id,
-            user_id=from_transaction.user_id,
-            from_account_id=from_transaction.account_id,
-            to_account_id=to_transaction.account_id,
             transfer_id=transfer_id,
-            amount=from_transaction.amount,
-            currency=from_transaction.currency,
-            created_at=from_transaction.created_at,
-            updated_at=from_transaction.updated_at,
+            from_transaction=from_response,
+            to_transaction=to_response,
         )
 
     def before_create(self, obj_in: Transaction, **kwargs: Any) -> bool:
