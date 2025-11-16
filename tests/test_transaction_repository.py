@@ -46,8 +46,6 @@ class TestTransactionRepository:
             currency="USD",
             date=date(2024, 1, 15),
             source="manual",
-            has_installments=False,
-            has_debt=False,
         )
 
     def test_search_transactions_no_filters(self, repository, mock_db, mock_query):
@@ -226,48 +224,6 @@ class TestTransactionRepository:
         assert mock_query.filter.call_count >= 2  # user_id + source filters
         mock_query.options.assert_called_once()
 
-    def test_search_transactions_with_installments_filter(
-        self, repository, mock_db, mock_query
-    ):
-        """Test searching transactions with installments filter"""
-        # Arrange
-        user_id = uuid.uuid4()
-        search_params = TransactionSearch(has_installments=True)
-        mock_transactions = [Mock()]
-
-        mock_db.query.return_value = mock_query
-        mock_query.all.return_value = mock_transactions
-
-        # Act
-        result = repository.search(user_id, search_params)
-
-        # Assert
-        assert result == mock_transactions
-        # Verify filter was applied
-        assert mock_query.filter.call_count >= 2  # user_id + has_installments filters
-        mock_query.options.assert_called_once()
-
-    def test_search_transactions_with_debt_filter(
-        self, repository, mock_db, mock_query
-    ):
-        """Test searching transactions with debt filter"""
-        # Arrange
-        user_id = uuid.uuid4()
-        search_params = TransactionSearch(has_debt=True)
-        mock_transactions = [Mock()]
-
-        mock_db.query.return_value = mock_query
-        mock_query.all.return_value = mock_transactions
-
-        # Act
-        result = repository.search(user_id, search_params)
-
-        # Assert
-        assert result == mock_transactions
-        # Verify filter was applied
-        assert mock_query.filter.call_count >= 2  # user_id + has_debt filters
-        mock_query.options.assert_called_once()
-
     def test_search_transactions_with_multiple_filters(
         self, repository, mock_db, mock_query
     ):
@@ -351,29 +307,6 @@ class TestTransactionRepository:
 
         # Act
         result = repository.get_by_category_id(user_id, category_id)
-
-        # Assert
-        assert result == mock_transactions
-        mock_db.query.assert_called_once_with(Transaction)
-        mock_query.options.assert_called_once()
-        mock_query.filter.assert_called()
-        mock_query.order_by.assert_called_once()
-        mock_query.all.assert_called_once()
-
-    def test_get_by_group_id(self, repository, mock_db, mock_query):
-        """Test getting transactions by group ID"""
-        # Arrange
-        user_id = uuid.uuid4()
-        group_id = uuid.uuid4()
-        mock_transactions = [Mock()]
-
-        mock_db.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
-        mock_query.all.return_value = mock_transactions
-
-        # Act
-        result = repository.get_by_group_id(user_id, group_id)
 
         # Assert
         assert result == mock_transactions

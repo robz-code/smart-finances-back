@@ -12,7 +12,6 @@ from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
-from app.schemas.installment_schemas import InstallmentBase
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
@@ -25,8 +24,6 @@ from app.schemas.transaction_schemas import (
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
-from app.services.group_service import GroupService
-from app.services.installment_service import InstallmentService
 from app.services.tag_service import TagService
 
 logger = logging.getLogger(__name__)
@@ -38,8 +35,6 @@ class TransactionService(BaseService[Transaction]):
         super().__init__(db, repository, Transaction)
         self.account_service = AccountService(db)
         self.category_service = CategoryService(db)
-        self.group_service = GroupService(db)
-        self.installment_service = InstallmentService(db)
         self.tag_service = TagService(db)
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
@@ -86,17 +81,6 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error getting transactions by category: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
 
-    def get_by_group_id(
-        self, user_id: UUID, group_id: UUID
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by group ID with validation"""
-        try:
-            result = self.repository.get_by_group_id(user_id, group_id)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by group: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
-
     def get_by_date_range(
         self, user_id: UUID, date_from: str, date_to: str
     ) -> SearchResponse[TransactionResponse]:
@@ -111,33 +95,19 @@ class TransactionService(BaseService[Transaction]):
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID
     ) -> TransactionResponse:
-        """Create a transaction from a payload, handling tag linkage and installments."""
+        """Create a transaction from a payload, handling optional tag linkage."""
 
         tag = self._ensure_tag(user_id, payload.tag)
         transaction_model = payload.to_model(user_id)
 
-        return self.add(
-            transaction_model,
-            tag=tag,
-            installments_data=payload.installments,
-        )
+        return self.add(transaction_model, tag=tag)
 
     def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
         """Persist a transaction entity and attach related records."""
 
-        installments_data = kwargs.pop("installments_data", None)
         tag = kwargs.get("tag")
 
-        if installments_data:
-            obj_in.has_installments = True
-
         created_transaction = super().add(obj_in, **kwargs)
-
-        if installments_data:
-            self.installment_service.create_for_transaction(
-                created_transaction, installments_data
-            )
-            self.db.refresh(created_transaction)
 
         if tag:
             self.repository.attach_tag(created_transaction, tag)
@@ -251,14 +221,6 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Category not found or access denied"
             )
 
-        # Validate that the user owns the group if provided
-        if obj_in.group_id and not self._validate_group_ownership(
-            obj_in.user_id, obj_in.group_id
-        ):
-            raise HTTPException(
-                status_code=403, detail="Group not found or access denied"
-            )
-
         tag = kwargs.get("tag")
         if tag and not self.tag_service.repository.validate_tag_ownership(
             obj_in.user_id, tag.id
@@ -333,15 +295,6 @@ class TransactionService(BaseService[Transaction]):
                     status_code=403, detail="Category not found or access denied"
                 )
 
-        # Validate group ownership if group_id is being updated
-        group_id = (
-            payload.get("group_id") if payload else getattr(obj_in, "group_id", None)
-        )
-        if group_id and not self._validate_group_ownership(user_id, group_id):
-            raise HTTPException(
-                status_code=403, detail="Group not found or access denied"
-            )
-
         # Validate transaction type when being updated
         type_value = None
         if payload:
@@ -375,9 +328,6 @@ class TransactionService(BaseService[Transaction]):
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
         existing_transaction = self.before_delete(id, **kwargs)
 
-        if existing_transaction.has_installments:
-            self.installment_service.delete_by_transaction_id(existing_transaction.id)
-
         self._remove_transaction_tags(existing_transaction.id)
 
         return super().delete(id, **kwargs)
@@ -398,8 +348,6 @@ class TransactionService(BaseService[Transaction]):
 
         account_name = self._resolve_account_name(transaction)
         category_summary = self._resolve_category_summary(transaction)
-        group_name = self._resolve_group_name(transaction)
-        installments = self._resolve_installments(transaction)
         tag_entity = self._resolve_tag(transaction)
 
         account_entity = TransactionRelatedEntity(
@@ -407,29 +355,19 @@ class TransactionService(BaseService[Transaction]):
             name=account_name,
         )
         category_entity = category_summary
-        group_entity = (
-            TransactionRelatedEntity(id=transaction.group_id, name=group_name)
-            if transaction.group_id
-            else None
-        )
 
         return TransactionResponse(
             id=transaction.id,
             user_id=transaction.user_id,
             account=account_entity,
             category=category_entity,
-            group=group_entity,
             tag=tag_entity,
-            recurrent_transaction_id=transaction.recurrent_transaction_id,
             transfer_id=transaction.transfer_id,
             type=transaction.type,
             amount=transaction.amount,
             currency=transaction.currency,
             date=transaction.date,
             source=transaction.source,
-            has_installments=transaction.has_installments,
-            has_debt=transaction.has_debt,
-            installments=installments,
             created_at=transaction.created_at,
             updated_at=transaction.updated_at,
         )
@@ -461,32 +399,6 @@ class TransactionService(BaseService[Transaction]):
             icon=getattr(category_obj, "icon", None),
             color=getattr(category_obj, "color", None),
         )
-
-    def _resolve_group_name(self, transaction: Transaction) -> Optional[str]:
-        if transaction.group_id is None:
-            return None
-
-        group = getattr(transaction, "group", None)
-        if group and getattr(group, "name", None):
-            return group.name
-
-        group_obj = self.group_service.repository.get(transaction.group_id)
-        return group_obj.name if group_obj else None
-
-    def _resolve_installments(
-        self, transaction: Transaction
-    ) -> Optional[List[InstallmentBase]]:
-        if not transaction.has_installments:
-            return None
-
-        installments_rel = getattr(transaction, "installments", None)
-        if installments_rel is not None:
-            return [InstallmentBase.model_validate(i) for i in installments_rel]
-
-        installments = self.installment_service.repository.get_by_transaction_id(
-            transaction.id
-        )
-        return [InstallmentBase.model_validate(i) for i in installments]
 
     def _resolve_tag(
         self, transaction: Transaction
@@ -563,17 +475,3 @@ class TransactionService(BaseService[Transaction]):
             return False
 
         return bool(category and category.user_id == user_id)
-
-    def _validate_group_ownership(self, user_id: UUID, group_id: UUID) -> bool:
-        """Validate that the user owns the group or is a member of it."""
-
-        try:
-            return self.group_service.user_has_access(group_id, user_id)
-        except Exception as exc:
-            logger.warning(
-                "Error validating group ownership for user %s and group %s: %s",
-                user_id,
-                group_id,
-                exc,
-            )
-            return False

@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from app.entities.account import Account
 from app.entities.category import Category
-from app.entities.group import Group
 from app.entities.transaction import Transaction
 from app.schemas.transaction_schemas import TransactionSearch, TransactionUpdate
 from app.services.account_service import AccountService
@@ -54,35 +53,26 @@ class TestTransactionService:
             user_id=uuid.uuid4(),
             account_id=uuid.uuid4(),
             category_id=uuid.uuid4(),
-            group_id=uuid.uuid4(),
             type="expense",
             amount=Decimal("100.00"),
             currency="USD",
             date=date(2024, 1, 15),
             source="manual",
-            has_installments=False,
-            has_debt=False,
         )
 
     def _create_transaction(
-        self,
-        user_id: uuid.UUID,
-        amount: str = "100.00",
-        group_id: uuid.UUID | None = None,
+        self, user_id: uuid.UUID, amount: str = "100.00"
     ) -> Transaction:
         transaction = Transaction(
             id=uuid.uuid4(),
             user_id=user_id,
             account_id=uuid.uuid4(),
             category_id=uuid.uuid4(),
-            group_id=group_id,
             type="expense",
             amount=Decimal(amount),
             currency="USD",
             date=date(2024, 1, 15),
             source="manual",
-            has_installments=False,
-            has_debt=False,
         )
         account = Account(name="Primary Account")
         account.id = transaction.account_id
@@ -91,16 +81,6 @@ class TestTransactionService:
         category = Category(name="General Category")
         category.id = transaction.category_id
         transaction.category = category
-
-        if group_id:
-            group = Group(name="Shared Group")
-            group.id = group_id
-            transaction.group = group
-        else:
-            transaction.group = None
-
-        transaction.installments = []
-        transaction.has_debt = False
 
         return transaction
 
@@ -122,7 +102,6 @@ class TestTransactionService:
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
         assert all(r.category.name == "General Category" for r in result.results)
-        assert all(r.has_debt is False for r in result.results)
         mock_repository.search.assert_called_once_with(user_id, search_params)
 
     def test_search_transactions_error(self, service, mock_repository):
@@ -156,7 +135,6 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
-        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_account_id.assert_called_once_with(user_id, account_id)
 
     def test_get_by_category_id_success(self, service, mock_repository):
@@ -176,31 +154,7 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.category.name == "General Category" for r in result.results)
-        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_category_id.assert_called_once_with(user_id, category_id)
-
-    def test_get_by_group_id_success(self, service, mock_repository):
-        """Test successful get by group ID"""
-        # Arrange
-        user_id = uuid.uuid4()
-        group_id = uuid.uuid4()
-        mock_transactions = [
-            self._create_transaction(user_id, group_id=group_id),
-            self._create_transaction(user_id, amount="150.00", group_id=group_id),
-        ]
-        mock_repository.get_by_group_id.return_value = mock_transactions
-
-        # Act
-        result = service.get_by_group_id(user_id, group_id)
-
-        # Assert
-        assert result.total == 2
-        assert all(
-            r.group is not None and r.group.name == "Shared Group"
-            for r in result.results
-        )
-        assert all(r.has_debt is False for r in result.results)
-        mock_repository.get_by_group_id.assert_called_once_with(user_id, group_id)
 
     def test_get_by_date_range_success(self, service, mock_repository):
         """Test successful get by date range"""
@@ -220,7 +174,6 @@ class TestTransactionService:
         # Assert
         assert result.total == 2
         assert all(r.account.name == "Primary Account" for r in result.results)
-        assert all(r.has_debt is False for r in result.results)
         mock_repository.get_by_date_range.assert_called_once_with(
             user_id, date_from, date_to
         )
@@ -231,12 +184,8 @@ class TestTransactionService:
     @patch(
         "app.services.transaction_service.TransactionService._validate_category_ownership"
     )
-    @patch(
-        "app.services.transaction_service.TransactionService._validate_group_ownership"
-    )
     def test_before_create_success(
         self,
-        mock_validate_group,
         mock_validate_category,
         mock_validate_account,
         service,
@@ -246,7 +195,6 @@ class TestTransactionService:
         # Arrange
         mock_validate_account.return_value = True
         mock_validate_category.return_value = True
-        mock_validate_group.return_value = True
 
         # Act
         result = service.before_create(sample_transaction)
@@ -258,9 +206,6 @@ class TestTransactionService:
         )
         mock_validate_category.assert_called_once_with(
             sample_transaction.user_id, sample_transaction.category_id
-        )
-        mock_validate_group.assert_called_once_with(
-            sample_transaction.user_id, sample_transaction.group_id
         )
 
     @patch(
@@ -301,36 +246,6 @@ class TestTransactionService:
         assert exc_info.value.status_code == 403
         assert "Category not found or access denied" in str(exc_info.value.detail)
 
-    @patch(
-        "app.services.transaction_service.TransactionService._validate_account_ownership"
-    )
-    @patch(
-        "app.services.transaction_service.TransactionService._validate_category_ownership"
-    )
-    @patch(
-        "app.services.transaction_service.TransactionService._validate_group_ownership"
-    )
-    def test_before_create_invalid_group(
-        self,
-        mock_validate_group,
-        mock_validate_category,
-        mock_validate_account,
-        service,
-        sample_transaction,
-    ):
-        """Test before_create with invalid group"""
-        # Arrange
-        mock_validate_account.return_value = True
-        mock_validate_category.return_value = True
-        mock_validate_group.return_value = False
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            service.before_create(sample_transaction)
-
-        assert exc_info.value.status_code == 403
-        assert "Group not found or access denied" in str(exc_info.value.detail)
-
     def test_before_create_zero_amount(self, service, sample_transaction):
         """Test before_create with zero amount"""
         # Arrange
@@ -362,12 +277,8 @@ class TestTransactionService:
     @patch(
         "app.services.transaction_service.TransactionService._validate_category_ownership"
     )
-    @patch(
-        "app.services.transaction_service.TransactionService._validate_group_ownership"
-    )
     def test_before_update_success(
         self,
-        mock_validate_group,
         mock_validate_category,
         mock_validate_account,
         service,
@@ -379,12 +290,9 @@ class TestTransactionService:
         update_data = Mock()
         update_data.account_id = uuid.uuid4()
         update_data.category_id = uuid.uuid4()
-        update_data.group_id = uuid.uuid4()
-
         service.repository.get.return_value = sample_transaction
         mock_validate_account.return_value = True
         mock_validate_category.return_value = True
-        mock_validate_group.return_value = True
 
         # Act
         result = service.before_update(
@@ -398,9 +306,6 @@ class TestTransactionService:
         )
         mock_validate_category.assert_called_once_with(
             sample_transaction.user_id, update_data.category_id
-        )
-        mock_validate_group.assert_called_once_with(
-            sample_transaction.user_id, update_data.group_id
         )
 
     def test_before_update_transaction_not_found(self, service):
@@ -536,20 +441,3 @@ class TestTransactionService:
 
         assert result is True
         service.category_service.get.assert_called_once_with(category_id)
-
-    def test_validate_group_ownership_default(self, service):
-        """Test group ownership validation (defaults to True for now)"""
-        # Arrange
-        user_id = uuid.uuid4()
-        group_id = uuid.uuid4()
-        mock_group = Mock()
-        mock_group.created_by = user_id
-        service.db.query.return_value.filter.return_value.first.return_value = (
-            mock_group
-        )
-
-        # Act
-        result = service._validate_group_ownership(user_id, group_id)
-
-        # Assert
-        assert result is True

@@ -8,8 +8,6 @@ from app.config.settings import get_settings
 from app.routes import (
     account_route,
     category_route,
-    contact_route,
-    installment_route,
     tag_route,
     transaction_route,
     user_route,
@@ -58,11 +56,6 @@ app.include_router(
     tags=["Categories"],
 )
 app.include_router(
-    installment_route.router,
-    prefix=f"{settings.API_V1_STR}/installments",
-    tags=["Installments"],
-)
-app.include_router(
     transaction_route.router,
     prefix=f"{settings.API_V1_STR}/transactions",
     tags=["Transactions"],
@@ -72,13 +65,6 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/tags",
     tags=["Transaction Tags"],
 )
-app.include_router(
-    contact_route.router,
-    prefix=f"{settings.API_V1_STR}/contacts",
-    tags=["Contacts"],
-)
-
-
 # Root endpoint
 @app.get("/")
 def read_root() -> dict[str, str]:

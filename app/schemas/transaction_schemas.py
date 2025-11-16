@@ -4,15 +4,14 @@ from collections.abc import Callable
 from datetime import date as Date
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, ClassVar, List, Optional
+from typing import Any, ClassVar, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, computed_field, field_validator
+from pydantic import BaseModel, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
-from app.schemas.installment_schemas import InstallmentBase, InstallmentCreate
-from app.schemas.tag_schemas import TagResponse, TagTransactionCreate
+from app.schemas.tag_schemas import TagTransactionCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -28,18 +27,13 @@ class TransactionRelatedEntity(BaseModel):
 class TransactionBase(BaseModel):
     account: TransactionRelatedEntity
     category: CategoryResponseBase
-    group: Optional[TransactionRelatedEntity] = None
     tag: Optional[TransactionRelatedEntity] = None
-    recurrent_transaction_id: Optional[UUID] = None
     transfer_id: Optional[UUID] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None
     date: Date
     source: str = TransactionSource.MANUAL.value
-    has_installments: bool = False
-    has_debt: bool = False
-    installments: Optional[List[InstallmentBase]] = None
 
     model_config = {
         "from_attributes": True,
@@ -63,15 +57,12 @@ class TransferResponse(BaseModel):
 class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
-    group_id: Optional[UUID] = None
     tag: Optional[TagTransactionCreate] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None
     date: Date
     source: str = TransactionSource.MANUAL.value
-    has_debt: bool = False
-    installments: Optional[List[InstallmentCreate]] = None
 
     model_config = {
         "from_attributes": True,
@@ -85,25 +76,16 @@ class TransactionCreate(BaseModel):
             return value.date()
         return value
 
-    @computed_field(return_type=bool)
-    @property
-    def has_installments(self) -> bool:
-        """Expose whether installments were provided without requiring client input."""
-        return bool(self.installments)
-
     def to_model(self, current_user_id: UUID) -> Transaction:
         return Transaction(
             user_id=current_user_id,
             account_id=self.account_id,
             category_id=self.category_id,
-            group_id=self.group_id,
             type=self.type,
             amount=self.amount,
             currency=self.currency,
             date=self.date,
             source=self.source,
-            has_installments=self.has_installments,
-            has_debt=self.has_debt,
             created_at=datetime.now(timezone.utc),
             updated_at=None,
         )
@@ -112,16 +94,11 @@ class TransactionCreate(BaseModel):
 class TransactionUpdate(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
-    group_id: Optional[UUID] = None
-    recurrent_transaction_id: Optional[UUID] = None
-    transfer_id: Optional[UUID] = None
     type: Optional[str] = None
     amount: Optional[Decimal] = None
     currency: Optional[str] = None
     date: Optional[Date] = None
     source: Optional[str] = None
-    has_installments: Optional[bool] = None
-    has_debt: Optional[bool] = None
 
     model_config = {"from_attributes": True}
 
@@ -174,7 +151,6 @@ class TransferTransactionCreate(BaseModel):
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
-    group_id: Optional[UUID] = None
     type: Optional[str] = None
     currency: Optional[str] = None
     date_from: Optional[Date] = None
@@ -182,8 +158,6 @@ class TransactionSearch(BaseModel):
     amount_min: Optional[Decimal] = None
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
-    has_installments: Optional[bool] = None
-    has_debt: Optional[bool] = None
 
     model_config = {
         "from_attributes": True,
@@ -198,8 +172,6 @@ class TransactionSearch(BaseModel):
                 "amount_min": "10.00",
                 "amount_max": "1000.00",
                 "source": "manual",
-                "has_installments": False,
-                "has_debt": False,
             }
         },
     }
@@ -207,7 +179,6 @@ class TransactionSearch(BaseModel):
     _filter_builders: ClassVar[dict[str, Callable[[Any], Any]]] = {
         "account_id": lambda value: Transaction.account_id == value,
         "category_id": lambda value: Transaction.category_id == value,
-        "group_id": lambda value: Transaction.group_id == value,
         "type": lambda value: Transaction.type == value,
         "currency": lambda value: Transaction.currency == value,
         "date_from": lambda value: Transaction.date >= value,
@@ -215,8 +186,6 @@ class TransactionSearch(BaseModel):
         "amount_min": lambda value: Transaction.amount >= value,
         "amount_max": lambda value: Transaction.amount <= value,
         "source": lambda value: Transaction.source == value,
-        "has_installments": lambda value: Transaction.has_installments == value,
-        "has_debt": lambda value: Transaction.has_debt == value,
     }
 
     def build_filters(self) -> list[Any]:
