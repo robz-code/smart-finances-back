@@ -65,6 +65,8 @@ app.include_router(
     prefix=f"{settings.API_V1_STR}/tags",
     tags=["Transaction Tags"],
 )
+
+
 # Root endpoint
 @app.get("/")
 def read_root() -> dict[str, str]:
