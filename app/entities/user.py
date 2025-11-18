@@ -31,36 +31,3 @@ class User(Base):
     accounts = relationship("Account", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     categories = relationship("Category", back_populates="user")
-    user_debts_from = relationship(
-        "UserDebt",
-        foreign_keys="[UserDebt.from_user_id]",
-        back_populates="from_user",
-    )
-    user_debts_to = relationship(
-        "UserDebt",
-        foreign_keys="[UserDebt.to_user_id]",
-        back_populates="to_user",
-    )
-    recurring_debts_from = relationship(
-        "RecurringDebt",
-        foreign_keys="[RecurringDebt.from_user_id]",
-        back_populates="from_user",
-    )
-    recurring_debts_to = relationship(
-        "RecurringDebt",
-        foreign_keys="[RecurringDebt.to_user_id]",
-        back_populates="to_user",
-    )
-
-    # Bidirectional contacts relationship using many-to-many self-relationship
-    contacts = relationship(
-        "User",
-        secondary="user_contacts",
-        primaryjoin="User.id==user_contacts.c.user1_id",
-        secondaryjoin="User.id==user_contacts.c.user2_id",
-        backref="contacted_by",
-    )
-
-    group_memberships = relationship("GroupMember", back_populates="user")
-    budgets = relationship("Budget", back_populates="user")
-    recurring_transactions = relationship("RecurringTransaction", back_populates="user")
