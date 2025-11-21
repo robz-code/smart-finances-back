@@ -27,23 +27,8 @@ def search_transactions(
     current_user: User = Depends(get_current_user),
 ) -> SearchResponse[TransactionResponse]:
     """
-    Search transactions with various filters.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-
-    Query parameters:
-    - account_id: Filter by account ID
-    - category_id: Filter by category ID
-    - group_id: Filter by group ID
-    - type: Filter by transaction type
-    - currency: Filter by currency
-    - date_from: Filter by start date (YYYY-MM-DD)
-    - date_to: Filter by end date (YYYY-MM-DD)
-    - amount_min: Filter by minimum amount
-    - amount_max: Filter by maximum amount
-    - source: Filter by source
-    - has_installments: Filter by installments flag
+    Search transactions by account, category, type, currency, date range, amount range,
+    and source for the authenticated user.
     """
     return service.search(cast(UUID, current_user.id), search)
 
@@ -54,12 +39,7 @@ def get_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> TransactionResponse:
-    """
-    Get a specific transaction by ID.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
+    """Retrieve a specific transaction owned by the current user."""
     return service.get(transaction_id, cast(UUID, current_user.id))
 
 
@@ -77,14 +57,7 @@ async def create_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> TransactionResponse:
-    """
-    Create a new transaction.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    Optionally include `tag_id` to link an existing tag or provide a `tag`
-    object (name and color) to create and link a new tag automatically.
-    """
+    """Create a transaction and optionally link or create tags automatically."""
     return service.create_transaction(
         transaction_data,
         user_id=cast(UUID, current_user.id),
@@ -105,9 +78,7 @@ async def create_transfer_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> TransferResponse:
-    """
-    Create a new transfer transaction.
-    """
+    """Create a transfer transaction between two owned accounts."""
     return service.create_transfer_transaction(
         transaction_data, user_id=cast(UUID, current_user.id)
     )
@@ -128,12 +99,7 @@ async def update_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> TransactionResponse:
-    """
-    Update a transaction.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
+    """Update a transaction owned by the current user."""
     return service.update(
         transaction_id,
         transaction_data,
@@ -147,12 +113,7 @@ def delete_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> None:
-    """
-    Delete a transaction.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
+    """Delete a transaction owned by the current user."""
     service.delete(transaction_id, user_id=cast(UUID, current_user.id))
     return None
 
@@ -164,12 +125,7 @@ def get_transactions_by_account(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> SearchResponse[TransactionResponse]:
-    """
-    Get all transactions for a specific account.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
+    """Get all transactions for a specific account."""
     return service.get_by_account_id(cast(UUID, current_user.id), account_id)
 
 
@@ -181,25 +137,5 @@ def get_transactions_by_category(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> SearchResponse[TransactionResponse]:
-    """
-    Get all transactions for a specific category.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
+    """Get all transactions for a specific category."""
     return service.get_by_category_id(cast(UUID, current_user.id), category_id)
-
-
-@router.get("/group/{group_id}", response_model=SearchResponse[TransactionResponse])
-def get_transactions_by_group(
-    group_id: UUID,
-    service: TransactionService = Depends(get_transaction_service),
-    current_user: User = Depends(get_current_user),
-) -> SearchResponse[TransactionResponse]:
-    """
-    Get all transactions for a specific group.
-
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-    """
-    return service.get_by_group_id(cast(UUID, current_user.id), group_id)

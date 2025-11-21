@@ -28,8 +28,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             .options(
                 selectinload(Transaction.account),
                 selectinload(Transaction.category),
-                selectinload(Transaction.group),
-                selectinload(Transaction.installments),
                 selectinload(Transaction.transaction_tags).selectinload(
                     TransactionTag.tag
                 ),
@@ -52,8 +50,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             .options(
                 selectinload(Transaction.account),
                 selectinload(Transaction.category),
-                selectinload(Transaction.group),
-                selectinload(Transaction.installments),
                 selectinload(Transaction.transaction_tags).selectinload(
                     TransactionTag.tag
                 ),
@@ -127,8 +123,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             .options(
                 selectinload(Transaction.account),
                 selectinload(Transaction.category),
-                selectinload(Transaction.group),
-                selectinload(Transaction.installments),
                 selectinload(Transaction.transaction_tags).selectinload(
                     TransactionTag.tag
                 ),
@@ -136,24 +130,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             .filter(
                 Transaction.user_id == user_id, Transaction.category_id == category_id
             )
-            .order_by(Transaction.date.desc(), Transaction.created_at.desc())
-            .all()
-        )
-
-    def get_by_group_id(self, user_id: UUID, group_id: UUID) -> List[Transaction]:
-        """Get transactions by group ID for a specific user"""
-        return (
-            self.db.query(Transaction)
-            .options(
-                selectinload(Transaction.account),
-                selectinload(Transaction.category),
-                selectinload(Transaction.group),
-                selectinload(Transaction.installments),
-                selectinload(Transaction.transaction_tags).selectinload(
-                    TransactionTag.tag
-                ),
-            )
-            .filter(Transaction.user_id == user_id, Transaction.group_id == group_id)
             .order_by(Transaction.date.desc(), Transaction.created_at.desc())
             .all()
         )
@@ -167,8 +143,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             .options(
                 selectinload(Transaction.account),
                 selectinload(Transaction.category),
-                selectinload(Transaction.group),
-                selectinload(Transaction.installments),
                 selectinload(Transaction.transaction_tags).selectinload(
                     TransactionTag.tag
                 ),

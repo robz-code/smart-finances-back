@@ -41,17 +41,11 @@ class TestTransactionBase:
                 "id": str(uuid.uuid4()),
                 "name": "Shared Tag",
             },
-            "group": {
-                "id": str(uuid.uuid4()),
-                "name": "Family Budget",
-            },
             "type": "expense",
             "amount": "100.50",
             "currency": "USD",
             "date": "2024-01-15",
             "source": "manual",
-            "has_installments": False,
-            "has_debt": True,
         }
 
         # Act
@@ -62,9 +56,6 @@ class TestTransactionBase:
         assert transaction.account.name == data["account"]["name"]
         assert str(transaction.category.id) == data["category"]["id"]
         assert transaction.category.name == data["category"]["name"]
-        assert transaction.group is not None
-        assert str(transaction.group.id) == data["group"]["id"]
-        assert transaction.group.name == data["group"]["name"]
         assert transaction.tag is not None
         assert str(transaction.tag.id) == data["tag"]["id"]
         assert transaction.tag.name == data["tag"]["name"]
@@ -73,14 +64,11 @@ class TestTransactionBase:
         assert transaction.currency == "USD"
         assert transaction.date == date(2024, 1, 15)
         assert transaction.source == "manual"
-        assert transaction.has_installments is False
-        assert transaction.has_debt is True
 
         # Assert - serialized output keeps nested structure
         serialized = transaction.model_dump(mode="json")
         assert serialized["account"] == data["account"]
         assert serialized["category"] == data["category"]
-        assert serialized["group"] == data["group"]
         assert serialized["tag"] == data["tag"]
 
     def test_transaction_base_minimal_data(self):
@@ -101,14 +89,11 @@ class TestTransactionBase:
         assert transaction.account.name == data["account"]["name"]
         assert str(transaction.category.id) == data["category"]["id"]
         assert transaction.category.name == data["category"]["name"]
-        assert transaction.group is None
         assert transaction.tag is None
         assert transaction.type == "income"
         assert transaction.amount == Decimal("200.00")
         assert transaction.date == date(2024, 1, 20)
         assert transaction.source == "manual"  # default value
-        assert transaction.has_installments is False  # default value
-        assert transaction.has_debt is False  # default value
         assert transaction.currency is None
 
     def test_transaction_base_invalid_uuid(self):
@@ -158,17 +143,13 @@ class TestTransactionCreate:
         assert field_names == {
             "account_id",
             "category_id",
-            "group_id",
             "tag",
             "type",
             "amount",
             "currency",
             "date",
             "source",
-            "has_debt",
-            "installments",
         }
-        assert "has_installments" in TransactionCreate.model_computed_fields
 
     def test_transaction_create_to_model(self):
         """Test TransactionCreate to_model method"""
@@ -187,7 +168,6 @@ class TestTransactionCreate:
         model = transaction_create.to_model(user_id)
 
         # Assert
-        assert transaction_create.has_installments is False
         assert isinstance(model, Transaction)
         assert model.user_id == user_id
         assert str(model.account_id) == data["account_id"]
@@ -196,27 +176,6 @@ class TestTransactionCreate:
         assert model.amount == Decimal("500.00")
         assert model.date == date(2024, 1, 25)
         assert model.updated_at is None
-        assert model.has_debt is False
-
-    def test_transaction_create_to_model_with_installments(self):
-        """TransactionCreate marks has_installments when details are provided"""
-        user_id = uuid.uuid4()
-        data = {
-            "account_id": str(uuid.uuid4()),
-            "category_id": str(uuid.uuid4()),
-            "type": "expense",
-            "amount": "250.00",
-            "date": "2024-02-01",
-            "installments": [
-                {"due_date": "2024-03-01", "amount": "125.00"},
-                {"due_date": "2024-04-01", "amount": "125.00"},
-            ],
-        }
-
-        transaction_create = TransactionCreate(**data)
-        model = transaction_create.to_model(user_id)
-
-        assert model.has_installments is True
 
     def test_transaction_create_with_new_tag(self):
         """TransactionCreate accepts new tag payloads"""
@@ -257,8 +216,6 @@ class TestTransactionUpdate:
         assert transaction_update.currency is None
         assert transaction_update.date is None
         assert transaction_update.source is None
-        assert transaction_update.has_installments is None
-        assert transaction_update.has_debt is None
 
     def test_transaction_update_partial_data(self):
         """Test TransactionUpdate with partial data"""
@@ -309,7 +266,6 @@ class TestTransactionResponse:
         user_id = str(uuid.uuid4())
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
-        group_id = str(uuid.uuid4())
         tag_id = str(uuid.uuid4())
         account = {"id": account_id, "name": "Checking Account"}
         category = {
@@ -318,14 +274,12 @@ class TestTransactionResponse:
             "icon": "groceries",
             "color": "#00FF00",
         }
-        group = {"id": group_id, "name": "Family Budget"}
         tag = {"id": tag_id, "name": "Essentials"}
         data = {
             "id": transaction_id,
             "user_id": user_id,
             "account": account,
             "category": category,
-            "group": group,
             "tag": tag,
             "type": "expense",
             "amount": "100.00",
@@ -333,8 +287,6 @@ class TestTransactionResponse:
             "date": "2024-01-15",
             "created_at": "2024-01-15T10:00:00Z",
             "updated_at": "2024-01-15T11:00:00Z",
-            "has_installments": True,
-            "has_debt": True,
         }
 
         # Act
@@ -349,9 +301,6 @@ class TestTransactionResponse:
         assert transaction_response.category.name == "Groceries"
         assert transaction_response.category.icon == "groceries"
         assert transaction_response.category.color == "#00FF00"
-        assert transaction_response.group is not None
-        assert str(transaction_response.group.id) == group_id
-        assert transaction_response.group.name == "Family Budget"
         assert transaction_response.tag is not None
         assert str(transaction_response.tag.id) == tag_id
         assert transaction_response.tag.name == "Essentials"
@@ -359,13 +308,10 @@ class TestTransactionResponse:
         assert transaction_response.amount == Decimal("100.00")
         assert transaction_response.currency == "USD"
         assert transaction_response.date == date(2024, 1, 15)
-        assert transaction_response.has_installments is True
-        assert transaction_response.has_debt is True
 
         serialized = transaction_response.model_dump(mode="json")
         assert serialized["account"] == account
         assert serialized["category"] == category
-        assert serialized["group"] == group
         assert serialized["tag"] == tag
 
 
@@ -380,7 +326,6 @@ class TestTransactionSearch:
         # Assert
         assert search.account_id is None
         assert search.category_id is None
-        assert search.group_id is None
         assert search.type is None
         assert search.currency is None
         assert search.date_from is None
@@ -388,21 +333,16 @@ class TestTransactionSearch:
         assert search.amount_min is None
         assert search.amount_max is None
         assert search.source is None
-        assert search.has_installments is None
-        assert search.has_debt is None
 
     def test_transaction_search_with_filters(self):
         """Test TransactionSearch with various filters"""
         # Arrange
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
-        group_id = str(uuid.uuid4())
-
         # Act
         search = TransactionSearch(
             account_id=account_id,
             category_id=category_id,
-            group_id=group_id,
             type="expense",
             currency="USD",
             date_from="2024-01-01",
@@ -410,14 +350,11 @@ class TestTransactionSearch:
             amount_min="100.00",
             amount_max="500.00",
             source="manual",
-            has_installments=True,
-            has_debt=False,
         )
 
         # Assert
         assert str(search.account_id) == account_id
         assert str(search.category_id) == category_id
-        assert str(search.group_id) == group_id
         assert search.type == "expense"
         assert search.currency == "USD"
         assert search.date_from == date(2024, 1, 1)
@@ -425,8 +362,6 @@ class TestTransactionSearch:
         assert search.amount_min == Decimal("100.00")
         assert search.amount_max == Decimal("500.00")
         assert search.source == "manual"
-        assert search.has_installments is True
-        assert search.has_debt is False
 
     def test_transaction_search_with_decimal_amounts(self):
         """Test TransactionSearch with decimal amount filters"""
