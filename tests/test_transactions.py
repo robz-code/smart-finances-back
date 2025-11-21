@@ -80,7 +80,6 @@ def _create_transaction(
         "currency": "USD",
         "date": transaction_date,
         "source": "manual",
-        "has_debt": False,
     }
     if tag:
         create_payload["tag"] = tag
@@ -115,7 +114,6 @@ class TestTransactionCRUD:
             "currency": "USD",
             "date": "2024-01-15",
             "source": "manual",
-            "has_debt": False,
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -136,8 +134,6 @@ class TestTransactionCRUD:
         assert transaction["currency"] == "USD"
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"
-        assert transaction["has_installments"] is False
-        assert transaction["has_debt"] is False
         assert transaction["tag"] is None
         assert "id" in transaction
         assert "user_id" in transaction
@@ -151,7 +147,6 @@ class TestTransactionCRUD:
         assert retrieved["amount"] == "150.50"
         assert retrieved["account"]["name"] == account["name"]
         assert retrieved["category"]["name"] == category["name"]
-        assert retrieved["has_debt"] is False
         assert retrieved["tag"] is None
 
         # Update transaction
@@ -171,7 +166,6 @@ class TestTransactionCRUD:
         # Verify other fields remain unchanged
         assert updated["account"]["name"] == account["name"]
         assert updated["category"]["name"] == category["name"]
-        assert updated["has_debt"] is False
 
         # Delete transaction
         r = client.delete(
@@ -210,8 +204,6 @@ class TestTransactionCRUD:
         assert transaction["amount"] == "50.00"
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"  # default value
-        assert transaction["has_installments"] is False  # default value
-        assert transaction["has_debt"] is False  # default value
         assert transaction["tag"] is None
 
     def test_create_transaction_with_all_fields(
@@ -234,11 +226,6 @@ class TestTransactionCRUD:
             "currency": "EUR",
             "date": "2024-01-20",
             "source": "bank_transfer",
-            "has_debt": True,
-            "installments": [
-                {"due_date": "2024-02-20", "amount": "500.00"},
-                {"due_date": "2024-03-20", "amount": "500.00"},
-            ],
             "tag": tag_payload,
         }
         r = client.post(
@@ -253,8 +240,6 @@ class TestTransactionCRUD:
         assert transaction["amount"] == "1000.00"
         assert transaction["currency"] == "EUR"
         assert transaction["source"] == "bank_transfer"
-        assert transaction["has_installments"] is True
-        assert transaction["has_debt"] is True
         assert transaction["tag"]["name"] == tag_payload["name"]
         assert "id" in transaction["tag"]
 
@@ -694,26 +679,6 @@ class TestTransactionConvenienceEndpoints:
             t["category"]["name"] == category1["name"] and "category_id" not in t
             for t in result["results"]
         )
-
-    def test_get_transactions_by_group(self, client: TestClient, auth_headers: dict):
-        """Test getting transactions by group endpoint"""
-        _create_user(client, auth_headers)
-        account = _create_account(client, auth_headers)
-
-        # Create a transaction (group_id is optional, so we'll test without it)
-        transaction = _create_transaction(
-            client, auth_headers, account["id"], "100.00", "expense", None, "2024-01-15"
-        )
-
-        # Test the endpoint (should work even without group_id)
-        r = client.get(
-            f"/api/v1/transactions/group/{uuid.uuid4()}", headers=auth_headers
-        )
-        assert r.status_code == 200
-
-        result = r.json()
-        # Should return empty results for non-existent group
-        assert result["total"] == 0
 
 
 class TestTransactionValidation:

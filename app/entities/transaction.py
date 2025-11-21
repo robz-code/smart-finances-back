@@ -2,7 +2,7 @@ import datetime
 import uuid
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import DATE, NUMERIC, UUID
 from sqlalchemy.orm import relationship
 
@@ -16,7 +16,6 @@ class TransactionType(str, Enum):
 
 class TransactionSource(str, Enum):
     MANUAL = "manual"
-    RECURRING = "recurring"
 
 
 class Transaction(Base):
@@ -28,18 +27,12 @@ class Transaction(Base):
     category_id = Column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
-    group_id = Column(UUID(as_uuid=True), ForeignKey("groups.id"))
-    recurrent_transaction_id = Column(
-        UUID(as_uuid=True), ForeignKey("recurring_transactions.id")
-    )
     transfer_id = Column(UUID(as_uuid=True))
     type = Column(Text, nullable=False)
     amount = Column(NUMERIC, nullable=False)
     currency = Column(Text)
     date = Column(DATE, nullable=False)
     source = Column(Text, default=TransactionSource.MANUAL.value)
-    has_installments = Column(Boolean, default=False)
-    has_debt = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(
         DateTime,
@@ -50,8 +43,5 @@ class Transaction(Base):
     # Relationships
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
-    group = relationship("Group", back_populates="transactions")
     transaction_tags = relationship("TransactionTag", back_populates="transaction")
     user = relationship("User", back_populates="transactions")
-    user_debts = relationship("UserDebt", back_populates="transaction")
-    installments = relationship("Installment", back_populates="transaction")
