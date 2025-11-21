@@ -17,11 +17,20 @@ class BaseRepository(Generic[T]):
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""
-        return (
-            self.db.query(self.model)
-            .filter(self.model.id == id)
-            .first()  # type: ignore
-        )
+        # Handle entities that might not have an id field (like UserContact)
+        if hasattr(self.model, "id"):
+            return (
+                self.db.query(self.model)
+                .filter(self.model.id == id)
+                .first()  # type: ignore
+            )
+        else:
+            # For entities without id (like UserContact), this method might not
+            # be applicable
+            logger.warning(
+                f"get() method called on {self.model.__name__} which has no id field"
+            )
+            return None
 
     def get_by_user_id(self, user_id: UUID) -> List[T]:
         """Get entities by user ID"""
@@ -54,10 +63,15 @@ class BaseRepository(Generic[T]):
             self.db.commit()
             self.db.refresh(obj_in)
 
-            logger.info(
-                f"Successfully created {self.model.__name__} "
-                f"with ID: {obj_in.id}"  # type: ignore
-            )
+            # Handle entities that might not have an id field (like UserContact)
+            if hasattr(obj_in, "id"):
+                logger.info(
+                    f"Successfully created {self.model.__name__} "
+                    f"with ID: {obj_in.id}"  # type: ignore
+                )
+            else:
+                # For entities without id (like UserContact with composite primary key)
+                logger.info(f"Successfully created {self.model.__name__}")
 
             return obj_in
         except SQLAlchemyError as e:
