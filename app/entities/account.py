@@ -34,3 +34,4 @@ class Account(Base):
     is_deleted = Column(Boolean, default=False)
     user = relationship("User", back_populates="accounts")
     transactions = relationship("Transaction", back_populates="account")
+    budgets = relationship("Budget", back_populates="account")
