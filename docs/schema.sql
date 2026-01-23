@@ -57,6 +57,7 @@ CREATE TABLE credits (
 CREATE TABLE categories (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
+  type TEXT NOT NULL,
   icon TEXT,
   color TEXT,
   created_at TIMESTAMP DEFAULT NOW(),

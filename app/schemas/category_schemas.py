@@ -5,18 +5,20 @@ from uuid import UUID
 
 from pydantic import UUID4, BaseModel, field_validator
 
-from app.entities.category import Category
+from app.entities.category import Category, CategoryType
 
 
 class CategoryResponseBase(BaseModel):
     id: UUID
     name: str
+    type: CategoryType
     icon: Optional[str] = None
     color: Optional[str] = None
 
 
 class CategoryUpdate(BaseModel):
     name: Optional[str]
+    type: Optional[CategoryType] = None
     icon: Optional[str] = None
     color: Optional[str] = None
 
@@ -24,6 +26,7 @@ class CategoryUpdate(BaseModel):
 class CategoryResponse(BaseModel):
     id: UUID4
     name: str
+    type: CategoryType
     icon: Optional[str] = None
     color: Optional[str] = None
     created_at: datetime
@@ -32,6 +35,7 @@ class CategoryResponse(BaseModel):
 
 class CategoryCreate(BaseModel):
     name: str
+    type: CategoryType = CategoryType.EXPENSE
     icon: Optional[str] = None
     color: Optional[str] = None
 
@@ -39,6 +43,7 @@ class CategoryCreate(BaseModel):
         return Category(
             user_id=current_user_id,
             name=self.name,
+            type=self.type.value,
             icon=self.icon,
             color=self.color,
             created_at=datetime.now(timezone.utc),
@@ -47,6 +52,7 @@ class CategoryCreate(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
+            "type": self.type.value,
             "color": self.color,
             "created_at": datetime.now(timezone.utc),
         }

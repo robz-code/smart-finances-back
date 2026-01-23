@@ -67,6 +67,7 @@ erDiagram
     categories {
         UUID id PK
         TEXT name
+        TEXT type
         TEXT icon
         TEXT color
         TIMESTAMP created_at

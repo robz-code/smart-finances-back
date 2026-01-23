@@ -5,8 +5,9 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.entities.category import Category
+from app.entities.category import Category, CategoryType
 from app.repository.category_repository import CategoryRepository
+from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryCreate
 
 # from app.schemas.category_schemas import CategoryUpdate  # unused in service
@@ -39,6 +40,14 @@ class CategoryService(BaseService[Category]):
             category = self.add(CategoryCreate(name="transfer").to_model(user_id))
 
         return category
+
+    def get_by_user_id_and_type(
+        self, user_id: UUID, category_type: CategoryType
+    ) -> SearchResponse[Category]:
+        categories = self.repository.get_by_user_id_and_type(
+            user_id, category_type.value
+        )
+        return SearchResponse(total=len(categories), results=categories)
 
     def before_delete(self, id: UUID, **kwargs: Any) -> Category:
         # Basic validation
