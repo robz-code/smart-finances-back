@@ -67,3 +67,47 @@ def test_categories_filter_by_type(client, auth_headers):
     data = r.json()
     assert data["total"] >= 1
     assert all(cat["type"] == "income" for cat in data["results"])
+
+
+def test_category_type_defaults_and_override(client, auth_headers):
+    ensure_user(client, auth_headers)
+
+    # Create without explicit type -> should default to expense
+    r = client.post(
+        "/api/v1/categories",
+        json={"name": "Default Expense", "icon": "🧾", "color": "#CCCCCC"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    cat_default = r.json()
+    assert cat_default["type"] == "expense"
+
+    # Create with explicit income type
+    r = client.post(
+        "/api/v1/categories",
+        json={"name": "Salary", "type": "income", "icon": "💰", "color": "#00FF00"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+    cat_income = r.json()
+    assert cat_income["type"] == "income"
+
+
+def test_category_invalid_type_rejected(client, auth_headers):
+    ensure_user(client, auth_headers)
+
+    # Invalid type should be rejected by Pydantic/Enum validation
+    r = client.post(
+        "/api/v1/categories",
+        json={"name": "Invalid", "type": "invalid_type", "color": "#000000"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_categories_filter_invalid_type_query(client, auth_headers):
+    ensure_user(client, auth_headers)
+
+    # Invalid enum value in query param should yield 422
+    r = client.get("/api/v1/categories?type=invalid_type", headers=auth_headers)
+    assert r.status_code == 422
