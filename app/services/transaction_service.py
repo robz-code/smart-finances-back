@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import date, datetime, timezone
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -92,6 +93,35 @@ class TransactionService(BaseService[Transaction]):
         except Exception as e:
             logger.error(f"Error getting transactions by date range: {str(e)}")
             raise HTTPException(status_code=500, detail="Error retrieving transactions")
+
+    def get_net_signed_amounts_by_category(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        category_ids: Optional[List[UUID]] = None,
+    ) -> Dict[UUID, Decimal]:
+        """
+        Get net-signed transaction amounts grouped by category_id.
+        
+        This method provides aggregation data for category summaries.
+        Net-signed means: income transactions add to the total, expense transactions subtract.
+        
+        Args:
+            user_id: User ID to filter transactions
+            date_from: Start date (inclusive)
+            date_to: End date (inclusive)
+            category_ids: Optional list of category IDs to filter by. If None, includes all categories.
+        
+        Returns:
+            Dictionary mapping category_id to net-signed Decimal amount
+        """
+        return self.repository.get_net_signed_amounts_by_category(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            category_ids=category_ids,
+        )
 
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID

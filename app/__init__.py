@@ -8,6 +8,7 @@ from app.config.settings import get_settings
 from app.routes import (
     account_route,
     category_route,
+    reporting_route,
     tag_route,
     transaction_route,
     user_route,
@@ -64,6 +65,11 @@ app.include_router(
     tag_route.router,
     prefix=f"{settings.API_V1_STR}/tags",
     tags=["Transaction Tags"],
+)
+app.include_router(
+    reporting_route.router,
+    prefix=f"{settings.API_V1_STR}/reporting",
+    tags=["Reporting"],
 )
 
 
