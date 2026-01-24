@@ -27,6 +27,7 @@ class TestTransactionBase:
             "category": {
                 "id": str(uuid.uuid4()),
                 "name": "Groceries",
+                "type": "expense",
                 "icon": None,
                 "color": None,
             },
@@ -271,6 +272,7 @@ class TestTransactionResponse:
         category = {
             "id": category_id,
             "name": "Groceries",
+            "type": "expense",
             "icon": "groceries",
             "color": "#00FF00",
         }

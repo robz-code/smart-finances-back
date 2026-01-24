@@ -1,10 +1,11 @@
-from typing import cast
+from typing import Optional, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.dependencies.category_dependencies import get_category_service
 from app.dependencies.user_dependencies import get_current_user
+from app.entities.category import CategoryType
 from app.entities.user import User
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import (
@@ -36,6 +37,7 @@ def read_category(
 
 @router.get("", response_model=SearchResponse[CategoryResponse])
 def read_categories_list(
+    category_type: Optional[CategoryType] = Query(default=None, alias="type"),
     service: CategoryService = Depends(get_category_service),
     current_user: User = Depends(get_current_user),
 ) -> SearchResponse[CategoryResponse]:
@@ -44,8 +46,14 @@ def read_categories_list(
 
     This endpoint requires authentication via JWT token.
     Include the token in the Authorization header as: `Bearer <your_token>`
+
+    Optional query parameter:
+    - `type`: Filter categories by type (`income` or `expense`).
     """
-    return service.get_by_user_id(cast(UUID, current_user.id))
+    user_id = cast(UUID, current_user.id)
+    if category_type is not None:
+        return service.get_by_user_id_and_type(user_id, category_type)
+    return service.get_by_user_id(user_id)
 
 
 @router.post("", response_model=CategoryResponse, status_code=status.HTTP_201_CREATED)

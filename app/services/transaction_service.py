@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.entities.category import CategoryType
 from app.entities.tags import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
@@ -385,17 +386,25 @@ class TransactionService(BaseService[Transaction]):
     ) -> CategoryResponseBase:
         category = getattr(transaction, "category", None)
         if category and getattr(category, "name", None):
+            category_type_value = (
+                getattr(category, "type", None) or CategoryType.EXPENSE.value
+            )
             return CategoryResponseBase(
                 id=transaction.category_id,
                 name=category.name,
+                type=category_type_value,
                 icon=getattr(category, "icon", None),
                 color=getattr(category, "color", None),
             )
 
         category_obj = self.category_service.get(transaction.category_id)
+        category_type_value = (
+            getattr(category_obj, "type", None) or CategoryType.EXPENSE.value
+        )
         return CategoryResponseBase(
             id=transaction.category_id,
             name=category_obj.name,
+            type=category_type_value,
             icon=getattr(category_obj, "icon", None),
             color=getattr(category_obj, "color", None),
         )
