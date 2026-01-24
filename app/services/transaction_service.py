@@ -386,7 +386,9 @@ class TransactionService(BaseService[Transaction]):
     ) -> CategoryResponseBase:
         category = getattr(transaction, "category", None)
         if category and getattr(category, "name", None):
-            category_type_value = getattr(category, "type", None) or CategoryType.EXPENSE.value
+            category_type_value = (
+                getattr(category, "type", None) or CategoryType.EXPENSE.value
+            )
             return CategoryResponseBase(
                 id=transaction.category_id,
                 name=category.name,
@@ -396,7 +398,9 @@ class TransactionService(BaseService[Transaction]):
             )
 
         category_obj = self.category_service.get(transaction.category_id)
-        category_type_value = getattr(category_obj, "type", None) or CategoryType.EXPENSE.value
+        category_type_value = (
+            getattr(category_obj, "type", None) or CategoryType.EXPENSE.value
+        )
         return CategoryResponseBase(
             id=transaction.category_id,
             name=category_obj.name,
