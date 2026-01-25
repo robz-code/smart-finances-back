@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, timezone
-from typing import Any, List, Optional
+from datetime import date, datetime, timezone
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException
@@ -13,6 +14,7 @@ from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
+from app.schemas.reporting_schemas import CategoryAggregationData
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
@@ -31,12 +33,18 @@ logger = logging.getLogger(__name__)
 
 
 class TransactionService(BaseService[Transaction]):
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        account_service: AccountService,
+        category_service: CategoryService,
+        tag_service: TagService,
+    ):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
-        self.account_service = AccountService(db)
-        self.category_service = CategoryService(db)
-        self.tag_service = TagService(db)
+        self.account_service = account_service
+        self.category_service = category_service
+        self.tag_service = tag_service
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -60,38 +68,34 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error searching transactions: {str(e)}")
             raise HTTPException(status_code=500, detail="Error searching transactions")
 
-    def get_by_account_id(
-        self, user_id: UUID, account_id: UUID
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by account ID with validation"""
-        try:
-            result = self.repository.get_by_account_id(user_id, account_id)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by account: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
+    def get_net_signed_amounts_and_counts_by_category(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        category_ids: Optional[List[UUID]] = None,
+    ) -> Dict[UUID, CategoryAggregationData]:
+        """
+        Get net-signed transaction amounts and counts grouped by category_id in a single query.
 
-    def get_by_category_id(
-        self, user_id: UUID, category_id: UUID
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by category ID with validation"""
-        try:
-            result = self.repository.get_by_category_id(user_id, category_id)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by category: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
+        This method provides both aggregation and count data for category summaries efficiently.
+        Net-signed means: income transactions add to the total, expense transactions subtract.
 
-    def get_by_date_range(
-        self, user_id: UUID, date_from: str, date_to: str
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by date range with validation"""
-        try:
-            result = self.repository.get_by_date_range(user_id, date_from, date_to)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by date range: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
+        Args:
+            user_id: User ID to filter transactions
+            date_from: Start date (inclusive)
+            date_to: End date (inclusive)
+            category_ids: Optional list of category IDs to filter by. If None, includes all categories.
+
+        Returns:
+            Dictionary mapping category_id to CategoryAggregationData DTO
+        """
+        return self.repository.get_net_signed_amounts_and_counts_by_category(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            category_ids=category_ids,
+        )
 
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID

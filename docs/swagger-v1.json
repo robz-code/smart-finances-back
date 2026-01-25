@@ -1352,6 +1352,69 @@
                 }
             }
         },
+        "/api/v1/reporting/categories-summary": {
+            "get": {
+                "tags": [
+                    "Reporting"
+                ],
+                "summary": "Get Categories Summary",
+                "description": "Get categories with their transaction amounts for a specified period.\n\nThis endpoint requires authentication via JWT token.\nInclude the token in the Authorization header as: `Bearer <your_token>`\n\nQuery parameters:\n- `period` (required): Time period for aggregation. Options: `day`, `week`, `month`, `year`\n- `type` (optional): Filter categories by type (`income` or `expense`).\n\nReturns categories with a `transaction_amount` field containing the net-signed sum\n(income adds, expense subtracts) for the specified period.",
+                "operationId": "get_categories_summary_api_v1_reporting_categories_summary_get",
+                "security": [
+                    {
+                        "HTTPBearer": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/TransactionSummaryPeriod"
+                        }
+                    },
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/CategoryType"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "title": "Type"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchResponse_CategorySummaryResponse_"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/": {
             "get": {
                 "summary": "Read Root",
@@ -1707,6 +1770,56 @@
                 ],
                 "title": "CategoryResponseBase"
             },
+            "CategorySummaryResponse": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid4",
+                        "title": "Id"
+                    },
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/CategoryType"
+                    },
+                    "icon": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Icon"
+                    },
+                    "color": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Color"
+                    },
+                    "transaction_amount": {
+                        "type": "string",
+                        "title": "Transaction Amount"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "id",
+                    "name",
+                    "type",
+                    "transaction_amount"
+                ],
+                "title": "CategorySummaryResponse"
+            },
             "CategoryType": {
                 "type": "string",
                 "enum": [
@@ -1821,6 +1934,27 @@
                     "results"
                 ],
                 "title": "SearchResponse[CategoryResponse]"
+            },
+            "SearchResponse_CategorySummaryResponse_": {
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "title": "Total"
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/CategorySummaryResponse"
+                        },
+                        "type": "array",
+                        "title": "Results"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "total",
+                    "results"
+                ],
+                "title": "SearchResponse[CategorySummaryResponse]"
             },
             "SearchResponse_TagResponse_": {
                 "properties": {
@@ -2203,6 +2337,16 @@
                     "user_id"
                 ],
                 "title": "TransactionResponse"
+            },
+            "TransactionSummaryPeriod": {
+                "type": "string",
+                "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                ],
+                "title": "TransactionSummaryPeriod"
             },
             "TransactionUpdate": {
                 "properties": {
