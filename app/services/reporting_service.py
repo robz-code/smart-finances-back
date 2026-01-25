@@ -4,7 +4,11 @@ from uuid import UUID
 
 from app.entities.category import Category, CategoryType
 from app.schemas.base_schemas import SearchResponse
-from app.schemas.reporting_schemas import CategorySummaryResponse, TransactionSummaryPeriod
+from app.schemas.reporting_schemas import (
+    CategoryAggregationData,
+    CategorySummaryResponse,
+    TransactionSummaryPeriod,
+)
 from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
 from app.shared.helpers.date_helper import calculate_period_dates
@@ -56,26 +60,34 @@ class ReportingService:
 
         categories: List[Category] = categories_response.results
 
-        # 3. Get aggregated transaction amounts via TransactionService
+        # 3. Get aggregated transaction amounts and counts via TransactionService (single query)
         category_ids = [cat.id for cat in categories]
-        amounts_by_category = self.transaction_service.get_net_signed_amounts_by_category(
-            user_id=user_id,
-            date_from=date_from,
-            date_to=date_to,
-            category_ids=category_ids if category_ids else None,
+        amounts_and_counts_by_category = (
+            self.transaction_service.get_net_signed_amounts_and_counts_by_category(
+                user_id=user_id,
+                date_from=date_from,
+                date_to=date_to,
+                category_ids=category_ids if category_ids else None,
+            )
         )
 
         # 4. Merge and return enriched response
-        category_summaries = [
-            CategorySummaryResponse(
-                id=cat.id,
-                name=cat.name,
-                type=CategoryType(cat.type),
-                icon=cat.icon,
-                color=cat.color,
-                transaction_amount=amounts_by_category.get(cat.id, Decimal("0")),
+        category_summaries = []
+        for cat in categories:
+            aggregation_data = amounts_and_counts_by_category.get(
+                cat.id,
+                CategoryAggregationData(net_signed_amount=Decimal("0"), transaction_count=0),
             )
-            for cat in categories
-        ]
+            category_summaries.append(
+                CategorySummaryResponse(
+                    id=cat.id,
+                    name=cat.name,
+                    type=CategoryType(cat.type),
+                    icon=cat.icon,
+                    color=cat.color,
+                    transaction_amount=aggregation_data.net_signed_amount,
+                    transaction_count=aggregation_data.transaction_count,
+                )
+            )
 
         return SearchResponse(total=len(category_summaries), results=category_summaries)

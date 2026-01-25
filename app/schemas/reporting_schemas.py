@@ -15,6 +15,12 @@ class TransactionSummaryPeriod(str, Enum):
     YEAR = "year"
 
 
+class CategoryAggregationData(BaseModel):
+    """DTO for category transaction aggregation data"""
+    net_signed_amount: Decimal
+    transaction_count: int
+
+
 class CategorySummaryResponse(BaseModel):
     id: UUID4
     name: str
@@ -22,6 +28,7 @@ class CategorySummaryResponse(BaseModel):
     icon: Optional[str] = None
     color: Optional[str] = None
     transaction_amount: Decimal
+    transaction_count: int
 
     model_config = {
         "json_encoders": {

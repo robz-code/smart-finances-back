@@ -92,6 +92,8 @@ def test_categories_summary_with_valid_period_day(client, auth_headers):
     assert cat_summary is not None
     assert "transaction_amount" in cat_summary
     assert cat_summary["transaction_amount"] == "-150.00"  # Expense is negative
+    assert "transaction_count" in cat_summary
+    assert cat_summary["transaction_count"] == 1
 
 
 def test_categories_summary_net_signed_calculation(client, auth_headers):
@@ -129,6 +131,7 @@ def test_categories_summary_net_signed_calculation(client, auth_headers):
     )
     assert cat_summary is not None
     assert cat_summary["transaction_amount"] == "50.00"
+    assert cat_summary["transaction_count"] == 3  # 3 transactions total
 
 
 def test_categories_summary_filter_by_type(client, auth_headers):
@@ -203,6 +206,7 @@ def test_categories_summary_no_transactions_returns_zero(client, auth_headers):
     )
     assert cat_summary is not None
     assert cat_summary["transaction_amount"] == "0.00"
+    assert cat_summary["transaction_count"] == 0
 
 
 def test_categories_summary_income_positive(client, auth_headers):
@@ -227,6 +231,7 @@ def test_categories_summary_income_positive(client, auth_headers):
     )
     assert cat_summary is not None
     assert cat_summary["transaction_amount"] == "2000.00"  # Positive for income
+    assert cat_summary["transaction_count"] == 1
 
 
 def test_categories_summary_expense_negative(client, auth_headers):
@@ -251,6 +256,7 @@ def test_categories_summary_expense_negative(client, auth_headers):
     )
     assert cat_summary is not None
     assert cat_summary["transaction_amount"] == "-500.00"  # Negative for expense
+    assert cat_summary["transaction_count"] == 1
 
 
 def test_categories_summary_all_periods(client, auth_headers):
