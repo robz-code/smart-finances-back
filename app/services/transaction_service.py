@@ -32,12 +32,18 @@ logger = logging.getLogger(__name__)
 
 
 class TransactionService(BaseService[Transaction]):
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        account_service: AccountService,
+        category_service: CategoryService,
+        tag_service: TagService,
+    ):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
-        self.account_service = AccountService(db)
-        self.category_service = CategoryService(db)
-        self.tag_service = TagService(db)
+        self.account_service = account_service
+        self.category_service = category_service
+        self.tag_service = tag_service
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""

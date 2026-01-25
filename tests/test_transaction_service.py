@@ -32,10 +32,15 @@ class TestTransactionService:
     @pytest.fixture
     def service(self, mock_db, mock_repository):
         """Transaction service instance"""
-        svc = TransactionService(mock_db)
+        mock_account_service = Mock(spec=AccountService)
+        mock_category_service = Mock(spec=CategoryService)
+        mock_tag_service = Mock()
+        
+        svc = TransactionService(
+            mock_db, mock_account_service, mock_category_service, mock_tag_service
+        )
         svc.repository = mock_repository
-        svc.account_service = Mock(spec=AccountService)
-        svc.category_service = Mock(spec=CategoryService)
+        
         account = Mock()
         account.name = "Primary Account"
         svc.account_service.get.return_value = account
