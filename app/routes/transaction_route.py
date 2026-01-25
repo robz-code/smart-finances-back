@@ -116,26 +116,3 @@ def delete_transaction(
     """Delete a transaction owned by the current user."""
     service.delete(transaction_id, user_id=cast(UUID, current_user.id))
     return None
-
-
-# Additional convenience endpoints
-@router.get("/account/{account_id}", response_model=SearchResponse[TransactionResponse])
-def get_transactions_by_account(
-    account_id: UUID,
-    service: TransactionService = Depends(get_transaction_service),
-    current_user: User = Depends(get_current_user),
-) -> SearchResponse[TransactionResponse]:
-    """Get all transactions for a specific account."""
-    return service.get_by_account_id(cast(UUID, current_user.id), account_id)
-
-
-@router.get(
-    "/category/{category_id}", response_model=SearchResponse[TransactionResponse]
-)
-def get_transactions_by_category(
-    category_id: UUID,
-    service: TransactionService = Depends(get_transaction_service),
-    current_user: User = Depends(get_current_user),
-) -> SearchResponse[TransactionResponse]:
-    """Get all transactions for a specific category."""
-    return service.get_by_category_id(cast(UUID, current_user.id), category_id)

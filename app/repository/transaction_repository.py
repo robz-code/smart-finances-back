@@ -46,24 +46,6 @@ class TransactionRepository(BaseRepository[Transaction]):
 
         return query.all()
 
-    def get_by_account_id(self, user_id: UUID, account_id: UUID) -> List[Transaction]:
-        """Get transactions by account ID for a specific user"""
-        return (
-            self.db.query(Transaction)
-            .options(
-                selectinload(Transaction.account),
-                selectinload(Transaction.category),
-                selectinload(Transaction.transaction_tags).selectinload(
-                    TransactionTag.tag
-                ),
-            )
-            .filter(
-                Transaction.user_id == user_id, Transaction.account_id == account_id
-            )
-            .order_by(Transaction.date.desc(), Transaction.created_at.desc())
-            .all()
-        )
-
     def attach_tag(self, transaction: Transaction, tag: Tag) -> None:
         """Persist the relationship between a transaction and a tag."""
         association = TransactionTag(transaction_id=transaction.id, tag_id=tag.id)
@@ -118,46 +100,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             raise HTTPException(
                 status_code=500, detail="Error removing transaction tags"
             ) from exc
-
-    def get_by_category_id(self, user_id: UUID, category_id: UUID) -> List[Transaction]:
-        """Get transactions by category ID for a specific user"""
-        return (
-            self.db.query(Transaction)
-            .options(
-                selectinload(Transaction.account),
-                selectinload(Transaction.category),
-                selectinload(Transaction.transaction_tags).selectinload(
-                    TransactionTag.tag
-                ),
-            )
-            .filter(
-                Transaction.user_id == user_id, Transaction.category_id == category_id
-            )
-            .order_by(Transaction.date.desc(), Transaction.created_at.desc())
-            .all()
-        )
-
-    def get_by_date_range(
-        self, user_id: UUID, date_from: str, date_to: str
-    ) -> List[Transaction]:
-        """Get transactions within a date range for a specific user"""
-        return (
-            self.db.query(Transaction)
-            .options(
-                selectinload(Transaction.account),
-                selectinload(Transaction.category),
-                selectinload(Transaction.transaction_tags).selectinload(
-                    TransactionTag.tag
-                ),
-            )
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.date >= date_from,
-                Transaction.date <= date_to,
-            )
-            .order_by(Transaction.date.desc(), Transaction.created_at.desc())
-            .all()
-        )
 
     def get_net_signed_amounts_by_category(
         self,

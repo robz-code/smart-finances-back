@@ -123,66 +123,6 @@ class TestTransactionService:
         assert exc_info.value.status_code == 500
         assert "Error searching transactions" in str(exc_info.value.detail)
 
-    def test_get_by_account_id_success(self, service, mock_repository):
-        """Test successful get by account ID"""
-        # Arrange
-        user_id = uuid.uuid4()
-        account_id = uuid.uuid4()
-        mock_transactions = [
-            self._create_transaction(user_id),
-            self._create_transaction(user_id, "75.00"),
-        ]
-        mock_repository.get_by_account_id.return_value = mock_transactions
-
-        # Act
-        result = service.get_by_account_id(user_id, account_id)
-
-        # Assert
-        assert result.total == 2
-        assert all(r.account.name == "Primary Account" for r in result.results)
-        mock_repository.get_by_account_id.assert_called_once_with(user_id, account_id)
-
-    def test_get_by_category_id_success(self, service, mock_repository):
-        """Test successful get by category ID"""
-        # Arrange
-        user_id = uuid.uuid4()
-        category_id = uuid.uuid4()
-        mock_transactions = [
-            self._create_transaction(user_id),
-            self._create_transaction(user_id, "60.00"),
-        ]
-        mock_repository.get_by_category_id.return_value = mock_transactions
-
-        # Act
-        result = service.get_by_category_id(user_id, category_id)
-
-        # Assert
-        assert result.total == 2
-        assert all(r.category.name == "General Category" for r in result.results)
-        mock_repository.get_by_category_id.assert_called_once_with(user_id, category_id)
-
-    def test_get_by_date_range_success(self, service, mock_repository):
-        """Test successful get by date range"""
-        # Arrange
-        user_id = uuid.uuid4()
-        date_from = "2024-01-01"
-        date_to = "2024-01-31"
-        mock_transactions = [
-            self._create_transaction(user_id, amount="120.00"),
-            self._create_transaction(user_id, amount="80.00"),
-        ]
-        mock_repository.get_by_date_range.return_value = mock_transactions
-
-        # Act
-        result = service.get_by_date_range(user_id, date_from, date_to)
-
-        # Assert
-        assert result.total == 2
-        assert all(r.account.name == "Primary Account" for r in result.results)
-        mock_repository.get_by_date_range.assert_called_once_with(
-            user_id, date_from, date_to
-        )
-
     @patch(
         "app.services.transaction_service.TransactionService._validate_account_ownership"
     )

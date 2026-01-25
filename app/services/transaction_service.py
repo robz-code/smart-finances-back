@@ -67,39 +67,6 @@ class TransactionService(BaseService[Transaction]):
             logger.error(f"Error searching transactions: {str(e)}")
             raise HTTPException(status_code=500, detail="Error searching transactions")
 
-    def get_by_account_id(
-        self, user_id: UUID, account_id: UUID
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by account ID with validation"""
-        try:
-            result = self.repository.get_by_account_id(user_id, account_id)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by account: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
-
-    def get_by_category_id(
-        self, user_id: UUID, category_id: UUID
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by category ID with validation"""
-        try:
-            result = self.repository.get_by_category_id(user_id, category_id)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by category: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
-
-    def get_by_date_range(
-        self, user_id: UUID, date_from: str, date_to: str
-    ) -> SearchResponse[TransactionResponse]:
-        """Get transactions by date range with validation"""
-        try:
-            result = self.repository.get_by_date_range(user_id, date_from, date_to)
-            return self._build_search_response(result)
-        except Exception as e:
-            logger.error(f"Error getting transactions by date range: {str(e)}")
-            raise HTTPException(status_code=500, detail="Error retrieving transactions")
-
     def get_net_signed_amounts_by_category(
         self,
         user_id: UUID,
