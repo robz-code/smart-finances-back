@@ -102,59 +102,6 @@ class TransactionRepository(BaseRepository[Transaction]):
                 status_code=500, detail="Error removing transaction tags"
             ) from exc
 
-    def get_net_signed_amounts_by_category(
-        self,
-        user_id: UUID,
-        date_from: date,
-        date_to: date,
-        category_ids: Optional[List[UUID]] = None,
-    ) -> Dict[UUID, Decimal]:
-        """
-        Get net-signed transaction amounts grouped by category_id.
-        
-        Net-signed means: income transactions add to the total, expense transactions subtract.
-        Formula: sum(case when type='income' then amount else -amount end)
-        
-        Args:
-            user_id: User ID to filter transactions
-            date_from: Start date (inclusive)
-            date_to: End date (inclusive)
-            category_ids: Optional list of category IDs to filter by. If None, includes all categories.
-        
-        Returns:
-            Dictionary mapping category_id to net-signed Decimal amount
-        """
-        # Build the CASE expression for net-signed calculation
-        # Income adds (positive), expense subtracts (negative)
-        net_amount = case(
-            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
-            else_=-Transaction.amount,
-        )
-
-        query = (
-            self.db.query(
-                Transaction.category_id,
-                func.sum(net_amount).label("net_amount"),
-            )
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.date >= date_from,
-                Transaction.date <= date_to,
-            )
-            .group_by(Transaction.category_id)
-        )
-
-        if category_ids is not None:
-            query = query.filter(Transaction.category_id.in_(category_ids))
-
-        results = query.all()
-
-        # Convert to dictionary, defaulting to Decimal('0') for categories with no transactions
-        return {
-            category_id: Decimal(str(net_amount)) if net_amount is not None else Decimal("0")
-            for category_id, net_amount in results
-        }
-
     def get_net_signed_amounts_and_counts_by_category(
         self,
         user_id: UUID,
