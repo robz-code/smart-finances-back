@@ -4,14 +4,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 
-def _create_user(client: TestClient, auth_headers: dict, name="Report Owner", email="report@example.com"):
+def _create_user(
+    client: TestClient,
+    auth_headers: dict,
+    name="Report Owner",
+    email="report@example.com",
+):
     """Helper function to create a user for testing"""
     return client.post(
         "/api/v1/users", json={"name": name, "email": email}, headers=auth_headers
     )
 
 
-def _create_account(client: TestClient, auth_headers: dict, name="Test Account", currency="USD"):
+def _create_account(
+    client: TestClient, auth_headers: dict, name="Test Account", currency="USD"
+):
     """Helper function to create an account for testing"""
     create_payload = {
         "name": name,
@@ -25,7 +32,10 @@ def _create_account(client: TestClient, auth_headers: dict, name="Test Account",
 
 
 def _create_category(
-    client: TestClient, auth_headers: dict, name="Test Category", category_type="expense"
+    client: TestClient,
+    auth_headers: dict,
+    name="Test Category",
+    category_type="expense",
 ):
     """Helper function to create a category for testing"""
     create_payload = {
@@ -144,7 +154,13 @@ def test_categories_summary_filter_by_type(client, auth_headers):
 
     today = date.today().isoformat()
     _create_transaction(
-        client, auth_headers, account["id"], expense_cat["id"], "50.00", "expense", today
+        client,
+        auth_headers,
+        account["id"],
+        expense_cat["id"],
+        "50.00",
+        "expense",
+        today,
     )
     _create_transaction(
         client, auth_headers, account["id"], income_cat["id"], "100.00", "income", today

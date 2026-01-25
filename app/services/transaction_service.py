@@ -14,6 +14,7 @@ from app.entities.transaction_tag import TransactionTag
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
+from app.schemas.reporting_schemas import CategoryAggregationData
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
@@ -23,7 +24,6 @@ from app.schemas.transaction_schemas import (
     TransferResponse,
     TransferTransactionCreate,
 )
-from app.schemas.reporting_schemas import CategoryAggregationData
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
@@ -77,16 +77,16 @@ class TransactionService(BaseService[Transaction]):
     ) -> Dict[UUID, CategoryAggregationData]:
         """
         Get net-signed transaction amounts and counts grouped by category_id in a single query.
-        
+
         This method provides both aggregation and count data for category summaries efficiently.
         Net-signed means: income transactions add to the total, expense transactions subtract.
-        
+
         Args:
             user_id: User ID to filter transactions
             date_from: Start date (inclusive)
             date_to: End date (inclusive)
             category_ids: Optional list of category IDs to filter by. If None, includes all categories.
-        
+
         Returns:
             Dictionary mapping category_id to CategoryAggregationData DTO
         """
@@ -390,7 +390,9 @@ class TransactionService(BaseService[Transaction]):
     ) -> CategoryResponseBase:
         category = getattr(transaction, "category", None)
         if category and getattr(category, "name", None):
-            category_type_value = getattr(category, "type", None) or CategoryType.EXPENSE.value
+            category_type_value = (
+                getattr(category, "type", None) or CategoryType.EXPENSE.value
+            )
             return CategoryResponseBase(
                 id=transaction.category_id,
                 name=category.name,
@@ -400,7 +402,9 @@ class TransactionService(BaseService[Transaction]):
             )
 
         category_obj = self.category_service.get(transaction.category_id)
-        category_type_value = getattr(category_obj, "type", None) or CategoryType.EXPENSE.value
+        category_type_value = (
+            getattr(category_obj, "type", None) or CategoryType.EXPENSE.value
+        )
         return CategoryResponseBase(
             id=transaction.category_id,
             name=category_obj.name,

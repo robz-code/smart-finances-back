@@ -17,6 +17,7 @@ class TransactionSummaryPeriod(str, Enum):
 
 class CategoryAggregationData(BaseModel):
     """DTO for category transaction aggregation data"""
+
     net_signed_amount: Decimal
     transaction_count: int
 

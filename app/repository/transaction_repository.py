@@ -111,16 +111,16 @@ class TransactionRepository(BaseRepository[Transaction]):
     ) -> Dict[UUID, CategoryAggregationData]:
         """
         Get net-signed transaction amounts and counts grouped by category_id in a single query.
-        
+
         Net-signed means: income transactions add to the total, expense transactions subtract.
         This method combines both amount and count calculations in one database query for efficiency.
-        
+
         Args:
             user_id: User ID to filter transactions
             date_from: Start date (inclusive)
             date_to: End date (inclusive)
             category_ids: Optional list of category IDs to filter by. If None, includes all categories.
-        
+
         Returns:
             Dictionary mapping category_id to CategoryAggregationData DTO
         """
@@ -153,7 +153,9 @@ class TransactionRepository(BaseRepository[Transaction]):
         # Convert to dictionary with DTOs, defaulting to (Decimal('0'), 0) for categories with no transactions
         return {
             category_id: CategoryAggregationData(
-                net_signed_amount=Decimal(str(net_amount)) if net_amount is not None else Decimal("0"),
+                net_signed_amount=(
+                    Decimal(str(net_amount)) if net_amount is not None else Decimal("0")
+                ),
                 transaction_count=int(count) if count is not None else 0,
             )
             for category_id, net_amount, count in results

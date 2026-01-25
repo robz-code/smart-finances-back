@@ -35,12 +35,12 @@ class TestTransactionService:
         mock_account_service = Mock(spec=AccountService)
         mock_category_service = Mock(spec=CategoryService)
         mock_tag_service = Mock()
-        
+
         svc = TransactionService(
             mock_db, mock_account_service, mock_category_service, mock_tag_service
         )
         svc.repository = mock_repository
-        
+
         account = Mock()
         account.name = "Primary Account"
         svc.account_service.get.return_value = account

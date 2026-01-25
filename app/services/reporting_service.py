@@ -17,7 +17,7 @@ from app.shared.helpers.date_helper import calculate_period_dates
 class ReportingService:
     """
     Service for cross-domain reporting and aggregation.
-    
+
     This service orchestrates data from multiple domain services to provide
     aggregated reports without creating circular dependencies.
     """
@@ -38,12 +38,12 @@ class ReportingService:
     ) -> SearchResponse[CategorySummaryResponse]:
         """
         Get categories with their transaction amounts for a given period.
-        
+
         Args:
             user_id: User ID to filter categories and transactions
             period: Time period for transaction aggregation (day, week, month, year)
             category_type: Optional filter by category type (income/expense)
-        
+
         Returns:
             SearchResponse containing CategorySummaryResponse objects with transaction amounts
         """
@@ -76,7 +76,9 @@ class ReportingService:
         for cat in categories:
             aggregation_data = amounts_and_counts_by_category.get(
                 cat.id,
-                CategoryAggregationData(net_signed_amount=Decimal("0"), transaction_count=0),
+                CategoryAggregationData(
+                    net_signed_amount=Decimal("0"), transaction_count=0
+                ),
             )
             category_summaries.append(
                 CategorySummaryResponse(
