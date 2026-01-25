@@ -73,9 +73,7 @@ class ReportingService:
                 type=CategoryType(cat.type),
                 icon=cat.icon,
                 color=cat.color,
-                transaction_amount=format(
-                    amounts_by_category.get(cat.id, Decimal("0")), ".2f"
-                ),
+                transaction_amount=amounts_by_category.get(cat.id, Decimal("0")),
             )
             for cat in categories
         ]

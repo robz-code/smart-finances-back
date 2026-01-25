@@ -1,3 +1,4 @@
+from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID
@@ -20,4 +21,10 @@ class CategorySummaryResponse(BaseModel):
     type: CategoryType
     icon: Optional[str] = None
     color: Optional[str] = None
-    transaction_amount: str  # Formatted decimal, e.g. "150.00"
+    transaction_amount: Decimal
+
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: format(v, ".2f")  # Format to 2 decimal places in JSON
+        }
+    }
