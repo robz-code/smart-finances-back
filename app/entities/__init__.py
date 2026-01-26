@@ -1,6 +1,6 @@
 from .account import Account
 from .category import Category
-from .tags import Tag
+from .concept import Concept
 from .transaction import Transaction
 from .user import User
 
@@ -8,6 +8,6 @@ __all__ = [
     "User",
     "Account",
     "Category",
-    "Tag",
+    "Concept",
     "Transaction",
 ]

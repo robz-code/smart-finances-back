@@ -11,7 +11,7 @@ from pydantic import BaseModel, field_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
-from app.schemas.tag_schemas import TagTransactionCreate
+from app.schemas.concept_schemas import ConceptTransactionCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -27,7 +27,7 @@ class TransactionRelatedEntity(BaseModel):
 class TransactionBase(BaseModel):
     account: TransactionRelatedEntity
     category: CategoryResponseBase
-    tag: Optional[TransactionRelatedEntity] = None
+    concept: Optional[TransactionRelatedEntity] = None
     transfer_id: Optional[UUID] = None
     type: str
     amount: Decimal
@@ -57,7 +57,7 @@ class TransferResponse(BaseModel):
 class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
-    tag: Optional[TagTransactionCreate] = None
+    concept: Optional[ConceptTransactionCreate] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None
@@ -115,7 +115,7 @@ class TransferTransactionCreate(BaseModel):
     to_account_id: UUID
     amount: Decimal
     date: Date
-    tag: Optional[UUID] = None
+    concept: Optional[UUID] = None
 
     model_config = {"from_attributes": True}
 

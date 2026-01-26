@@ -27,6 +27,7 @@ class Transaction(Base):
     category_id = Column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
+    concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id"), nullable=True)
     transfer_id = Column(UUID(as_uuid=True))
     type = Column(Text, nullable=False)
     amount = Column(NUMERIC, nullable=False)
@@ -43,5 +44,5 @@ class Transaction(Base):
     # Relationships
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
-    transaction_tags = relationship("TransactionTag", back_populates="transaction")
+    concept = relationship("Concept", back_populates="transactions")
     user = relationship("User", back_populates="transactions")

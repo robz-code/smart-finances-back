@@ -27,7 +27,7 @@ class User(Base):
     )
 
     # Relationships
-    tags = relationship("Tag", back_populates="user")
+    concepts = relationship("Concept", back_populates="user")
     accounts = relationship("Account", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     categories = relationship("Category", back_populates="user")

@@ -8,8 +8,8 @@ from sqlalchemy.orm import relationship
 from app.config.db_base import Base
 
 
-class Tag(Base):
-    __tablename__ = "tags"
+class Concept(Base):
+    __tablename__ = "concepts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), nullable=False)
@@ -23,8 +23,8 @@ class Tag(Base):
     )
 
     # Relationships
-    user = relationship("User", back_populates="tags")
-    transaction_tags = relationship("TransactionTag", back_populates="tag")
+    user = relationship("User", back_populates="concepts")
+    transactions = relationship("Transaction", back_populates="concept")
 
     def __repr__(self) -> str:
-        return f"<Tag(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+        return f"<Concept(id={self.id}, name='{self.name}', user_id={self.user_id})>"

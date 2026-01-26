@@ -57,7 +57,7 @@ async def create_transaction(
     service: TransactionService = Depends(get_transaction_service),
     current_user: User = Depends(get_current_user),
 ) -> TransactionResponse:
-    """Create a transaction and optionally link or create tags automatically."""
+    """Create a transaction and optionally link or create concepts automatically."""
     return service.create_transaction(
         transaction_data,
         user_id=cast(UUID, current_user.id),

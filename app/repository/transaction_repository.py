@@ -6,12 +6,9 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import case, func
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
-from app.entities.tags import Tag
 from app.entities.transaction import Transaction, TransactionType
-from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
 from app.schemas.reporting_schemas import CategoryAggregationData
 from app.schemas.transaction_schemas import TransactionSearch
@@ -32,9 +29,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             .options(
                 selectinload(Transaction.account),
                 selectinload(Transaction.category),
-                selectinload(Transaction.transaction_tags).selectinload(
-                    TransactionTag.tag
-                ),
+                selectinload(Transaction.concept),
             )
             .filter(Transaction.user_id == user_id)
         )
@@ -46,61 +41,6 @@ class TransactionRepository(BaseRepository[Transaction]):
         query = query.order_by(Transaction.date.desc(), Transaction.created_at.desc())
 
         return query.all()
-
-    def attach_tag(self, transaction: Transaction, tag: Tag) -> None:
-        """Persist the relationship between a transaction and a tag."""
-        association = TransactionTag(transaction_id=transaction.id, tag_id=tag.id)
-        try:
-            self.db.add(association)
-            self.db.commit()
-            self.db.refresh(transaction)
-        except SQLAlchemyError as exc:
-            self.db.rollback()
-            logger.error(
-                "Error linking tag %s to transaction %s: %s",
-                tag.id,
-                transaction.id,
-                exc,
-            )
-            raise HTTPException(
-                status_code=500, detail="Error linking tag to transaction"
-            ) from exc
-
-    def get_tag_association(self, transaction_id: UUID) -> Optional[TransactionTag]:
-        """Return the first tag association for the given transaction."""
-        return (
-            self.db.query(TransactionTag)
-            .options(selectinload(TransactionTag.tag))
-            .filter(TransactionTag.transaction_id == transaction_id)
-            .first()
-        )
-
-    def remove_tags(self, transaction_id: UUID) -> int:
-        """Delete all tag associations for the given transaction."""
-        try:
-            deleted = (
-                self.db.query(TransactionTag)
-                .filter(TransactionTag.transaction_id == transaction_id)
-                .delete(synchronize_session=False)
-            )
-            if deleted:
-                logger.info(
-                    "Removed %s tag associations for transaction %s",
-                    deleted,
-                    transaction_id,
-                )
-            self.db.commit()
-            return deleted
-        except SQLAlchemyError as exc:
-            self.db.rollback()
-            logger.error(
-                "Error removing tag associations for transaction %s: %s",
-                transaction_id,
-                exc,
-            )
-            raise HTTPException(
-                status_code=500, detail="Error removing transaction tags"
-            ) from exc
 
     def get_net_signed_amounts_and_counts_by_category(
         self,

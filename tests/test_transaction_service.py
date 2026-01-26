@@ -34,10 +34,10 @@ class TestTransactionService:
         """Transaction service instance"""
         mock_account_service = Mock(spec=AccountService)
         mock_category_service = Mock(spec=CategoryService)
-        mock_tag_service = Mock()
+        mock_concept_service = Mock()
 
         svc = TransactionService(
-            mock_db, mock_account_service, mock_category_service, mock_tag_service
+            mock_db, mock_account_service, mock_category_service, mock_concept_service
         )
         svc.repository = mock_repository
 
