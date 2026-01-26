@@ -46,13 +46,13 @@ def _create_category(client: TestClient, auth_headers: dict, name="Test Category
     return r.json()
 
 
-def _create_tag(client: TestClient, auth_headers: dict, name="Test Tag"):
-    """Helper function to create a tag for testing"""
+def _create_concept(client: TestClient, auth_headers: dict, name="Test Concept"):
+    """Helper function to create a concept for testing"""
     create_payload = {
         "name": name,
         "color": "#00FF00",
     }
-    r = client.post("/api/v1/tags", json=create_payload, headers=auth_headers)
+    r = client.post("/api/v1/concepts", json=create_payload, headers=auth_headers)
     assert r.status_code == 201
     return r.json()
 
@@ -65,7 +65,7 @@ def _create_transaction(
     transaction_type: str = "expense",
     category_id: str | None = None,
     transaction_date: str = "2024-01-15",
-    tag: dict | None = None,
+    concept: dict | None = None,
 ):
     """Helper function to create a transaction for testing"""
     if category_id is None:
@@ -81,8 +81,8 @@ def _create_transaction(
         "date": transaction_date,
         "source": "manual",
     }
-    if tag:
-        create_payload["tag"] = tag
+    if concept:
+        create_payload["concept"] = concept
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
     assert r.status_code == 200
     return r.json()
@@ -134,7 +134,7 @@ class TestTransactionCRUD:
         assert transaction["currency"] == "USD"
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"
-        assert transaction["tag"] is None
+        assert transaction["concept"] is None
         assert "id" in transaction
         assert "user_id" in transaction
         assert "created_at" in transaction
@@ -147,7 +147,7 @@ class TestTransactionCRUD:
         assert retrieved["amount"] == "150.50"
         assert retrieved["account"]["name"] == account["name"]
         assert retrieved["category"]["name"] == category["name"]
-        assert retrieved["tag"] is None
+        assert retrieved["concept"] is None
 
         # Update transaction
         update_payload = {
@@ -204,7 +204,7 @@ class TestTransactionCRUD:
         assert transaction["amount"] == "50.00"
         assert transaction["date"] == "2024-01-15"
         assert transaction["source"] == "manual"  # default value
-        assert transaction["tag"] is None
+        assert transaction["concept"] is None
 
     def test_create_transaction_with_all_fields(
         self, client: TestClient, auth_headers: dict
@@ -213,7 +213,7 @@ class TestTransactionCRUD:
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
-        tag_payload = {
+        concept_payload = {
             "name": "High Priority",
             "color": "#FF00FF",
         }
@@ -226,7 +226,7 @@ class TestTransactionCRUD:
             "currency": "EUR",
             "date": "2024-01-20",
             "source": "bank_transfer",
-            "tag": tag_payload,
+            "concept": concept_payload,
         }
         r = client.post(
             "/api/v1/transactions", json=create_payload, headers=auth_headers
@@ -240,91 +240,91 @@ class TestTransactionCRUD:
         assert transaction["amount"] == "1000.00"
         assert transaction["currency"] == "EUR"
         assert transaction["source"] == "bank_transfer"
-        assert transaction["tag"]["name"] == tag_payload["name"]
-        assert "id" in transaction["tag"]
+        assert transaction["concept"]["name"] == concept_payload["name"]
+        assert "id" in transaction["concept"]
 
-        tags_response = client.get("/api/v1/tags", headers=auth_headers)
-        assert tags_response.status_code == 200
-        tags_payload = tags_response.json()
+        concepts_response = client.get("/api/v1/concepts", headers=auth_headers)
+        assert concepts_response.status_code == 200
+        concepts_payload = concepts_response.json()
         assert any(
-            tag["name"] == tag_payload["name"] for tag in tags_payload["results"]
+            concept["name"] == concept_payload["name"] for concept in concepts_payload["results"]
         )
 
-    def test_create_transaction_with_existing_tag(
+    def test_create_transaction_with_existing_concept(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test creating a transaction referencing an existing tag"""
+        """Test creating a transaction referencing an existing concept"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
-        tag = _create_tag(client, auth_headers, name="Recurring")
+        concept = _create_concept(client, auth_headers, name="Recurring")
 
         transaction = _create_transaction(
             client,
             auth_headers,
             account_id=account["id"],
             category_id=category["id"],
-            tag={"id": tag["id"], "name": tag["name"]},
+            concept={"id": concept["id"], "name": concept["name"]},
         )
 
-        assert transaction["tag"]["id"] == tag["id"]
-        assert transaction["tag"]["name"] == tag["name"]
+        assert transaction["concept"]["id"] == concept["id"]
+        assert transaction["concept"]["name"] == concept["name"]
 
-    def test_create_transaction_with_existing_tag_id_only(
+    def test_create_transaction_with_existing_concept_id_only(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test creating a transaction referencing an existing tag by ID only (no name)"""
+        """Test creating a transaction referencing an existing concept by ID only (no name)"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
-        tag = _create_tag(client, auth_headers, name="Work Expense")
+        concept = _create_concept(client, auth_headers, name="Work Expense")
 
-        # Reference tag by ID only, without providing name
+        # Reference concept by ID only, without providing name
         transaction = _create_transaction(
             client,
             auth_headers,
             account_id=account["id"],
             category_id=category["id"],
-            tag={"id": tag["id"]},
+            concept={"id": concept["id"]},
         )
 
-        assert transaction["tag"]["id"] == tag["id"]
-        assert transaction["tag"]["name"] == tag["name"]
-        assert transaction["tag"]["name"] == "Work Expense"
+        assert transaction["concept"]["id"] == concept["id"]
+        assert transaction["concept"]["name"] == concept["name"]
+        assert transaction["concept"]["name"] == "Work Expense"
 
-    def test_create_transaction_creates_new_tag(
+    def test_create_transaction_creates_new_concept(
         self, client: TestClient, auth_headers: dict
     ):
-        """Test creating a transaction with a new tag (tag is created automatically)"""
+        """Test creating a transaction with a new concept (concept is created automatically)"""
         _create_user(client, auth_headers)
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
 
-        # Create transaction with tag name and color - tag should be created automatically
+        # Create transaction with concept name and color - concept should be created automatically
         transaction = _create_transaction(
             client,
             auth_headers,
             account_id=account["id"],
             category_id=category["id"],
-            tag={"name": "Personal", "color": "#FF5733"},
+            concept={"name": "Personal", "color": "#FF5733"},
         )
 
-        assert transaction["tag"] is not None
-        assert transaction["tag"]["name"] == "Personal"
-        assert "id" in transaction["tag"]
+        assert transaction["concept"] is not None
+        assert transaction["concept"]["name"] == "Personal"
+        assert "id" in transaction["concept"]
 
-        # Verify the tag was actually created and can be retrieved with all fields
-        tags_response = client.get("/api/v1/tags", headers=auth_headers)
-        assert tags_response.status_code == 200
-        tags_payload = tags_response.json()
-        created_tag = next(
-            (tag for tag in tags_payload["results"] if tag["name"] == "Personal"),
+        # Verify the concept was actually created and can be retrieved with all fields
+        concepts_response = client.get("/api/v1/concepts", headers=auth_headers)
+        assert concepts_response.status_code == 200
+        concepts_payload = concepts_response.json()
+        created_concept = next(
+            (concept for concept in concepts_payload["results"] if concept["name"] == "Personal"),
             None,
         )
-        assert created_tag is not None
-        assert created_tag["name"] == "Personal"
-        assert created_tag["color"] == "#FF5733"
-        assert created_tag["id"] == transaction["tag"]["id"]
+        assert created_concept is not None
+        assert created_concept["name"] == "Personal"
+        assert created_concept["color"] == "#FF5733"
+        assert created_concept["id"] == transaction["concept"]["id"]
 
     def test_create_transaction_invalid_account(
         self, client: TestClient, auth_headers: dict

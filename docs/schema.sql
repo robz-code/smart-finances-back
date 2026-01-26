@@ -64,23 +64,14 @@ CREATE TABLE categories (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Tags
-CREATE TABLE tags (
+-- Concepts
+CREATE TABLE concepts (
   id UUID PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) NOT NULL,
   name TEXT NOT NULL,
   color TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  user_id UUID REFERENCES users(id) NOT NULL
-);
-
--- Transaction Tags (Association table)
-CREATE TABLE transaction_tags (
-  id UUID PRIMARY KEY,
-  transaction_id UUID REFERENCES transactions(id) NOT NULL,
-  tag_id UUID REFERENCES tags(id) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Transactions
@@ -89,6 +80,7 @@ CREATE TABLE transactions (
   user_id UUID REFERENCES users(id),
   account_id UUID REFERENCES accounts(id),
   category_id UUID REFERENCES categories(id),
+  concept_id UUID REFERENCES concepts(id),
   group_id UUID REFERENCES groups(id),
   recurrent_transaction_id UUID REFERENCES recurring_transactions(id),
   transfer_id UUID,

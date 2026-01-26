@@ -38,9 +38,9 @@ class TestTransactionBase:
         # Arrange
         data = {
             **self._build_payload(),
-            "tag": {
+            "concept": {
                 "id": str(uuid.uuid4()),
-                "name": "Shared Tag",
+                "name": "Shared Concept",
             },
             "type": "expense",
             "amount": "100.50",
@@ -57,9 +57,9 @@ class TestTransactionBase:
         assert transaction.account.name == data["account"]["name"]
         assert str(transaction.category.id) == data["category"]["id"]
         assert transaction.category.name == data["category"]["name"]
-        assert transaction.tag is not None
-        assert str(transaction.tag.id) == data["tag"]["id"]
-        assert transaction.tag.name == data["tag"]["name"]
+        assert transaction.concept is not None
+        assert str(transaction.concept.id) == data["concept"]["id"]
+        assert transaction.concept.name == data["concept"]["name"]
         assert transaction.type == "expense"
         assert transaction.amount == Decimal("100.50")
         assert transaction.currency == "USD"
@@ -70,7 +70,7 @@ class TestTransactionBase:
         serialized = transaction.model_dump(mode="json")
         assert serialized["account"] == data["account"]
         assert serialized["category"] == data["category"]
-        assert serialized["tag"] == data["tag"]
+        assert serialized["concept"] == data["concept"]
 
     def test_transaction_base_minimal_data(self):
         """Test TransactionBase with minimal required data"""
@@ -90,7 +90,7 @@ class TestTransactionBase:
         assert transaction.account.name == data["account"]["name"]
         assert str(transaction.category.id) == data["category"]["id"]
         assert transaction.category.name == data["category"]["name"]
-        assert transaction.tag is None
+        assert transaction.concept is None
         assert transaction.type == "income"
         assert transaction.amount == Decimal("200.00")
         assert transaction.date == date(2024, 1, 20)
@@ -144,7 +144,7 @@ class TestTransactionCreate:
         assert field_names == {
             "account_id",
             "category_id",
-            "tag",
+            "concept",
             "type",
             "amount",
             "currency",
@@ -178,15 +178,15 @@ class TestTransactionCreate:
         assert model.date == date(2024, 1, 25)
         assert model.updated_at is None
 
-    def test_transaction_create_with_new_tag(self):
-        """TransactionCreate accepts new tag payloads"""
+    def test_transaction_create_with_new_concept(self):
+        """TransactionCreate accepts new concept payloads"""
         data = {
             "account_id": str(uuid.uuid4()),
             "category_id": str(uuid.uuid4()),
             "type": "expense",
             "amount": "75.00",
             "date": "2024-01-10",
-            "tag": {
+            "concept": {
                 "name": "Dining",
                 "color": "#FFAA00",
             },
@@ -194,8 +194,8 @@ class TestTransactionCreate:
 
         transaction_create = TransactionCreate(**data)
 
-        assert transaction_create.tag is not None
-        assert transaction_create.tag.name == "Dining"
+        assert transaction_create.concept is not None
+        assert transaction_create.concept.name == "Dining"
 
 
 class TestTransactionUpdate:
@@ -267,7 +267,7 @@ class TestTransactionResponse:
         user_id = str(uuid.uuid4())
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
-        tag_id = str(uuid.uuid4())
+        concept_id = str(uuid.uuid4())
         account = {"id": account_id, "name": "Checking Account"}
         category = {
             "id": category_id,
@@ -276,13 +276,13 @@ class TestTransactionResponse:
             "icon": "groceries",
             "color": "#00FF00",
         }
-        tag = {"id": tag_id, "name": "Essentials"}
+        concept = {"id": concept_id, "name": "Essentials"}
         data = {
             "id": transaction_id,
             "user_id": user_id,
             "account": account,
             "category": category,
-            "tag": tag,
+            "concept": concept,
             "type": "expense",
             "amount": "100.00",
             "currency": "USD",
@@ -303,9 +303,9 @@ class TestTransactionResponse:
         assert transaction_response.category.name == "Groceries"
         assert transaction_response.category.icon == "groceries"
         assert transaction_response.category.color == "#00FF00"
-        assert transaction_response.tag is not None
-        assert str(transaction_response.tag.id) == tag_id
-        assert transaction_response.tag.name == "Essentials"
+        assert transaction_response.concept is not None
+        assert str(transaction_response.concept.id) == concept_id
+        assert transaction_response.concept.name == "Essentials"
         assert transaction_response.type == "expense"
         assert transaction_response.amount == Decimal("100.00")
         assert transaction_response.currency == "USD"
@@ -314,7 +314,7 @@ class TestTransactionResponse:
         serialized = transaction_response.model_dump(mode="json")
         assert serialized["account"] == account
         assert serialized["category"] == category
-        assert serialized["tag"] == tag
+        assert serialized["concept"] == concept
 
 
 class TestTransactionSearch:

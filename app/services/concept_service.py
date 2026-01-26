@@ -5,25 +5,25 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.entities.tags import Tag
-from app.repository.tag_repository import TagRepository
+from app.entities.concept import Concept
+from app.repository.concept_repository import ConceptRepository
 
-# from app.schemas.tag_schemas import TagUpdate  # unused in service
+# from app.schemas.concept_schemas import ConceptUpdate  # unused in service
 from app.services.base_service import BaseService
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 
-class TagService(BaseService[Tag]):
+class ConceptService(BaseService[Concept]):
     def __init__(self, db: Session) -> None:
-        self.repository = TagRepository(db)
-        self.entity = Tag
+        self.repository = ConceptRepository(db)
+        self.entity = Concept
         super().__init__(db, self.repository, self.entity)
 
-    def before_delete(self, id: UUID, **kwargs: Any) -> Tag:
+    def before_delete(self, id: UUID, **kwargs: Any) -> Concept:
         # Basic validation
-        tag = super().before_delete(id, **kwargs)
+        concept = super().before_delete(id, **kwargs)
 
         # Getting kwargs
         user_id = kwargs.get("user_id")
@@ -31,16 +31,16 @@ class TagService(BaseService[Tag]):
             raise HTTPException(status_code=400, detail="Invalid user ID provided")
 
         # Specific Validations
-        if tag.user_id != user_id:
+        if concept.user_id != user_id:
             logger.warning(
                 (
-                    f"Attempt to delete tag with ID: {id} not owned by user "
+                    f"Attempt to delete concept with ID: {id} not owned by user "
                     f"with ID: {user_id}"
                 )
             )
-            raise HTTPException(status_code=403, detail="You do not own this tag")
+            raise HTTPException(status_code=403, detail="You do not own this concept")
 
-        return tag
+        return concept
 
     def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
         # Basic validation
@@ -49,18 +49,18 @@ class TagService(BaseService[Tag]):
         # Getting kwargs
         user_id = kwargs.get("user_id")
         if not user_id:
-            logger.warning(f"Attempt to update tag with ID: {id} without user ID")
+            logger.warning(f"Attempt to update concept with ID: {id} without user ID")
             raise HTTPException(status_code=400, detail="Invalid user ID provided")
 
-        # Get the tag to check ownership
-        tag = self.repository.get(id)
-        if tag and tag.user_id != user_id:
+        # Get the concept to check ownership
+        concept = self.repository.get(id)
+        if concept and concept.user_id != user_id:
             logger.warning(
                 (
-                    f"Attempt to update tag with ID: {id} not owned by user "
+                    f"Attempt to update concept with ID: {id} not owned by user "
                     f"with ID: {user_id}"
                 )
             )
-            raise HTTPException(status_code=403, detail="You do not own this tag")
+            raise HTTPException(status_code=403, detail="You do not own this concept")
 
         return True

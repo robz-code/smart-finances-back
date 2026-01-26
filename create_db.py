@@ -3,9 +3,8 @@ from app.config.database import get_engine
 import app.entities.user  # Import active models so Base.metadata is aware of them
 import app.entities.account
 import app.entities.category
+import app.entities.concept
 import app.entities.transaction
-import app.entities.tags
-import app.entities.transaction_tag
 
 
 def create_all_tables():
