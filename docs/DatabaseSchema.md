@@ -82,7 +82,20 @@ erDiagram
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
-
+    tags {
+        UUID id PK
+        UUID user_id FK
+        TEXT name
+        TEXT color
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+    transaction_tags {
+        UUID id PK
+        UUID transaction_id FK
+        UUID tag_id FK
+        TIMESTAMP created_at
+    }
     transactions {
         UUID id PK
         UUID user_id FK
@@ -195,6 +208,7 @@ erDiagram
     users ||--o{ group_members : "belongs_to"
     users ||--o{ budgets : "creates"
     users ||--o{ concepts : "owns"
+    users ||--o{ tags : "owns"
 
     accounts ||--o{ credits : "has"
     accounts ||--o{ transactions : "contains"
@@ -208,7 +222,9 @@ erDiagram
     transactions ||--o{ installments : "has"
     transactions ||--o{ user_debts : "creates"
     transactions ||--o{ transactions : "transfers_to"
+    transactions ||--o{ transaction_tags : "has"
     concepts ||--o{ transactions : "has"
+    tags ||--o{ transaction_tags : "used_in"
 
     recurring_transactions ||--o{ recurring_debt : "creates"
     recurring_transactions ||--o{ transactions : "generates"
@@ -232,6 +248,8 @@ erDiagram
 - **credits**: Credit card and loan information
 - **categories**: Transaction categorization
 - **concepts**: User-specific transaction concepts
+- **tags**: User-specific transaction tags (many-to-many with transactions)
+- **transaction_tags**: Association between transactions and tags
 - **transactions**: Financial transactions
 - **installments**: Installment payment tracking
 - **recurring_transactions**: Recurring financial transactions
@@ -248,10 +266,11 @@ erDiagram
 
 ## Key Relationships
 
-1. **User Hierarchy**: Users can have multiple accounts, transactions, budgets, and concepts
+1. **User Hierarchy**: Users can have multiple accounts, transactions, budgets, concepts, and tags
 2. **Account Types**: Accounts can be regular accounts or credit accounts (1:1 relationship)
-3. **Transaction Flow**: Transactions can be categorized, have concepts, have installments, and create debts
-4. **Concept System**: Users can create private concepts to organize their transactions
+3. **Transaction Flow**: Transactions can be categorized, have concepts, have tags (many-to-many), have installments, and create debts
+4. **Concept System**: Users can create private concepts to organize their transactions (one concept per transaction)
+5. **Tag System**: Users can create private tags to label their transactions (many tags per transaction)
 5. **Social Features**: Users can join groups and share expenses
 6. **Budgeting**: Users can create budgets for specific accounts and categories
 7. **Recurring Items**: Both transactions and debts can be recurring

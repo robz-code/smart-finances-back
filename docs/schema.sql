@@ -74,6 +74,25 @@ CREATE TABLE concepts (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Tags
+CREATE TABLE tags (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Transaction Tags (Association table for many-to-many)
+CREATE TABLE transaction_tags (
+  id UUID PRIMARY KEY,
+  transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE NOT NULL,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(transaction_id, tag_id)
+);
+
 -- Transactions
 CREATE TABLE transactions (
   id UUID PRIMARY KEY,
