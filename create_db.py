@@ -4,7 +4,9 @@ import app.entities.user  # Import active models so Base.metadata is aware of th
 import app.entities.account
 import app.entities.category
 import app.entities.concept
+import app.entities.tag
 import app.entities.transaction
+import app.entities.transaction_tag
 
 
 def create_all_tables():

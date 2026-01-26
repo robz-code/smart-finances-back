@@ -1,7 +1,9 @@
 from .account import Account
 from .category import Category
 from .concept import Concept
+from .tag import Tag
 from .transaction import Transaction
+from .transaction_tag import TransactionTag
 from .user import User
 
 __all__ = [
@@ -9,5 +11,7 @@ __all__ = [
     "Account",
     "Category",
     "Concept",
+    "Tag",
     "Transaction",
+    "TransactionTag",
 ]
