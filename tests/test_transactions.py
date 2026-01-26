@@ -52,7 +52,7 @@ def _create_concept(client: TestClient, auth_headers: dict, name="Test Concept")
         "name": name,
         "color": "#00FF00",
     }
-    r = client.post("/api/v1/concepts", json=create_payload, headers=auth_headers)
+    r = client.post("/api/v1/concept", json=create_payload, headers=auth_headers)
     assert r.status_code == 201
     return r.json()
 
@@ -243,11 +243,12 @@ class TestTransactionCRUD:
         assert transaction["concept"]["name"] == concept_payload["name"]
         assert "id" in transaction["concept"]
 
-        concepts_response = client.get("/api/v1/concepts", headers=auth_headers)
+        concepts_response = client.get("/api/v1/concept", headers=auth_headers)
         assert concepts_response.status_code == 200
         concepts_payload = concepts_response.json()
         assert any(
-            concept["name"] == concept_payload["name"] for concept in concepts_payload["results"]
+            concept["name"] == concept_payload["name"]
+            for concept in concepts_payload["results"]
         )
 
     def test_create_transaction_with_existing_concept(
@@ -314,11 +315,15 @@ class TestTransactionCRUD:
         assert "id" in transaction["concept"]
 
         # Verify the concept was actually created and can be retrieved with all fields
-        concepts_response = client.get("/api/v1/concepts", headers=auth_headers)
+        concepts_response = client.get("/api/v1/concept", headers=auth_headers)
         assert concepts_response.status_code == 200
         concepts_payload = concepts_response.json()
         created_concept = next(
-            (concept for concept in concepts_payload["results"] if concept["name"] == "Personal"),
+            (
+                concept
+                for concept in concepts_payload["results"]
+                if concept["name"] == "Personal"
+            ),
             None,
         )
         assert created_concept is not None

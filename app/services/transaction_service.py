@@ -103,7 +103,7 @@ class TransactionService(BaseService[Transaction]):
 
         concept = self._ensure_concept(user_id, payload.concept)
         transaction_model = payload.to_model(user_id)
-        
+
         # Set concept_id directly on the transaction
         if concept:
             transaction_model.concept_id = concept.id
@@ -224,8 +224,11 @@ class TransactionService(BaseService[Transaction]):
             )
 
         # Validate concept ownership if concept_id is provided
-        if obj_in.concept_id and not self.concept_service.repository.validate_concept_ownership(
-            obj_in.user_id, obj_in.concept_id
+        if (
+            obj_in.concept_id
+            and not self.concept_service.repository.validate_concept_ownership(
+                obj_in.user_id, obj_in.concept_id
+            )
         ):
             raise HTTPException(
                 status_code=403, detail="Concept not found or access denied"
@@ -329,7 +332,7 @@ class TransactionService(BaseService[Transaction]):
 
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
         existing_transaction = self.before_delete(id, **kwargs)
-        
+
         return super().delete(id, **kwargs)
 
     def _build_search_response(
@@ -437,7 +440,9 @@ class TransactionService(BaseService[Transaction]):
             return None
 
         if concept_payload.id is None:
-            created_concept = self.concept_service.add(concept_payload.to_model(user_id))
+            created_concept = self.concept_service.add(
+                concept_payload.to_model(user_id)
+            )
             return created_concept
 
         concept = self.concept_service.get(concept_payload.id)

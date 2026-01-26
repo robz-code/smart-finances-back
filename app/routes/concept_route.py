@@ -44,7 +44,9 @@ def create_concept(
     return concept_service.add(concept_data.to_model(cast(UUID, current_user.id)))
 
 
-@router.put("/{concept_id}", response_model=ConceptResponse, status_code=status.HTTP_200_OK)
+@router.put(
+    "/{concept_id}", response_model=ConceptResponse, status_code=status.HTTP_200_OK
+)
 def update_concept(
     concept_id: UUID,
     concept_data: ConceptUpdate,
@@ -52,7 +54,9 @@ def update_concept(
     concept_service: ConceptService = Depends(get_concept_service),
 ) -> ConceptResponse:
     """Update a concept if it belongs to the current user"""
-    return concept_service.update(concept_id, concept_data, user_id=cast(UUID, current_user.id))
+    return concept_service.update(
+        concept_id, concept_data, user_id=cast(UUID, current_user.id)
+    )
 
 
 @router.delete("/{concept_id}", status_code=status.HTTP_204_NO_CONTENT)
