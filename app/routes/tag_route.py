@@ -44,9 +44,7 @@ def create_tag(
     return tag_service.add(tag_data.to_model(cast(UUID, current_user.id)))
 
 
-@router.put(
-    "/{tag_id}", response_model=TagResponse, status_code=status.HTTP_200_OK
-)
+@router.put("/{tag_id}", response_model=TagResponse, status_code=status.HTTP_200_OK)
 def update_tag(
     tag_id: UUID,
     tag_data: TagUpdate,
@@ -54,9 +52,7 @@ def update_tag(
     tag_service: TagService = Depends(get_tag_service),
 ) -> TagResponse:
     """Update a tag if it belongs to the current user"""
-    return tag_service.update(
-        tag_id, tag_data, user_id=cast(UUID, current_user.id)
-    )
+    return tag_service.update(tag_id, tag_data, user_id=cast(UUID, current_user.id))
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)

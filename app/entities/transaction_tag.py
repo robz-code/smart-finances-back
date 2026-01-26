@@ -13,7 +13,9 @@ class TransactionTag(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     transaction_id = Column(
-        UUID(as_uuid=True), ForeignKey("transactions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("transactions.id", ondelete="CASCADE"),
+        nullable=False,
     )
     tag_id = Column(
         UUID(as_uuid=True), ForeignKey("tags.id", ondelete="CASCADE"), nullable=False
@@ -25,7 +27,9 @@ class TransactionTag(Base):
     tag = relationship("Tag", back_populates="transaction_tags")
 
     # Unique constraint to prevent duplicate tag assignments
-    __table_args__ = (UniqueConstraint("transaction_id", "tag_id", name="uq_transaction_tag"),)
+    __table_args__ = (
+        UniqueConstraint("transaction_id", "tag_id", name="uq_transaction_tag"),
+    )
 
     def __repr__(self) -> str:
         return (

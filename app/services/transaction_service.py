@@ -498,7 +498,8 @@ class TransactionService(BaseService[Transaction]):
                 # Create new tag
                 if tag_payload.name is None:
                     raise HTTPException(
-                        status_code=400, detail="Tag name is required when creating a new tag"
+                        status_code=400,
+                        detail="Tag name is required when creating a new tag",
                     )
                 created_tag = self.tag_service.add(tag_payload.to_model(user_id))
                 tags.append(created_tag)
@@ -515,9 +516,7 @@ class TransactionService(BaseService[Transaction]):
 
         return tags
 
-    def _resolve_tags(
-        self, transaction: Transaction
-    ) -> List[TransactionRelatedEntity]:
+    def _resolve_tags(self, transaction: Transaction) -> List[TransactionRelatedEntity]:
         """Resolve the tags for a transaction."""
         tags_rel = getattr(transaction, "transaction_tags", None)
         tags: List[TransactionRelatedEntity] = []
