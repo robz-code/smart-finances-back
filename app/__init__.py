@@ -7,6 +7,7 @@ from supabase import Client, create_client
 from app.config.settings import get_settings
 from app.routes import (
     account_route,
+    budget_route,
     category_route,
     concept_route,
     reporting_route,
@@ -76,6 +77,11 @@ app.include_router(
     reporting_route.router,
     prefix=f"{settings.API_V1_STR}/reporting",
     tags=["Reporting"],
+)
+app.include_router(
+    budget_route.router,
+    prefix=f"{settings.API_V1_STR}/budget",
+    tags=["Budgets"],
 )
 
 
