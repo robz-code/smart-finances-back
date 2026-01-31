@@ -45,4 +45,7 @@ class Transaction(Base):
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
     concept = relationship("Concept", back_populates="transactions")
+    transaction_tags = relationship(
+        "TransactionTag", back_populates="transaction", cascade="all, delete-orphan"
+    )
     user = relationship("User", back_populates="transactions")

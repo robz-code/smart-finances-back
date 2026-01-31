@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import date as Date
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator
@@ -12,6 +12,7 @@ from pydantic import BaseModel, field_validator
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
+from app.schemas.tag_schemas import TagTransactionCreate
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -28,6 +29,7 @@ class TransactionBase(BaseModel):
     account: TransactionRelatedEntity
     category: CategoryResponseBase
     concept: Optional[TransactionRelatedEntity] = None
+    tags: Optional[List[TransactionRelatedEntity]] = None
     transfer_id: Optional[UUID] = None
     type: str
     amount: Decimal
@@ -58,6 +60,7 @@ class TransactionCreate(BaseModel):
     account_id: UUID
     category_id: UUID
     concept: Optional[ConceptTransactionCreate] = None
+    tags: Optional[List[TagTransactionCreate]] = None
     type: str
     amount: Decimal
     currency: Optional[str] = None
@@ -116,6 +119,7 @@ class TransferTransactionCreate(BaseModel):
     amount: Decimal
     date: Date
     concept: Optional[UUID] = None
+    tags: Optional[List[UUID]] = None
 
     model_config = {"from_attributes": True}
 

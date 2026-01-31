@@ -145,6 +145,7 @@ class TestTransactionCreate:
             "account_id",
             "category_id",
             "concept",
+            "tags",
             "type",
             "amount",
             "currency",

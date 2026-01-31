@@ -12,6 +12,7 @@ from app.routes import (
     category_route,
     concept_route,
     reporting_route,
+    tag_route,
     transaction_route,
     user_route,
 )
@@ -97,6 +98,11 @@ app.include_router(
     concept_route.router,
     prefix=f"{settings.API_V1_STR}/concept",
     tags=["Transaction Concepts"],
+)
+app.include_router(
+    tag_route.router,
+    prefix=f"{settings.API_V1_STR}/tags",
+    tags=["Tags"],
 )
 app.include_router(
     reporting_route.router,

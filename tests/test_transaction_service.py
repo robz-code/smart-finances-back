@@ -35,9 +35,20 @@ class TestTransactionService:
         mock_account_service = Mock(spec=AccountService)
         mock_category_service = Mock(spec=CategoryService)
         mock_concept_service = Mock()
+        mock_tag_service = Mock()
+        # Set up mock tag service repository for ownership validation and tag retrieval
+        mock_tag_service.repository = Mock()
+        mock_tag_service.repository.validate_tag_ownership = Mock(return_value=True)
+        mock_tag_service.repository.get = Mock(return_value=None)
+        mock_tag_service.get = Mock(return_value=None)
+        mock_tag_service.add = Mock(return_value=None)
 
         svc = TransactionService(
-            mock_db, mock_account_service, mock_category_service, mock_concept_service
+            mock_db,
+            mock_account_service,
+            mock_category_service,
+            mock_concept_service,
+            mock_tag_service,
         )
         svc.repository = mock_repository
 

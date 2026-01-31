@@ -9,12 +9,14 @@ from sqlalchemy.orm import Session
 
 from app.entities.category import CategoryType
 from app.entities.concept import Concept
+from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
 from app.schemas.reporting_schemas import CategoryAggregationData
+from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionRelatedEntity,
@@ -27,6 +29,7 @@ from app.services.account_service import AccountService
 from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
 from app.services.concept_service import ConceptService
+from app.services.tag_service import TagService
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +41,14 @@ class TransactionService(BaseService[Transaction]):
         account_service: AccountService,
         category_service: CategoryService,
         concept_service: ConceptService,
+        tag_service: TagService,
     ):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
         self.account_service = account_service
         self.category_service = category_service
         self.concept_service = concept_service
+        self.tag_service = tag_service
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -118,21 +123,27 @@ class TransactionService(BaseService[Transaction]):
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID
     ) -> TransactionResponse:
-        """Create a transaction from a payload, handling optional concept linkage."""
+        """Create a transaction from a payload, handling optional concept and tags linkage."""
 
         concept = self._ensure_concept(user_id, payload.concept)
+        tags = self._ensure_tags(user_id, payload.tags)
         transaction_model = payload.to_model(user_id)
 
         # Set concept_id directly on the transaction
         if concept:
             transaction_model.concept_id = concept.id
 
-        return self.add(transaction_model)
+        return self.add(transaction_model, tags=tags)
 
     def add(self, obj_in: Transaction, **kwargs: Any) -> TransactionResponse:
-        """Persist a transaction entity and return its response representation."""
+        """Persist a transaction entity and attach related records."""
 
+        tags = kwargs.get("tags")
         created_transaction = super().add(obj_in, **kwargs)
+
+        if tags:
+            self.repository.attach_tags(created_transaction, tags)
+
         return self._build_transaction_response(created_transaction)
 
     def update(self, id: UUID, obj_in: Any, **kwargs: Any) -> TransactionResponse:
@@ -253,6 +264,17 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Concept not found or access denied"
             )
 
+        # Validate tag ownership if tags are provided
+        tags = kwargs.get("tags")
+        if tags:
+            for tag in tags:
+                if not self.tag_service.repository.validate_tag_ownership(
+                    obj_in.user_id, tag.id
+                ):
+                    raise HTTPException(
+                        status_code=403, detail="Tag not found or access denied"
+                    )
+
         # Validate the transaction is not in the future
         transaction_date = (
             obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
@@ -352,6 +374,9 @@ class TransactionService(BaseService[Transaction]):
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
         existing_transaction = self.before_delete(id, **kwargs)
 
+        # Remove all tag associations before deleting transaction
+        self.repository.remove_all_tags(existing_transaction.id)
+
         return super().delete(id, **kwargs)
 
     def _build_search_response(
@@ -371,6 +396,7 @@ class TransactionService(BaseService[Transaction]):
         account_name = self._resolve_account_name(transaction)
         category_summary = self._resolve_category_summary(transaction)
         concept_entity = self._resolve_concept(transaction)
+        tags_entities = self._resolve_tags(transaction)
 
         account_entity = TransactionRelatedEntity(
             id=transaction.account_id,
@@ -384,6 +410,7 @@ class TransactionService(BaseService[Transaction]):
             account=account_entity,
             category=category_entity,
             concept=concept_entity,
+            tags=tags_entities,
             transfer_id=transaction.transfer_id,
             type=transaction.type,
             amount=transaction.amount,
@@ -473,6 +500,60 @@ class TransactionService(BaseService[Transaction]):
                 status_code=403, detail="Concept not found or access denied"
             )
         return concept
+
+    def _ensure_tags(
+        self,
+        user_id: UUID,
+        tags_payload: Optional[List[TagTransactionCreate]],
+    ) -> List[Tag]:
+        """Return a list of tags ensuring they exist and belong to the user, creating them if needed."""
+
+        if tags_payload is None or len(tags_payload) == 0:
+            return []
+
+        tags: List[Tag] = []
+        for tag_payload in tags_payload:
+            if tag_payload.id is None:
+                # Create new tag
+                if tag_payload.name is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Tag name is required when creating a new tag",
+                    )
+                created_tag = self.tag_service.add(tag_payload.to_model(user_id))
+                tags.append(created_tag)
+            else:
+                # Reference existing tag
+                tag = self.tag_service.get(tag_payload.id)
+                if tag is None:
+                    raise HTTPException(status_code=404, detail="Tag not found")
+                if tag.user_id != user_id:
+                    raise HTTPException(
+                        status_code=403, detail="Tag not found or access denied"
+                    )
+                tags.append(tag)
+
+        return tags
+
+    def _resolve_tags(self, transaction: Transaction) -> List[TransactionRelatedEntity]:
+        """Resolve the tags for a transaction."""
+        tags_rel = getattr(transaction, "transaction_tags", None)
+        tags: List[TransactionRelatedEntity] = []
+
+        if tags_rel:
+            for transaction_tag in tags_rel:
+                tag = getattr(transaction_tag, "tag", None)
+                if tag:
+                    tags.append(TransactionRelatedEntity(id=tag.id, name=tag.name))
+                else:
+                    # If tag relationship not loaded, fetch it
+                    tag_obj = self.tag_service.repository.get(transaction_tag.tag_id)
+                    if tag_obj:
+                        tags.append(
+                            TransactionRelatedEntity(id=tag_obj.id, name=tag_obj.name)
+                        )
+
+        return tags
 
     def _validate_account_ownership(self, user_id: UUID, account_id: UUID) -> bool:
         """Validate that the user owns the account"""
