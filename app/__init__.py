@@ -1,7 +1,9 @@
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 from supabase import Client, create_client
 
 from app.config.settings import get_settings
@@ -23,6 +25,36 @@ app = FastAPI(
     description="A FastAPI application for smart finances management",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
+
+def _sanitize_validation_errors(errors: list) -> list:
+    """Return only JSON-serializable fields from Pydantic errors (ctx may contain exceptions)."""
+    return [
+        {k: v for k, v in err.items() if k in ("type", "loc", "msg")}
+        for err in errors
+    ]
+
+
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(
+    request: Request, exc: ValidationError
+) -> JSONResponse:
+    """Return 422 with a friendly message for Pydantic validation errors."""
+    errors = exc.errors()
+    detail = "Validation error"
+    if errors and isinstance(errors[0].get("msg"), str):
+        msg = errors[0]["msg"]
+        # Strip "Value error, " prefix for cleaner messages
+        detail = (
+            msg.replace("Value error, ", "", 1)
+            if msg.startswith("Value error, ")
+            else msg
+        )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "errors": _sanitize_validation_errors(errors)},
+    )
+
 
 # Initialize Supabase client only when configuration is provided.
 # This prevents runtime errors during tests or environments where

@@ -196,13 +196,39 @@ def test_categories_summary_invalid_period(client, auth_headers):
     assert r.status_code == 422
 
 
-def test_categories_summary_missing_period(client, auth_headers):
-    """Test that missing required period parameter is rejected"""
+def test_categories_summary_missing_period_and_dates(client, auth_headers):
+    """Test that missing both period and date range is rejected"""
     _create_user(client, auth_headers)
 
-    # Missing period should yield 422
+    # Missing both period and date range should yield 422
     r = client.get("/api/v1/reporting/categories-summary", headers=auth_headers)
     assert r.status_code == 422
+
+
+def test_categories_summary_with_date_range(client, auth_headers):
+    """Test that date_from and date_to can be used instead of period"""
+    _create_user(client, auth_headers)
+    account = _create_account(client, auth_headers)
+    category = _create_category(client, auth_headers, "Date Range Cat", "expense")
+
+    today = date.today().isoformat()
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "75.00", "expense", today
+    )
+
+    # Use date range instead of period
+    r = client.get(
+        f"/api/v1/reporting/categories-summary?date_from={today}&date_to={today}",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    cat_summary = next(
+        (cat for cat in data["results"] if cat["id"] == category["id"]), None
+    )
+    assert cat_summary is not None
+    assert cat_summary["transaction_amount"] == "-75.00"
+    assert cat_summary["transaction_count"] == 1
 
 
 def test_categories_summary_no_transactions_returns_zero(client, auth_headers):

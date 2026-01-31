@@ -73,6 +73,13 @@ class TransactionService(BaseService[Transaction]):
         date_from: date,
         date_to: date,
         category_ids: Optional[List[UUID]] = None,
+        *,
+        account_id: Optional[UUID] = None,
+        transaction_type: Optional[str] = None,
+        currency: Optional[str] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        source: Optional[str] = None,
     ) -> Dict[UUID, CategoryAggregationData]:
         """
         Get net-signed transaction amounts and counts grouped by category_id in a single query.
@@ -85,6 +92,12 @@ class TransactionService(BaseService[Transaction]):
             date_from: Start date (inclusive)
             date_to: End date (inclusive)
             category_ids: Optional list of category IDs to filter by. If None, includes all categories.
+            account_id: Optional filter by account
+            transaction_type: Optional filter by transaction type (income/expense)
+            currency: Optional filter by currency
+            amount_min: Optional minimum amount
+            amount_max: Optional maximum amount
+            source: Optional filter by source
 
         Returns:
             Dictionary mapping category_id to CategoryAggregationData DTO
@@ -94,6 +107,12 @@ class TransactionService(BaseService[Transaction]):
             date_from=date_from,
             date_to=date_to,
             category_ids=category_ids,
+            account_id=account_id,
+            transaction_type=transaction_type,
+            currency=currency,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            source=source,
         )
 
     def create_transaction(
