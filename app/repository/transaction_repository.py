@@ -114,7 +114,6 @@ class TransactionRepository(BaseRepository[Transaction]):
         category_ids: Optional[List[UUID]] = None,
         *,
         account_id: Optional[UUID] = None,
-        transaction_type: Optional[str] = None,
         currency: Optional[str] = None,
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
@@ -132,7 +131,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             date_to: End date (inclusive)
             category_ids: Optional list of category IDs to filter by. If None, includes all categories.
             account_id: Optional filter by account
-            transaction_type: Optional filter by transaction type (income/expense)
             currency: Optional filter by currency
             amount_min: Optional minimum amount
             amount_max: Optional maximum amount
@@ -166,8 +164,6 @@ class TransactionRepository(BaseRepository[Transaction]):
             query = query.filter(Transaction.category_id.in_(category_ids))
         if account_id is not None:
             query = query.filter(Transaction.account_id == account_id)
-        if transaction_type is not None:
-            query = query.filter(Transaction.type == transaction_type)
         if currency is not None:
             query = query.filter(Transaction.currency == currency)
         if amount_min is not None:

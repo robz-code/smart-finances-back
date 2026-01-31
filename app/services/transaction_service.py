@@ -80,7 +80,6 @@ class TransactionService(BaseService[Transaction]):
         category_ids: Optional[List[UUID]] = None,
         *,
         account_id: Optional[UUID] = None,
-        transaction_type: Optional[str] = None,
         currency: Optional[str] = None,
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
@@ -98,7 +97,6 @@ class TransactionService(BaseService[Transaction]):
             date_to: End date (inclusive)
             category_ids: Optional list of category IDs to filter by. If None, includes all categories.
             account_id: Optional filter by account
-            transaction_type: Optional filter by transaction type (income/expense)
             currency: Optional filter by currency
             amount_min: Optional minimum amount
             amount_max: Optional maximum amount
@@ -113,7 +111,6 @@ class TransactionService(BaseService[Transaction]):
             date_to=date_to,
             category_ids=category_ids,
             account_id=account_id,
-            transaction_type=transaction_type,
             currency=currency,
             amount_min=amount_min,
             amount_max=amount_max,

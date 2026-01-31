@@ -24,8 +24,7 @@ class ReportingParameters(BaseModel):
 
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
-    category_type: Optional[CategoryType] = Field(default=None, alias="type")
-    transaction_type: Optional[TransactionType] = None
+    type: Optional[str] = Field(default=None, alias="type")
     currency: Optional[str] = None
     date_from: Optional[Date] = None
     date_to: Optional[Date] = None

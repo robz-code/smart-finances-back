@@ -59,9 +59,9 @@ class ReportingService:
             assert date_from is not None and date_to is not None  # validated by schema
 
         # 2. Fetch categories via CategoryService
-        if parameters.category_type is not None:
+        if parameters.type is not None:
             categories_response = self.category_service.get_by_user_id_and_type(
-                user_id, parameters.category_type
+                user_id, CategoryType(parameters.type)
             )
         else:
             categories_response = self.category_service.get_by_user_id(user_id)
@@ -76,11 +76,6 @@ class ReportingService:
 
         # 3. Get aggregated transaction amounts and counts via TransactionService (single query)
         category_ids = [cat.id for cat in categories]
-        transaction_type_value = (
-            parameters.transaction_type.value
-            if parameters.transaction_type is not None
-            else None
-        )
         amounts_and_counts_by_category = (
             self.transaction_service.get_net_signed_amounts_and_counts_by_category(
                 user_id=user_id,
@@ -88,7 +83,6 @@ class ReportingService:
                 date_to=date_to,
                 category_ids=category_ids if category_ids else None,
                 account_id=parameters.account_id,
-                transaction_type=transaction_type_value,
                 currency=parameters.currency,
                 amount_min=parameters.amount_min,
                 amount_max=parameters.amount_max,
