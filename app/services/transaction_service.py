@@ -117,6 +117,36 @@ class TransactionService(BaseService[Transaction]):
             source=source,
         )
 
+    def get_cashflow_summary(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        category_ids: Optional[List[UUID]] = None,
+        *,
+        account_id: Optional[UUID] = None,
+        currency: Optional[str] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        source: Optional[str] = None,
+    ) -> tuple[Decimal, Decimal, Decimal]:
+        """
+        Get income, expense, and total (income - expense) for a date range.
+        Uses the same filters as get_net_signed_amounts_and_counts_by_category.
+        Returns (income, expense, total).
+        """
+        return self.repository.get_cashflow_summary(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            category_ids=category_ids,
+            account_id=account_id,
+            currency=currency,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            source=source,
+        )
+
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID
     ) -> TransactionResponse:

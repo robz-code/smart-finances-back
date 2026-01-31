@@ -185,3 +185,62 @@ class TransactionRepository(BaseRepository[Transaction]):
             )
             for category_id, net_amount, count in results
         }
+
+    def get_cashflow_summary(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        category_ids: Optional[List[UUID]] = None,
+        *,
+        account_id: Optional[UUID] = None,
+        currency: Optional[str] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        source: Optional[str] = None,
+    ) -> tuple[Decimal, Decimal, Decimal]:
+        """
+        Get income, expense, and total (income - expense) for a date range.
+
+        Uses the same filters as get_net_signed_amounts_and_counts_by_category.
+        Returns (income, expense, total).
+        """
+        income_expr = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=0,
+        )
+        expense_expr = case(
+            (Transaction.type == TransactionType.EXPENSE.value, Transaction.amount),
+            else_=0,
+        )
+
+        query = (
+            self.db.query(
+                func.coalesce(func.sum(income_expr), 0).label("income"),
+                func.coalesce(func.sum(expense_expr), 0).label("expense"),
+            )
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= date_from,
+                Transaction.date <= date_to,
+            )
+        )
+
+        if category_ids is not None:
+            query = query.filter(Transaction.category_id.in_(category_ids))
+        if account_id is not None:
+            query = query.filter(Transaction.account_id == account_id)
+        if currency is not None:
+            query = query.filter(Transaction.currency == currency)
+        if amount_min is not None:
+            query = query.filter(Transaction.amount >= amount_min)
+        if amount_max is not None:
+            query = query.filter(Transaction.amount <= amount_max)
+        if source is not None:
+            query = query.filter(Transaction.source == source)
+
+        row = query.first()
+        income = Decimal(str(row.income)) if row and row.income else Decimal("0")
+        expense = Decimal(str(row.expense)) if row and row.expense else Decimal("0")
+        total = income - expense
+        return (income, expense, total)

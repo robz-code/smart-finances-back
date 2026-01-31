@@ -9,6 +9,7 @@ from app.entities.category import CategoryType
 from app.entities.user import User
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.reporting_schemas import (
+    CashflowSummaryResponse,
     CategorySummaryResponse,
     ReportingParameters,
 )
@@ -55,3 +56,22 @@ def get_categories_summary(
     return service.get_categories_summary(
         user_id=user_id, parameters=parameters
     )
+
+
+@router.get(
+    "/cashflow-summary", response_model=CashflowSummaryResponse
+)
+def get_cashflow_summary(
+    parameters: ReportingParameters = Depends(),
+    service: ReportingService = Depends(get_reporting_service),
+    current_user: User = Depends(get_current_user),
+) -> CashflowSummaryResponse:
+    """
+    Get income, expense, and total (net cashflow) for a period or date range.
+
+    Reuses the same query parameters as categories-summary:
+    - `period` or `date_from`/`date_to`
+    - `type`, `category_id`, `account_id`, `currency`, `amount_min`, `amount_max`, `source`
+    """
+    user_id = cast(UUID, current_user.id)
+    return service.get_cashflow_summary(user_id=user_id, parameters=parameters)

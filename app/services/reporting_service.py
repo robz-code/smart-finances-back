@@ -5,6 +5,7 @@ from uuid import UUID
 from app.entities.category import Category, CategoryType
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.reporting_schemas import (
+    CashflowSummaryResponse,
     CategoryAggregationData,
     CategorySummaryResponse,
     ReportingParameters,
@@ -115,3 +116,45 @@ class ReportingService:
             )
 
         return SearchResponse(total=len(category_summaries), results=category_summaries)
+
+    def get_cashflow_summary(
+        self,
+        user_id: UUID,
+        parameters: ReportingParameters,
+    ) -> CashflowSummaryResponse:
+        """
+        Get income, expense, and total for a period or date range.
+        Reuses the same filters as categories-summary.
+        """
+        if parameters.period is not None:
+            date_from, date_to = calculate_period_dates(parameters.period)
+        else:
+            date_from = parameters.date_from
+            date_to = parameters.date_to
+            assert date_from is not None and date_to is not None
+
+        category_ids: Optional[List[UUID]] = None
+        if parameters.type is not None or parameters.category_id is not None:
+            if parameters.type is not None:
+                categories_response = self.category_service.get_by_user_id_and_type(
+                    user_id, CategoryType(parameters.type)
+                )
+            else:
+                categories_response = self.category_service.get_by_user_id(user_id)
+            categories = categories_response.results
+            if parameters.category_id is not None:
+                categories = [c for c in categories if c.id == parameters.category_id]
+            category_ids = [c.id for c in categories] if categories else []
+
+        income, expense, total = self.transaction_service.get_cashflow_summary(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            category_ids=category_ids if category_ids else None,
+            account_id=parameters.account_id,
+            currency=parameters.currency,
+            amount_min=parameters.amount_min,
+            amount_max=parameters.amount_max,
+            source=parameters.source,
+        )
+        return CashflowSummaryResponse(income=income, expense=expense, total=total)

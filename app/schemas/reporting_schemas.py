@@ -73,3 +73,17 @@ class CategorySummaryResponse(BaseModel):
             Decimal: lambda v: format(v, ".2f")  # Format to 2 decimal places in JSON
         }
     }
+
+
+class CashflowSummaryResponse(BaseModel):
+    """Income, expense, and net total for a period."""
+
+    income: Decimal
+    expense: Decimal
+    total: Decimal
+
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: format(v, ".2f")  # Format to 2 decimal places in JSON
+        }
+    }
