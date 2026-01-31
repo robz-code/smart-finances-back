@@ -46,6 +46,7 @@ def get_categories_summary(
     - `amount_min` (optional): Minimum transaction amount
     - `amount_max` (optional): Maximum transaction amount
     - `source` (optional): Filter by transaction source
+    - `full_list` (optional, default true): If true, return all categories including those with 0 transactions. If false, return only categories that have matching transactions.
 
     Returns categories with a `transaction_amount` field containing the net-signed sum
     (income adds, expense subtracts) for the specified period.

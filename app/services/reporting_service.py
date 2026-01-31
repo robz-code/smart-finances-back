@@ -99,6 +99,9 @@ class ReportingService:
                     net_signed_amount=Decimal("0"), transaction_count=0
                 ),
             )
+            # When full_list is False, skip categories with no transactions
+            if not parameters.full_list and cat.id not in amounts_and_counts_by_category:
+                continue
             category_summaries.append(
                 CategorySummaryResponse(
                     id=cat.id,

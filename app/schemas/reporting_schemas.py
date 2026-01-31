@@ -32,6 +32,10 @@ class ReportingParameters(BaseModel):
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
     period: Optional[TransactionSummaryPeriod] = None
+    full_list: bool = Field(
+        default=True,
+        description="If True, include all categories (including those with 0 transactions). If False, only return categories that have matching transactions.",
+    )
 
     @model_validator(mode="after")
     def ensure_date_range_or_period(self) -> "ReportingParameters":
