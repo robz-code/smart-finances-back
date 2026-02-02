@@ -1,4 +1,4 @@
-"""Dependencies for balance service and balance engine."""
+"""Dependencies for balance service, snapshot service, and balance engine."""
 
 from fastapi import Depends
 
@@ -12,6 +12,7 @@ from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.services.account_service import AccountService
 from app.services.balance_service import BalanceService
 from app.services.fx_service import FxService
+from app.services.snapshot_service import SnapshotService
 from app.services.transaction_service import TransactionService
 
 
@@ -25,20 +26,31 @@ def get_balance_engine() -> BalanceEngine:
     return BalanceEngine()
 
 
-def get_balance_service(
+def get_snapshot_service(
     account_service: AccountService = Depends(get_account_service),
     transaction_service: TransactionService = Depends(get_transaction_service),
     balance_snapshot_repository: BalanceSnapshotRepository = Depends(
         get_balance_snapshot_repository
     ),
+) -> SnapshotService:
+    """Snapshot service with injected dependencies."""
+    return SnapshotService(
+        account_service=account_service,
+        transaction_service=transaction_service,
+        balance_snapshot_repository=balance_snapshot_repository,
+    )
+
+
+def get_balance_service(
+    account_service: AccountService = Depends(get_account_service),
+    snapshot_service: SnapshotService = Depends(get_snapshot_service),
     fx_service: FxService = Depends(get_fx_service),
     balance_engine: BalanceEngine = Depends(get_balance_engine),
 ) -> BalanceService:
     """Balance service with injected dependencies."""
     return BalanceService(
         account_service=account_service,
-        transaction_service=transaction_service,
-        balance_snapshot_repository=balance_snapshot_repository,
+        snapshot_service=snapshot_service,
         fx_service=fx_service,
         balance_engine=balance_engine,
     )

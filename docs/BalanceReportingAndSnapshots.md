@@ -128,20 +128,26 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 │  BalanceService (domain service, factory)                                    │
 │  - get_account_balance, get_total_balance, get_accounts_balance,             │
 │    get_balance_history                                                       │
-│  - Uses: BalanceSnapshotRepository, AccountService, TransactionService,     │
-│          FxService, BalanceEngine                                            │
+│  - Uses: SnapshotService, AccountService, FxService, BalanceEngine           │
+└───────────────────────────────────────┬─────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  SnapshotService (per-account balance at date)                               │
+│  - get_account_balance_at(account_id, as_of)                                 │
+│  - Uses: BalanceSnapshotRepository, AccountService, TransactionService       │
 └───────────────────────────────────────┬─────────────────────────────────────┘
                                         │
           ┌─────────────────────────────┼─────────────────────────────┐
           ▼                             ▼                             ▼
 ┌─────────────────────┐   ┌─────────────────────────────┐   ┌─────────────────┐
 │ BalanceSnapshotRepo │   │ TransactionService          │   │ BalanceEngine   │
-│ - get_latest_before │   │ - get_net_signed_sum_for_   │   │ - get_balance_  │
-│   _or_on()          │   │   account()                 │   │   history()     │
-│ - get_latest_before │   │                             │   │ (PeriodIterator │
-│   ()                │   │                             │   │  strategies)    │
-│ - get_by_account_   │   │                             │   │                 │
-│   and_date()        │   │                             │   │                 │
+│ - get_latest_before │   │ - get_net_signed_sum_for_   │   │ (used by        │
+│   _or_on()          │   │   account()                 │   │  BalanceService)│
+│ - get_latest_before │   │                             │   │ - get_balance_  │
+│   ()                │   │                             │   │   history()     │
+│ - get_by_account_   │   │                             │   │ (PeriodIterator │
+│   and_date()        │   │                             │   │  strategies)    │
 │ - delete_future_    │   │                             │   │                 │
 │   snapshots()       │   │                             │   │                 │
 └─────────────────────┘   └─────────────────────────────┘   └─────────────────┘
@@ -157,7 +163,7 @@ The **BalanceEngine** handles complex history iteration logic using strategies:
 
 ### Balance Computation Logic
 
-Implemented in **BalanceService** (`app/services/balance_service.py`). For `get_account_balance(account_id, as_of)`:
+Implemented in **SnapshotService** (`app/services/snapshot_service.py`). For `get_account_balance_at(account_id, as_of)`:
 
 1. **If snapshot exists** for month of `as_of`:
    - `balance = snapshot.balance + net_transactions(snapshot_date + 1 day, as_of)`
@@ -191,6 +197,7 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 | `app/dependencies/balance_snapshot_dependencies.py` | FastAPI dependency for `BalanceSnapshotRepository` |
 | `app/dependencies/balance_dependencies.py` | FastAPI dependencies for `BalanceService`, `BalanceEngine` |
 | `app/services/balance_service.py` | Balance domain service: `get_account_balance`, `get_total_balance`, `get_accounts_balance`, `get_balance_history` |
+| `app/services/snapshot_service.py` | Per-account balance at date: `get_account_balance_at`; snapshot lookup, lazy creation, chaining |
 | `app/services/fx_service.py` | FX conversion at read time (stub: 1:1) |
 | `app/engines/balance_engine.py` | BalanceEngine: history iteration with PeriodIterator strategies |
 | `app/engines/balance/period_iterator.py` | Day, Week, Month PeriodIterator strategies |

@@ -5,6 +5,7 @@ Snapshots are a reporting optimization: balance at start of month, in account cu
 They are lazy-created and rebuildable; never store converted balances.
 """
 
+import logging
 from datetime import date
 from typing import Optional
 from uuid import UUID
@@ -13,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from app.entities.balance_snapshot import BalanceSnapshot
 from app.repository.base_repository import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 
 class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
@@ -23,6 +26,9 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
         self, account_id: UUID, snapshot_date: date
     ) -> Optional[BalanceSnapshot]:
         """Get snapshot for account on exact snapshot_date (should be first day of month)."""
+        logger.debug(
+            f"DB get_by_account_and_date: BalanceSnapshot account_id={account_id} snapshot_date={snapshot_date}"
+        )
         return (
             self.db.query(BalanceSnapshot)
             .filter(
@@ -39,6 +45,9 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
         Get the latest snapshot for account where snapshot_date < before_date.
         Used to chain from an earlier snapshot instead of scanning from 1900.
         """
+        logger.debug(
+            f"DB get_latest_before: BalanceSnapshot account_id={account_id} before_date={before_date}"
+        )
         return (
             self.db.query(BalanceSnapshot)
             .filter(
@@ -56,6 +65,9 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
         Get the latest snapshot for account where snapshot_date <= as_of.
         Used to compute balance(as_of) = snapshot_balance + transactions(snapshot_date, as_of].
         """
+        logger.debug(
+            f"DB get_latest_before_or_on: BalanceSnapshot account_id={account_id} as_of={as_of}"
+        )
         return (
             self.db.query(BalanceSnapshot)
             .filter(
@@ -72,6 +84,9 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
         Call this when a transaction is edited or deleted so future snapshots
         are invalidated and will be rebuilt lazily.
         """
+        logger.debug(
+            f"DB delete_future_snapshots: BalanceSnapshot account_id={account_id} from_date={from_date}"
+        )
         from app.entities.balance_snapshot import BalanceSnapshot as BS
 
         deleted = (
