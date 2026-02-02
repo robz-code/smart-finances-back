@@ -12,21 +12,25 @@ El objetivo es **mantener consistencia, legibilidad y flexibilidad** en todos lo
 
 ## 🏗 Arquitectura General
 
-La arquitectura sigue el patrón de **Servicios + Repositorios** con una **clase base estándar** para CRUD y manejo de errores.
+La arquitectura sigue el patrón de **Servicios + Repositorios** con una **clase base estándar** para CRUD y manejo de errores. Para lógica compleja o extensa, los servicios pueden usar **Engines**.
 
 ```
 Controlador (FastAPI Endpoint)
     ↓
 Servicio Concreto (UserService, ProductService, etc.)
     ↓
-BaseService (CRUD genérico + Hooks + Manejo de errores)
-    ↓
-Repositorio Concreto (UserRepository, ProductRepository, etc.)
-    ↓
-BaseRepository (Interacción directa con la DB)
-    ↓
-Base de Datos (SQLAlchemy / ORM)
+    ├── BaseService (CRUD genérico + Hooks + Manejo de errores)
+    │       ↓
+    │   Repositorio Concreto (UserRepository, ProductRepository, etc.)
+    │       ↓
+    │   BaseRepository (Interacción directa con la DB)
+    │       ↓
+    │   Base de Datos (SQLAlchemy / ORM)
+    │
+    └── Engine (lógica compleja, algoritmos, estrategias)
 ```
+
+Ver [EnginesArchitecture.md](EnginesArchitecture.md) para detalles sobre la capa Engines.
 
 ---
 
@@ -64,6 +68,12 @@ Base de Datos (SQLAlchemy / ORM)
 
 - Extiende `BaseRepository`.
 - Contiene consultas específicas del módulo.
+
+### **Engines (Capa de Lógica Compleja)**
+
+- Para operaciones extensas, algoritmos o patrones de estrategia.
+- Los servicios usan Engines cuando la lógica no encaja en CRUD.
+- Ver [EnginesArchitecture.md](EnginesArchitecture.md) para detalles.
 
 ---
 
@@ -185,6 +195,7 @@ classDiagram
 ## 📌 Conclusiones
 
 - **Consistencia en firmas** → Facilita mantenibilidad y testeo.
+- **Engines** → Para lógica compleja; ver [EnginesArchitecture.md](EnginesArchitecture.md).
 - **Extender, no sobrecargar** métodos básicos para lógica especial.
 - **Hooks** para validaciones comunes, lógica compleja en métodos específicos.
 - **kwargs** solo en la base, parámetros explícitos en módulos concretos.

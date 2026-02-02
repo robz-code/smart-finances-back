@@ -9,11 +9,13 @@ def _create_user(
     auth_headers: dict,
     name="Report Owner",
     email="report@example.com",
+    currency=None,
 ):
     """Helper function to create a user for testing"""
-    return client.post(
-        "/api/v1/users", json={"name": name, "email": email}, headers=auth_headers
-    )
+    payload = {"name": name, "email": email}
+    if currency is not None:
+        payload["currency"] = currency
+    return client.post("/api/v1/users", json=payload, headers=auth_headers)
 
 
 def _create_account(
@@ -322,3 +324,89 @@ def test_categories_summary_all_periods(client, auth_headers):
         assert "total" in data
         assert "results" in data
         assert isinstance(data["results"], list)
+
+
+# -------------------------------------------------------------------------
+# Balance endpoint tests (require user with currency set)
+# -------------------------------------------------------------------------
+
+
+def test_get_balance_total(client, auth_headers):
+    """Test that /balance returns total balance in base currency"""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers)
+    category = _create_category(client, auth_headers, "Test", "expense")
+
+    today = date.today().isoformat()
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "50.00", "expense", today
+    )
+
+    r = client.get("/api/v1/reporting/balance", headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert "as_of" in data
+    assert "currency" in data
+    assert data["currency"] == "USD"
+    assert "balance" in data
+    # Initial 1000 - 50 expense = 950
+    assert float(data["balance"]) == 950.0
+
+
+def test_get_balance_accounts(client, auth_headers):
+    """Test that /balance/accounts returns per-account balances and total"""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers)
+    category = _create_category(client, auth_headers, "Test", "expense")
+
+    today = date.today().isoformat()
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "25.00", "expense", today
+    )
+
+    r = client.get("/api/v1/reporting/balance/accounts", headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert "as_of" in data
+    assert "currency" in data
+    assert "accounts" in data
+    assert "total" in data
+    assert len(data["accounts"]) >= 1
+    acc = next(a for a in data["accounts"] if a["account_id"] == account["id"])
+    assert "balance_native" in acc
+    assert "balance_converted" in acc
+    assert "account_name" in acc
+
+
+def test_get_balance_history(client, auth_headers):
+    """Test that /balance/history returns points for charts"""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers)
+    category = _create_category(client, auth_headers, "Test", "expense")
+
+    today = date.today().isoformat()
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "10.00", "expense", today
+    )
+
+    r = client.get(
+        f"/api/v1/reporting/balance/history?from={today}&to={today}&period=day",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert "currency" in data
+    assert "period" in data
+    assert "points" in data
+    assert len(data["points"]) >= 1
+    assert "date" in data["points"][0]
+    assert "balance" in data["points"][0]
+
+
+def test_get_balance_no_currency_returns_422(client, auth_headers):
+    """Test that balance endpoints return 422 when user has no currency set"""
+    _create_user(client, auth_headers)  # No currency
+
+    r = client.get("/api/v1/reporting/balance", headers=auth_headers)
+    assert r.status_code == 422
+    assert "currency" in r.json().get("detail", "").lower()

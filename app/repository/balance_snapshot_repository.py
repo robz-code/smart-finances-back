@@ -32,6 +32,23 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
             .first()
         )
 
+    def get_latest_before(
+        self, account_id: UUID, before_date: date
+    ) -> Optional[BalanceSnapshot]:
+        """
+        Get the latest snapshot for account where snapshot_date < before_date.
+        Used to chain from an earlier snapshot instead of scanning from 1900.
+        """
+        return (
+            self.db.query(BalanceSnapshot)
+            .filter(
+                BalanceSnapshot.account_id == account_id,
+                BalanceSnapshot.snapshot_date < before_date,
+            )
+            .order_by(BalanceSnapshot.snapshot_date.desc())
+            .first()
+        )
+
     def get_latest_before_or_on(
         self, account_id: UUID, as_of: date
     ) -> Optional[BalanceSnapshot]:
