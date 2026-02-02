@@ -4,6 +4,11 @@ from typing import Tuple
 from app.schemas.reporting_schemas import TransactionSummaryPeriod
 
 
+def first_day_of_month(d: date) -> date:
+    """First day of the month for date d (snapshots are always at month start)."""
+    return d.replace(day=1)
+
+
 def calculate_period_dates(period: TransactionSummaryPeriod) -> Tuple[date, date]:
     """
     Calculate the date range for a given transaction summary period.

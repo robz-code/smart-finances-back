@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import FastAPI, Request
@@ -18,6 +19,12 @@ from app.routes import (
 )
 
 settings = get_settings()
+
+# Configure logging: DEBUG level when DEBUG=true, INFO otherwise
+logging.basicConfig(
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 
 # Create FastAPI app
 app = FastAPI(

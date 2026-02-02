@@ -244,3 +244,27 @@ class TransactionRepository(BaseRepository[Transaction]):
         expense = Decimal(str(row.expense)) if row and row.expense else Decimal("0")
         total = income - expense
         return (income, expense, total)
+
+    def get_net_signed_sum_for_account(
+        self, account_id: UUID, date_from: date, date_to: date
+    ) -> Decimal:
+        """
+        Net-signed sum of transactions for one account in [date_from, date_to] (inclusive).
+
+        Used for balance reporting: income adds, expense subtracts.
+        Transactions = ledger (facts); this is read-only aggregation for reporting.
+        """
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        row = (
+            self.db.query(func.coalesce(func.sum(net_amount), 0).label("net"))
+            .filter(
+                Transaction.account_id == account_id,
+                Transaction.date >= date_from,
+                Transaction.date <= date_to,
+            )
+            .first()
+        )
+        return Decimal(str(row.net)) if row and row.net is not None else Decimal("0")

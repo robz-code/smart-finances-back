@@ -46,3 +46,15 @@ def get_current_user(
     except Exception as e:
         logger.error(f"Unexpected error during user authentication: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+def get_user_base_currency(
+    current_user: User = Depends(get_current_user),
+) -> str:
+    """Requires user to have a main currency set. Raises 422 if not."""
+    if not current_user.currency or not current_user.currency.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Main currency is required. Please set your currency in profile settings.",
+        )
+    return current_user.currency

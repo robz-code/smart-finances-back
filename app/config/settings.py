@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Project settings
     PROJECT_NAME: str = "Smart Finances"
     API_V1_STR: str = "/api/v1"
+    DEBUG: bool = False
 
     # Database settings
     DATABASE_URL: str = "sqlite:///./smart_finances.db"
