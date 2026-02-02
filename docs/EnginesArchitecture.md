@@ -75,7 +75,6 @@ app/
     balance/
       __init__.py
       period_iterator.py    # Day, Week, Month strategies
-      balance_aggregator.py # SingleAccount, TotalAllAccounts strategies
   services/
     balance_service.py
     reporting_service.py

@@ -194,7 +194,6 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 | `app/services/fx_service.py` | FX conversion at read time (stub: 1:1) |
 | `app/engines/balance_engine.py` | BalanceEngine: history iteration with PeriodIterator strategies |
 | `app/engines/balance/period_iterator.py` | Day, Week, Month PeriodIterator strategies |
-| `app/engines/balance/balance_aggregator.py` | SingleAccount, TotalAllAccounts BalanceAggregator strategies |
 | `docs/migrations/001_balance_snapshots.sql` | Migration to create `balance_snapshots` table |
 | `docs/EnginesArchitecture.md` | Engines layer documentation |
 
