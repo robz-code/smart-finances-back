@@ -410,3 +410,61 @@ def test_get_balance_no_currency_returns_422(client, auth_headers):
     r = client.get("/api/v1/reporting/balance", headers=auth_headers)
     assert r.status_code == 422
     assert "currency" in r.json().get("detail", "").lower()
+
+
+# -------------------------------------------------------------------------
+# Query count tests (N+1 safety: balance endpoints must use O(1) queries)
+# -------------------------------------------------------------------------
+
+
+def test_balance_total_query_count(client, auth_headers, query_counter):
+    """GET /balance must use O(1) queries: <=12 regardless of account count."""
+    _create_user(client, auth_headers, currency="USD")
+    _create_account(client, auth_headers, "A1", "USD")
+    _create_account(client, auth_headers, "A2", "USD")
+    _create_account(client, auth_headers, "A3", "USD")
+
+    query_counter[0] = 0
+    r = client.get("/api/v1/reporting/balance", headers=auth_headers)
+    assert r.status_code == 200
+    assert query_counter[0] <= 12, (
+        f"Expected <= 12 queries (O(1)), got {query_counter[0]}. "
+        "Balance endpoints must be N+1 safe."
+    )
+
+
+def test_balance_accounts_query_count(client, auth_headers, query_counter):
+    """GET /balance/accounts must use O(1) queries: <=12 regardless of account count."""
+    _create_user(client, auth_headers, currency="USD")
+    _create_account(client, auth_headers, "A1", "USD")
+    _create_account(client, auth_headers, "A2", "USD")
+
+    query_counter[0] = 0
+    r = client.get("/api/v1/reporting/balance/accounts", headers=auth_headers)
+    assert r.status_code == 200
+    assert query_counter[0] <= 12, (
+        f"Expected <= 12 queries (O(1)), got {query_counter[0]}. "
+        "Balance accounts endpoint must be N+1 safe."
+    )
+
+
+def test_balance_history_query_count(client, auth_headers, query_counter):
+    """GET /balance/history must use O(1) queries regardless of date range size."""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers)
+    category = _create_category(client, auth_headers, "Test", "expense")
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"],
+        "10.00", "expense", "2025-12-01",
+    )
+
+    query_counter[0] = 0
+    r = client.get(
+        "/api/v1/reporting/balance/history?from=2025-12-01&to=2025-12-31&period=day",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    assert query_counter[0] <= 15, (
+        f"Expected <= 15 queries (O(1)), got {query_counter[0]}. "
+        "Balance history must not scale with number of days."
+    )

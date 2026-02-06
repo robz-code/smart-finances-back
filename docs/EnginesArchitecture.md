@@ -24,10 +24,12 @@ Service (orchestrates, completes data)
     |
     +---> Repository (persistence)
     |
-    +---> Engine (complex logic)
+    +---> Engine (orchestrator, delegates to strategies)
+    |
+    +---> Strategy (batch-loads data, computes in memory)
 ```
 
-**Flow:** Route -> Service (orchestrates) -> Engine (complex logic) + Repository (persistence)
+**Flow:** Route -> Service -> Engine.calculate(strategy) -> Strategy.execute()
 
 ---
 
@@ -42,26 +44,32 @@ Service (orchestrates, completes data)
 
 ---
 
-## Balance Example
+## Balance Example (Strategy-Based, N+1 Safe)
 
-The Balance feature illustrates the pattern:
+The Balance feature uses **strategies** that batch-load all data in O(1) queries:
 
 ```
 ReportingRoute
     |
     v
-ReportingService (delegates balance ops)
+ReportingService (selects strategy, executes it)
     |
     v
-BalanceService (domain service, factory)
+BalanceStrategy.execute()  # batch-loads, computes in memory
     |
-    +---> BalanceSnapshotRepository (snapshots)
-    +---> AccountService, TransactionService, FxService
-    +---> BalanceEngine (history iteration)
+    +---> AccountRepository.get_by_user_id
+    +---> BalanceSnapshotRepository.get_latest_snapshots_for_accounts
+    +---> TransactionRepository.get_transactions_for_accounts_*
 ```
 
-- **BalanceService**: Per-account balance, totals, snapshot logic. Uses Repo + Engine.
-- **BalanceEngine**: History iteration (PeriodIterator strategies). Receives a callback from BalanceService to avoid circular dependencies.
+**Key rules:**
+- **Strategies**: Own data-loading patterns. Batch-load once. No DB calls inside loops.
+- **Repositories**: Set-based methods only (`account_ids`, date ranges). Never called in loops.
+
+**Strategies:**
+- `TotalBalanceAtDateStrategy` → GET /balance
+- `PerAccountBalanceAtDateStrategy` → GET /balance/accounts
+- `BalanceHistoryStrategy` → GET /balance/history
 
 ---
 
@@ -71,34 +79,25 @@ BalanceService (domain service, factory)
 app/
   engines/
     __init__.py
-    balance_engine.py
+    balance_engine.py         # (optional) orchestrator (currently unused by balance reporting)
     balance/
       __init__.py
-      period_iterator.py    # Day, Week, Month strategies
+      strategy.py             # BalanceStrategy protocol
+      strategies.py           # TotalBalanceAtDate, PerAccountBalance, BalanceHistory
+      factory.py              # BalanceStrategyFactory
+      period_iterator.py      # Day, Week, Month iteration
   services/
-    balance_service.py
     reporting_service.py
   repository/
 ```
 
 ---
 
-## BalanceEngine Design
-
-The BalanceEngine uses a **callback pattern** to avoid circular dependencies:
-
-- **BalanceEngine.get_balance_history(from_date, to_date, period, balance_at_date_fn)**
-- `balance_at_date_fn: Callable[[date], Decimal]` is provided by BalanceService
-- BalanceService creates the callback (single-account or total) and passes it
-- BalanceEngine iterates dates per period and calls the callback for each
-
----
-
 ## Adding a New Engine
 
 1. Create `app/engines/<name>_engine.py`
-2. Implement stateless logic; receive dependencies or callbacks as parameters
-3. Create a Service that uses the Engine
+2. Implement stateless logic; use strategy pattern if multiple data shapes
+3. Create strategies that batch-load and compute; never call DB in loops
 4. Wire dependencies in `app/dependencies/`
 5. Document in this file
 

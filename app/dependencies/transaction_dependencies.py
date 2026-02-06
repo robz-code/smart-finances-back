@@ -8,11 +8,18 @@ from app.dependencies.concept_dependencies import get_concept_service
 from app.dependencies.balance_snapshot_dependencies import get_balance_snapshot_repository
 from app.dependencies.tag_dependencies import get_tag_service
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
+from app.repository.transaction_repository import TransactionRepository
 from app.services.account_service import AccountService
 from app.services.category_service import CategoryService
 from app.services.concept_service import ConceptService
 from app.services.tag_service import TagService
 from app.services.transaction_service import TransactionService
+
+
+def get_transaction_repository(
+    db: Session = Depends(get_db),
+) -> TransactionRepository:
+    return TransactionRepository(db)
 
 
 def get_transaction_service(

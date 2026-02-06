@@ -108,7 +108,7 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 
 ## Architecture
 
-### Component Flow
+### Component Flow (Strategy-Based, O(1) Queries)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -120,58 +120,57 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  ReportingService                                                            │
 │  - get_balance_response, get_balance_accounts_response,                      │
-│    get_balance_history_response (delegates to BalanceService)                │
+│    get_balance_history_response                                              │
+│  - Creates strategy via BalanceStrategyFactory, calls strategy.execute()     │
 └───────────────────────────────────────┬─────────────────────────────────────┘
                                         │
                                         ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  BalanceService (domain service, factory)                                    │
-│  - get_account_balance, get_total_balance, get_accounts_balance,             │
-│    get_balance_history                                                       │
-│  - Uses: SnapshotService, AccountService, FxService, BalanceEngine           │
-└───────────────────────────────────────┬─────────────────────────────────────┘
-                                        │
-                                        ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  SnapshotService (per-account balance at date)                               │
-│  - get_account_balance_at(account_id, as_of)                                 │
-│  - Uses: BalanceSnapshotRepository, AccountService, TransactionService       │
+│  Balance Strategies (batch-load, compute in memory)                          │
+│  - TotalBalanceAtDateStrategy      → GET /balance                            │
+│  - PerAccountBalanceAtDateStrategy → GET /balance/accounts                   │
+│  - BalanceHistoryStrategy          → GET /balance/history                    │
 └───────────────────────────────────────┬─────────────────────────────────────┘
                                         │
           ┌─────────────────────────────┼─────────────────────────────┐
           ▼                             ▼                             ▼
 ┌─────────────────────┐   ┌─────────────────────────────┐   ┌─────────────────┐
-│ BalanceSnapshotRepo │   │ TransactionService          │   │ BalanceEngine   │
-│ - get_latest_before │   │ - get_net_signed_sum_for_   │   │ (used by        │
-│   _or_on()          │   │   account()                 │   │  BalanceService)│
-│ - get_latest_before │   │                             │   │ - get_balance_  │
-│   ()                │   │                             │   │   history()     │
-│ - get_by_account_   │   │                             │   │ (PeriodIterator │
-│   and_date()        │   │                             │   │  strategies)    │
-│ - delete_future_    │   │                             │   │                 │
-│   snapshots()       │   │                             │   │                 │
+│ BalanceSnapshotRepo │   │ TransactionRepository       │   │ AccountRepo     │
+│ - get_latest_       │   │ - get_transactions_for_     │   │ - get_by_user_id│
+│   snapshots_for_    │   │   accounts_until_date       │   │                 │
+│   accounts()        │   │ - get_transactions_for_     │   │                 │
+│ - get_latest_       │   │   accounts_in_range         │   │                 │
+│   before_for_       │   │                             │   │                 │
+│   accounts()        │   │                             │   │                 │
+│ - get_snapshots_    │   │                             │   │                 │
+│   at_date()         │   │                             │   │                 │
+│ - add_many()        │   │                             │   │                 │
 └─────────────────────┘   └─────────────────────────────┘   └─────────────────┘
 ```
 
-### BalanceEngine (Engines Layer)
+### Balance Execution (Engines Layer)
 
-The **BalanceEngine** handles complex history iteration logic using strategies:
+For balance reporting endpoints, **ReportingService executes strategies directly** (`strategy.execute()`).
+Strategies batch-load required data in O(1) queries and compute results in memory.
 
-- **PeriodIterator**: Day, Week, Month strategies for iterating dates
-- **Callback pattern**: BalanceService provides `balance_at_date_fn`; BalanceEngine iterates and calls it per date
-- See [EnginesArchitecture.md](EnginesArchitecture.md) for details
+- **Strategies**: Each strategy batch-loads all required data in O(1) queries, then computes in memory.
+- **PeriodIterator**: Day, Week, Month iteration for BalanceHistoryStrategy (in-memory only).
+- See [EnginesArchitecture.md](EnginesArchitecture.md) for details.
 
 ### Balance Computation Logic
 
-Implemented in **SnapshotService** (`app/services/snapshot_service.py`). For `get_account_balance_at(account_id, as_of)`:
+Implemented in **balance strategies** (`app/engines/balance/strategies.py`):
 
-1. **If snapshot exists** for month of `as_of`:
+1. **Batch-load** (one query each): accounts, latest snapshots, transactions until `as_of` (or in range for history).
+2. **If snapshot exists** for account at or before `as_of`:
    - `balance = snapshot.balance + net_transactions(snapshot_date + 1 day, as_of)`
-2. **If no snapshot**:
-   - **Chaining optimization**: If an earlier snapshot exists (`get_latest_before`), chain from it instead of scanning from 1900
+3. **If no snapshot**:
+   - **Chaining**: If an earlier snapshot exists (`get_latest_before_for_accounts`), chain from it.
    - Else: Compute balance at start of month: `initial_balance + sum(transactions with date < month_start)`
-   - **Lazy-create** snapshot for that month (avoid duplicate)
+   - **Lazy-create** snapshot for that month (batch `add_many`).
    - `balance = balance_at_month_start + net_transactions(month_start, as_of)`
+
+All repository calls are **set-based** (e.g. `account_ids`, date ranges). No DB calls inside loops.
 
 ### Snapshot Invalidation
 
@@ -193,14 +192,15 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 | File | Purpose |
 |------|---------|
 | `app/entities/balance_snapshot.py` | SQLAlchemy entity for `balance_snapshots` |
-| `app/repository/balance_snapshot_repository.py` | CRUD + `get_latest_before_or_on`, `get_latest_before`, `delete_future_snapshots` |
+| `app/repository/balance_snapshot_repository.py` | Set-based: `get_latest_snapshots_for_accounts`, `get_latest_before_for_accounts`, `get_snapshots_at_date`, `add_many` |
 | `app/dependencies/balance_snapshot_dependencies.py` | FastAPI dependency for `BalanceSnapshotRepository` |
-| `app/dependencies/balance_dependencies.py` | FastAPI dependencies for `BalanceService`, `BalanceEngine` |
-| `app/services/balance_service.py` | Balance domain service: `get_account_balance`, `get_total_balance`, `get_accounts_balance`, `get_balance_history` |
-| `app/services/snapshot_service.py` | Per-account balance at date: `get_account_balance_at`; snapshot lookup, lazy creation, chaining |
+| `app/dependencies/balance_strategy_dependencies.py` | FastAPI dependency for `BalanceStrategyFactory` |
 | `app/services/fx_service.py` | FX conversion at read time (stub: 1:1) |
-| `app/engines/balance_engine.py` | BalanceEngine: history iteration with PeriodIterator strategies |
-| `app/engines/balance/period_iterator.py` | Day, Week, Month PeriodIterator strategies |
+| `app/engines/balance_engine.py` | Orchestrator: `calculate(strategy)` only |
+| `app/engines/balance/strategy.py` | BalanceStrategy protocol |
+| `app/engines/balance/strategies.py` | TotalBalanceAtDateStrategy, PerAccountBalanceAtDateStrategy, BalanceHistoryStrategy |
+| `app/engines/balance/factory.py` | BalanceStrategyFactory |
+| `app/engines/balance/period_iterator.py` | Day, Week, Month PeriodIterator |
 | `docs/migrations/001_balance_snapshots.sql` | Migration to create `balance_snapshots` table |
 | `docs/EnginesArchitecture.md` | Engines layer documentation |
 
@@ -210,8 +210,8 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 |------|---------|
 | `app/routes/reporting_route.py` | Added `/balance`, `/balance/accounts`, `/balance/history` endpoints |
 | `app/schemas/reporting_schemas.py` | Added `BalanceResponse`, `AccountBalanceItem`, `BalanceAccountsResponse`, `BalanceHistoryPoint`, `BalanceHistoryResponse` |
-| `app/services/reporting_service.py` | Delegates balance ops to `BalanceService`; uses `get_balance_response`, `get_balance_accounts_response`, `get_balance_history_response` |
-| `app/dependencies/reporting_dependencies.py` | Injects `BalanceService` into `ReportingService` |
+| `app/services/reporting_service.py` | Creates strategies via factory and executes them directly; O(1) queries |
+| `app/dependencies/reporting_dependencies.py` | Injects `BalanceStrategyFactory` into `ReportingService` |
 | `app/dependencies/transaction_dependencies.py` | Injects `BalanceSnapshotRepository` into `TransactionService` |
 | `app/services/transaction_service.py` | Snapshot invalidation in `update()` and `before_delete()` |
 | `app/entities/__init__.py` | Export `BalanceSnapshot` |

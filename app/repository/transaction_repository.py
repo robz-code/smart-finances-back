@@ -261,6 +261,80 @@ class TransactionRepository(BaseRepository[Transaction]):
         total = income - expense
         return (income, expense, total)
 
+    def get_transactions_for_accounts_until_date(
+        self, account_ids: List[UUID], to_date_inclusive: date
+    ) -> List[tuple]:
+        """
+        Get all transactions for given accounts with date <= to_date_inclusive.
+        Returns list of (account_id, transaction_date, signed_amount).
+        signed_amount: income=+amount, expense=-amount.
+        """
+        if not account_ids:
+            return []
+        logger.debug(
+            f"DB get_transactions_for_accounts_until_date: account_ids={len(account_ids)} "
+            f"to_date={to_date_inclusive}"
+        )
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        rows = (
+            self.db.query(
+                Transaction.account_id,
+                Transaction.date,
+                net_amount.label("signed_amount"),
+            )
+            .filter(
+                Transaction.account_id.in_(account_ids),
+                Transaction.date <= to_date_inclusive,
+            )
+            .all()
+        )
+        return [
+            (r.account_id, r.date, Decimal(str(r.signed_amount)))
+            for r in rows
+        ]
+
+    def get_transactions_for_accounts_in_range(
+        self,
+        account_ids: List[UUID],
+        from_date: date,
+        to_date: date,
+    ) -> List[tuple]:
+        """
+        Get transactions for accounts in [from_date, to_date] inclusive.
+        Returns list of (account_id, transaction_date, signed_amount).
+        """
+        if not account_ids:
+            return []
+        logger.debug(
+            f"DB get_transactions_for_accounts_in_range: account_ids={len(account_ids)} "
+            f"from={from_date} to={to_date}"
+        )
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        rows = (
+            self.db.query(
+                Transaction.account_id,
+                Transaction.date,
+                net_amount.label("signed_amount"),
+            )
+            .filter(
+                Transaction.account_id.in_(account_ids),
+                Transaction.date >= from_date,
+                Transaction.date <= to_date,
+            )
+            .order_by(Transaction.date)
+            .all()
+        )
+        return [
+            (r.account_id, r.date, Decimal(str(r.signed_amount)))
+            for r in rows
+        ]
+
     def get_net_signed_sum_for_account(
         self, account_id: UUID, date_from: date, date_to: date
     ) -> Decimal:

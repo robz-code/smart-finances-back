@@ -67,6 +67,23 @@ def db_engine(_configure_test_environment):
         engine.dispose()
 
 
+@pytest.fixture
+def query_counter(db_engine):
+    """Fixture to count SQL queries executed within a block."""
+    from sqlalchemy import event
+
+    count = [0]
+
+    def _handler(conn, cursor, statement, parameters, context, executemany):
+        count[0] += 1
+
+    event.listen(db_engine, "before_cursor_execute", _handler)
+    try:
+        yield count
+    finally:
+        event.remove(db_engine, "before_cursor_execute", _handler)
+
+
 @pytest.fixture(scope="session")
 def db_session_factory(db_engine):
     """Provide a sessionmaker bound to the test database engine."""
