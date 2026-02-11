@@ -85,7 +85,7 @@ app/
       strategy.py             # BalanceStrategy protocol
       strategies.py           # TotalBalanceAtDate, PerAccountBalance, BalanceHistory
       factory.py              # BalanceStrategyFactory
-      period_iterator.py      # Day, Week, Month iteration
+      # period iteration lives in app/shared/helpers/date_helper.py
   services/
     reporting_service.py
   repository/

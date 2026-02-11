@@ -15,7 +15,7 @@ from app.repository.account_repository import AccountRepository
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.services.fx_service import FxService
-from app.shared.helpers.date_helper import first_day_of_month
+from app.shared.helpers.date_helper import first_day_of_month, iter_dates
 
 
 class TotalBalanceAtDateStrategy:
@@ -246,7 +246,6 @@ class BalanceHistoryStrategy:
         snapshot_repo: BalanceSnapshotRepository,
         transaction_repo: TransactionRepository,
         fx_service: FxService,
-        period_iterator,
     ):
         self.user_id = user_id
         self.from_date = from_date
@@ -258,14 +257,13 @@ class BalanceHistoryStrategy:
         self.snapshot_repo = snapshot_repo
         self.transaction_repo = transaction_repo
         self.fx_service = fx_service
-        self.period_iterator = period_iterator
 
     def execute(self) -> List[dict]:
         accounts = self._load_accounts()
         if not accounts:
             return [
                 {"date": d.isoformat(), "balance": Decimal("0")}
-                for d in self.period_iterator.iter_dates(self.from_date, self.to_date)
+                for d in iter_dates(self.from_date, self.to_date, self.period)
             ]
 
         account_ids = [a.id for a in accounts]
@@ -298,7 +296,7 @@ class BalanceHistoryStrategy:
         sorted_tx_dates = sorted(tx_by_date.keys())
         tx_index = 0
 
-        for d in self.period_iterator.iter_dates(self.from_date, self.to_date):
+        for d in iter_dates(self.from_date, self.to_date, self.period):
             while tx_index < len(sorted_tx_dates) and sorted_tx_dates[tx_index] <= d:
                 tx_day = sorted_tx_dates[tx_index]
                 for acc_id, amt in tx_by_date[tx_day]:

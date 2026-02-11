@@ -212,14 +212,14 @@ sequenceDiagram
     participant AccountRepo
     participant SnapshotRepo
     participant TxRepo
-    participant PeriodIterator
+    participant DateUtils
     participant FxSvc
 
     Client->>Route: GET /balance/history?from=...&to=...&period=day
     Route->>ReportingSvc: get_balance_history_response(...)
 
     ReportingSvc->>Factory: create_balance_history_strategy(...)
-    Factory-->>ReportingSvc: BalanceHistoryStrategy + PeriodIterator
+    Factory-->>ReportingSvc: BalanceHistoryStrategy
 
     ReportingSvc->>Strategy: execute()
 
@@ -234,9 +234,9 @@ sequenceDiagram
     Strategy->>Strategy: _compute_initial_balances(tx_before)
 
     Note over Strategy: 3. Walk forward by period (in memory only)
-    loop For each date d in PeriodIterator.iter_dates(from, to)
-        Strategy->>PeriodIterator: iter_dates(from, to)
-        PeriodIterator-->>Strategy: d
+    loop For each date d in DateUtils.iter_dates(from, to, period)
+        Strategy->>DateUtils: iter_dates(from, to, period)
+        DateUtils-->>Strategy: d
         Note over Strategy: Apply tx for dates <= d (in memory)
         loop For each account (in memory)
             Strategy->>FxSvc: convert(balance, currency, base_currency, d)

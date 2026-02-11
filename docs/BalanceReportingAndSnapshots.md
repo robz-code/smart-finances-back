@@ -154,7 +154,7 @@ For balance reporting endpoints, **ReportingService executes strategies directly
 Strategies batch-load required data in O(1) queries and compute results in memory.
 
 - **Strategies**: Each strategy batch-loads all required data in O(1) queries, then computes in memory.
-- **PeriodIterator**: Day, Week, Month iteration for BalanceHistoryStrategy (in-memory only).
+- **Date utils**: Day/Week/Month iteration for BalanceHistoryStrategy (in-memory only).
 - See [EnginesArchitecture.md](EnginesArchitecture.md) for details.
 
 ### Balance Computation Logic
@@ -200,7 +200,7 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 | `app/engines/balance/strategy.py` | BalanceStrategy protocol |
 | `app/engines/balance/strategies.py` | TotalBalanceAtDateStrategy, PerAccountBalanceAtDateStrategy, BalanceHistoryStrategy |
 | `app/engines/balance/factory.py` | BalanceStrategyFactory |
-| `app/engines/balance/period_iterator.py` | Day, Week, Month PeriodIterator |
+| `app/shared/helpers/date_helper.py` | Date helpers: month boundaries, period iteration |
 | `docs/migrations/001_balance_snapshots.sql` | Migration to create `balance_snapshots` table |
 | `docs/EnginesArchitecture.md` | Engines layer documentation |
 

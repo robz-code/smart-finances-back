@@ -6,11 +6,6 @@ from datetime import date
 from typing import Optional
 from uuid import UUID
 
-from app.engines.balance.period_iterator import (
-    DayPeriodIterator,
-    MonthPeriodIterator,
-    WeekPeriodIterator,
-)
 from app.engines.balance.strategies import (
     BalanceHistoryStrategy,
     PerAccountBalanceAtDateStrategy,
@@ -20,12 +15,6 @@ from app.repository.account_repository import AccountRepository
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.services.fx_service import FxService
-
-PERIOD_ITERATORS = {
-    "day": DayPeriodIterator(),
-    "week": WeekPeriodIterator(),
-    "month": MonthPeriodIterator(),
-}
 
 
 class BalanceStrategyFactory:
@@ -78,9 +67,6 @@ class BalanceStrategyFactory:
         base_currency: str,
         account_id: Optional[UUID] = None,
     ) -> BalanceHistoryStrategy:
-        iterator = PERIOD_ITERATORS.get(period)
-        if not iterator:
-            raise ValueError(f"period must be one of: day, week, month (got {period})")
         return BalanceHistoryStrategy(
             user_id=user_id,
             from_date=from_date,
@@ -92,5 +78,4 @@ class BalanceStrategyFactory:
             snapshot_repo=self.snapshot_repo,
             transaction_repo=self.transaction_repo,
             fx_service=self.fx_service,
-            period_iterator=iterator,
         )
