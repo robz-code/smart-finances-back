@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.config.database import get_db
 from app.dependencies.account_dependencies import get_account_service
+from app.dependencies.balance_snapshot_dependencies import (
+    get_balance_snapshot_repository,
+)
 from app.dependencies.category_dependencies import get_category_service
 from app.dependencies.concept_dependencies import get_concept_service
-from app.dependencies.balance_snapshot_dependencies import get_balance_snapshot_repository
 from app.dependencies.tag_dependencies import get_tag_service
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository

@@ -10,6 +10,7 @@ conversion to user base currency is done here when returning reporting data.
 from datetime import date
 from decimal import Decimal
 
+
 class FxService:
     """
     FX conversion at read time (presentation concern only).
@@ -44,4 +45,3 @@ class FxService:
             return amount * Decimal(20.00)
         # Unknown pair: keep behavior safe and deterministic for MVP.
         return amount
-

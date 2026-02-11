@@ -3,8 +3,8 @@ from fastapi import Depends
 from app.dependencies.balance_dependencies import get_balance_engine
 from app.dependencies.category_dependencies import get_category_service
 from app.dependencies.transaction_dependencies import get_transaction_service
-from app.services.category_service import CategoryService
 from app.engines.balance_engine import BalanceEngine
+from app.services.category_service import CategoryService
 from app.services.reporting_service import ReportingService
 from app.services.transaction_service import TransactionService
 

@@ -28,8 +28,14 @@ class BalanceSnapshot(Base):
     __tablename__ = "balance_snapshots"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    account_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("accounts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
     currency = Column(Text, nullable=False)
     snapshot_date = Column(DATE, nullable=False)
     balance = Column(Numeric, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(
+        DateTime(timezone=True), default=datetime.datetime.now(datetime.timezone.utc)
+    )

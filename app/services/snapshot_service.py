@@ -57,9 +57,7 @@ class SnapshotService:
             account_id, as_of
         )
 
-        logger.debug(
-            f"Starting snapshot lookup for account {account_id} as of {as_of}"
-        )
+        logger.debug(f"Starting snapshot lookup for account {account_id} as of {as_of}")
 
         if snap:
             base = Decimal(str(snap.balance))

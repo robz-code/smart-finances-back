@@ -55,9 +55,7 @@ class BalanceEngine:
         total = Decimal("0")
         for acc in accounts:
             native = native_balances.get(acc.id, Decimal("0"))
-            total += self.fx_service.convert(
-                native, acc.currency, base_currency, as_of
-            )
+            total += self.fx_service.convert(native, acc.currency, base_currency, as_of)
         return total
 
     def get_accounts_balance(
@@ -219,9 +217,7 @@ class BalanceEngine:
                 base = Decimal(str(snap.balance))
                 day_after_snap = snap.snapshot_date + timedelta(days=1)
                 delta = sum(
-                    amt
-                    for d, amt in account_txs
-                    if day_after_snap <= d <= as_of
+                    amt for d, amt in account_txs if day_after_snap <= d <= as_of
                 )
                 result[acc.id] = base + delta
                 continue

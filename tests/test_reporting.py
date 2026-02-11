@@ -454,8 +454,13 @@ def test_balance_history_query_count(client, auth_headers, query_counter):
     account = _create_account(client, auth_headers)
     category = _create_category(client, auth_headers, "Test", "expense")
     _create_transaction(
-        client, auth_headers, account["id"], category["id"],
-        "10.00", "expense", "2025-12-01",
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "10.00",
+        "expense",
+        "2025-12-01",
     )
 
     query_counter[0] = 0

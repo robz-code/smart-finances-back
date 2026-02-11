@@ -6,14 +6,15 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from app.engines.balance_engine import BalanceEngine
 from app.entities.category import Category, CategoryType
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.reporting_schemas import (
+    BALANCE_HISTORY_PERIODS,
     AccountBalanceItem,
     BalanceAccountsResponse,
     BalanceHistoryPoint,
     BalanceHistoryResponse,
-    BALANCE_HISTORY_PERIODS,
     BalanceResponse,
     CashflowSummaryResponse,
     CategoryAggregationData,
@@ -21,11 +22,9 @@ from app.schemas.reporting_schemas import (
     ReportingParameters,
     TransactionSummaryPeriod,
 )
-from app.engines.balance_engine import BalanceEngine
 from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
 from app.shared.helpers.date_helper import calculate_period_dates
-
 
 logger = logging.getLogger(__name__)
 
@@ -200,9 +199,7 @@ class ReportingService:
         """
         as_of_date = as_of or date.today()
         total = self.balance_engine.get_total_balance(user_id, as_of_date, currency)
-        return BalanceResponse(
-            as_of=as_of_date, currency=currency, balance=total
-        )
+        return BalanceResponse(as_of=as_of_date, currency=currency, balance=total)
 
     def get_balance_accounts_response(
         self,

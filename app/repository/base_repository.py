@@ -17,9 +17,7 @@ class BaseRepository(Generic[T]):
 
     def get(self, id: UUID) -> Optional[T]:
         """Get entity by ID"""
-        logger.debug(
-            f"DB get: {self.model.__name__} id={id}"
-        )
+        logger.debug(f"DB get: {self.model.__name__} id={id}")
         # Handle entities that might not have an id field (like UserContact)
         if hasattr(self.model, "id"):
             return (
@@ -37,9 +35,7 @@ class BaseRepository(Generic[T]):
 
     def get_by_user_id(self, user_id: UUID) -> List[T]:
         """Get entities by user ID"""
-        logger.debug(
-            f"DB get_by_user_id: {self.model.__name__} user_id={user_id}"
-        )
+        logger.debug(f"DB get_by_user_id: {self.model.__name__} user_id={user_id}")
         return (
             self.db.query(self.model)
             .filter(self.model.user_id == user_id)
@@ -48,9 +44,7 @@ class BaseRepository(Generic[T]):
 
     def delete(self, id: UUID) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
-        logger.debug(
-            f"DB delete: {self.model.__name__} id={id}"
-        )
+        logger.debug(f"DB delete: {self.model.__name__} id={id}")
         obj = self.get(id)
         if obj:
             try:
@@ -67,9 +61,7 @@ class BaseRepository(Generic[T]):
 
     def add(self, obj_in: T) -> T:
         """Add new entity with transaction handling"""
-        logger.debug(
-            f"DB add: {self.model.__name__}"
-        )
+        logger.debug(f"DB add: {self.model.__name__}")
         try:
             self.db.add(obj_in)
             self.db.commit()
@@ -93,9 +85,7 @@ class BaseRepository(Generic[T]):
 
     def update(self, id: UUID, obj_in: T) -> Optional[T]:
         """Update entity by ID with transaction handling"""
-        logger.debug(
-            f"DB update: {self.model.__name__} id={id}"
-        )
+        logger.debug(f"DB update: {self.model.__name__} id={id}")
         obj = self.get(id)
         if obj:
             try:

@@ -27,9 +27,7 @@ class TransactionRepository(BaseRepository[Transaction]):
         self, user_id: UUID, search_params: TransactionSearch
     ) -> List[Transaction]:
         """Search transactions based on various criteria"""
-        logger.debug(
-            f"DB search: Transaction user_id={user_id}"
-        )
+        logger.debug(f"DB search: Transaction user_id={user_id}")
         query = (
             self.db.query(Transaction)
             .options(
@@ -87,9 +85,7 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     def remove_all_tags(self, transaction_id: UUID) -> int:
         """Delete all tag associations for the given transaction."""
-        logger.debug(
-            f"DB remove_all_tags: transaction_id={transaction_id}"
-        )
+        logger.debug(f"DB remove_all_tags: transaction_id={transaction_id}")
         try:
             deleted = (
                 self.db.query(TransactionTag)
@@ -288,10 +284,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             )
             .all()
         )
-        return [
-            (r.account_id, r.date, Decimal(str(r.signed_amount)))
-            for r in rows
-        ]
+        return [(r.account_id, r.date, Decimal(str(r.signed_amount))) for r in rows]
 
     def get_transactions_for_accounts_in_range(
         self,
@@ -327,10 +320,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             .order_by(Transaction.date)
             .all()
         )
-        return [
-            (r.account_id, r.date, Decimal(str(r.signed_amount)))
-            for r in rows
-        ]
+        return [(r.account_id, r.date, Decimal(str(r.signed_amount))) for r in rows]
 
     def get_net_signed_sum_for_account(
         self, account_id: UUID, date_from: date, date_to: date

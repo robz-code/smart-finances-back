@@ -82,6 +82,7 @@ def get_cashflow_summary(
 # Balances = projections; FX conversion at read time only.
 # -------------------------------------------------------------------------
 
+
 @router.get("/balance", response_model=BalanceResponse)
 def get_balance(
     as_of: Optional[date] = Query(
@@ -116,7 +117,8 @@ def get_balance_accounts(
     """
     user_id = cast(UUID, current_user.id)
     return service.get_balance_accounts_response(
-        user_id, currency=base_currency, as_of=as_of)
+        user_id, currency=base_currency, as_of=as_of
+    )
 
 
 @router.get("/balance/history", response_model=BalanceHistoryResponse)
