@@ -1,19 +1,33 @@
+import logging
+from datetime import date
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
 
+from fastapi import HTTPException
+
 from app.entities.category import Category, CategoryType
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.reporting_schemas import (
+    AccountBalanceItem,
+    BalanceAccountsResponse,
+    BalanceHistoryPoint,
+    BalanceHistoryResponse,
+    BALANCE_HISTORY_PERIODS,
+    BalanceResponse,
     CashflowSummaryResponse,
     CategoryAggregationData,
     CategorySummaryResponse,
     ReportingParameters,
     TransactionSummaryPeriod,
 )
+from app.engines.balance_engine import BalanceEngine
 from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
 from app.shared.helpers.date_helper import calculate_period_dates
+
+
+logger = logging.getLogger(__name__)
 
 
 class ReportingService:
@@ -22,15 +36,21 @@ class ReportingService:
 
     This service orchestrates data from multiple domain services to provide
     aggregated reports without creating circular dependencies.
+
+    Balance reporting: Balances are projections (reporting), derived from
+    transactions + snapshots. They are never stored as truth. FX conversion
+    is a presentation concern at read time only.
     """
 
     def __init__(
         self,
         category_service: CategoryService,
         transaction_service: TransactionService,
+        balance_engine: BalanceEngine,
     ):
         self.category_service = category_service
         self.transaction_service = transaction_service
+        self.balance_engine = balance_engine
 
     def get_categories_summary(
         self,
@@ -161,3 +181,83 @@ class ReportingService:
             source=parameters.source,
         )
         return CashflowSummaryResponse(income=income, expense=expense, total=total)
+
+    # -------------------------------------------------------------------------
+    # Balance reporting (read-only; strategy-based, O(1) queries).
+    # Balances = projections derived from transactions + snapshots.
+    # FX conversion = presentation at read time only.
+    # -------------------------------------------------------------------------
+
+    def get_balance_response(
+        self,
+        user_id: UUID,
+        currency: str,
+        as_of: Optional[date] = None,
+    ) -> BalanceResponse:
+        """
+        Return total balance as of a date (default: today) in base currency.
+        Uses BalanceEngine (O(1) queries).
+        """
+        as_of_date = as_of or date.today()
+        total = self.balance_engine.get_total_balance(user_id, as_of_date, currency)
+        return BalanceResponse(
+            as_of=as_of_date, currency=currency, balance=total
+        )
+
+    def get_balance_accounts_response(
+        self,
+        user_id: UUID,
+        currency: str,
+        as_of: Optional[date] = None,
+    ) -> BalanceAccountsResponse:
+        """
+        Return balance per account as of a date. Includes native and converted amounts.
+        Uses BalanceEngine (O(1) queries).
+        """
+        as_of_date = as_of or date.today()
+        accounts_list, total = self.balance_engine.get_accounts_balance(
+            user_id, as_of_date, currency
+        )
+        items = [AccountBalanceItem(**a) for a in accounts_list]
+        return BalanceAccountsResponse(
+            as_of=as_of_date, currency=currency, accounts=items, total=total
+        )
+
+    def get_balance_history_response(
+        self,
+        user_id: UUID,
+        from_date: date,
+        to_date: date,
+        currency: str,
+        period: TransactionSummaryPeriod = TransactionSummaryPeriod.DAY,
+        account_id: Optional[UUID] = None,
+    ) -> BalanceHistoryResponse:
+        """
+        Return balance history for charts or lists. Validates inputs and builds response.
+        Uses BalanceEngine (O(1) queries).
+        """
+        if from_date > to_date:
+            raise HTTPException(
+                status_code=422, detail="'from' must be before or equal to 'to'"
+            )
+        if period not in BALANCE_HISTORY_PERIODS:
+            raise HTTPException(
+                status_code=422,
+                detail="period must be one of: day, week, month (year not supported)",
+            )
+        period_str = period.value
+        points_data = self.balance_engine.get_balance_history(
+            user_id=user_id,
+            from_date=from_date,
+            to_date=to_date,
+            period=period_str,
+            base_currency=currency,
+            account_id=account_id,
+        )
+        points = [
+            BalanceHistoryPoint(date=p["date"], balance=p["balance"])
+            for p in points_data
+        ]
+        return BalanceHistoryResponse(
+            currency=currency, period=period_str, points=points
+        )

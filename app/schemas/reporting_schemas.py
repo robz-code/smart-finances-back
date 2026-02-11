@@ -17,6 +17,14 @@ class TransactionSummaryPeriod(str, Enum):
     YEAR = "year"
 
 
+# Balance history supports day/week/month only (year not supported)
+BALANCE_HISTORY_PERIODS = {
+    TransactionSummaryPeriod.DAY,
+    TransactionSummaryPeriod.WEEK,
+    TransactionSummaryPeriod.MONTH,
+}
+
+
 class ReportingParameters(BaseModel):
     """Query parameters for reporting endpoints. Use either period OR date_from/date_to."""
 
@@ -88,3 +96,63 @@ class CashflowSummaryResponse(BaseModel):
             Decimal: lambda v: format(v, ".2f")  # Format to 2 decimal places in JSON
         }
     }
+
+
+# -------------------------------------------------------------------------
+# Balance reporting (read-only; never mutates ledger).
+# Balances = projections; FX = presentation at read time.
+# -------------------------------------------------------------------------
+
+_decimal_json = {"json_encoders": {Decimal: lambda v: format(v, ".2f")}}
+
+
+class BalanceResponse(BaseModel):
+    """Total balance as of a date in user base currency."""
+
+    as_of: Date
+    currency: str
+    balance: Decimal
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class AccountBalanceItem(BaseModel):
+    """Balance for one account (native and converted)."""
+
+    account_id: UUID4
+    account_name: str
+    currency: str
+    balance_native: Decimal
+    balance_converted: Decimal
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class BalanceAccountsResponse(BaseModel):
+    """Balance per account as of a date plus total in base currency."""
+
+    as_of: Date
+    currency: str
+    accounts: list[AccountBalanceItem]
+    total: Decimal
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class BalanceHistoryPoint(BaseModel):
+    """One point in balance history (for charts/lists)."""
+
+    date: str  # YYYY-MM-DD
+    balance: Decimal
+
+    model_config = dict(_decimal_json)
+
+
+class BalanceHistoryResponse(BaseModel):
+    """Balance history for a date range and period."""
+
+    currency: str
+    period: str  # day | week | month
+    points: list[BalanceHistoryPoint]
+
+    model_config = dict(_decimal_json)

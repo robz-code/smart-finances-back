@@ -1,4 +1,5 @@
 from .account import Account
+from .balance_snapshot import BalanceSnapshot
 from .category import Category
 from .concept import Concept
 from .tag import Tag
@@ -9,6 +10,7 @@ from .user import User
 __all__ = [
     "User",
     "Account",
+    "BalanceSnapshot",
     "Category",
     "Concept",
     "Tag",

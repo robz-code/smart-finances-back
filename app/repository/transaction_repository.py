@@ -27,6 +27,9 @@ class TransactionRepository(BaseRepository[Transaction]):
         self, user_id: UUID, search_params: TransactionSearch
     ) -> List[Transaction]:
         """Search transactions based on various criteria"""
+        logger.debug(
+            f"DB search: Transaction user_id={user_id}"
+        )
         query = (
             self.db.query(Transaction)
             .options(
@@ -50,6 +53,9 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     def attach_tags(self, transaction: Transaction, tags: List[Tag]) -> None:
         """Persist the relationship between a transaction and multiple tags."""
+        logger.debug(
+            f"DB attach_tags: Transaction id={transaction.id} tags_count={len(tags)}"
+        )
         try:
             for tag in tags:
                 # Check if association already exists to avoid duplicates
@@ -81,6 +87,9 @@ class TransactionRepository(BaseRepository[Transaction]):
 
     def remove_all_tags(self, transaction_id: UUID) -> int:
         """Delete all tag associations for the given transaction."""
+        logger.debug(
+            f"DB remove_all_tags: transaction_id={transaction_id}"
+        )
         try:
             deleted = (
                 self.db.query(TransactionTag)
@@ -139,6 +148,10 @@ class TransactionRepository(BaseRepository[Transaction]):
         Returns:
             Dictionary mapping category_id to CategoryAggregationData DTO
         """
+        logger.debug(
+            f"DB get_net_signed_amounts_and_counts_by_category: user_id={user_id} "
+            f"date_from={date_from} date_to={date_to}"
+        )
         # Build the CASE expression for net-signed calculation
         # Income adds (positive), expense subtracts (negative)
         net_amount = case(
@@ -205,6 +218,9 @@ class TransactionRepository(BaseRepository[Transaction]):
         Uses the same filters as get_net_signed_amounts_and_counts_by_category.
         Returns (income, expense, total).
         """
+        logger.debug(
+            f"DB get_cashflow_summary: user_id={user_id} date_from={date_from} date_to={date_to}"
+        )
         income_expr = case(
             (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
             else_=0,
@@ -241,3 +257,105 @@ class TransactionRepository(BaseRepository[Transaction]):
         expense = Decimal(str(row.expense)) if row and row.expense else Decimal("0")
         total = income - expense
         return (income, expense, total)
+
+    def get_transactions_for_accounts_until_date(
+        self, account_ids: List[UUID], to_date_inclusive: date
+    ) -> List[tuple]:
+        """
+        Get all transactions for given accounts with date <= to_date_inclusive.
+        Returns list of (account_id, transaction_date, signed_amount).
+        signed_amount: income=+amount, expense=-amount.
+        """
+        if not account_ids:
+            return []
+        logger.debug(
+            f"DB get_transactions_for_accounts_until_date: account_ids={len(account_ids)} "
+            f"to_date={to_date_inclusive}"
+        )
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        rows = (
+            self.db.query(
+                Transaction.account_id,
+                Transaction.date,
+                net_amount.label("signed_amount"),
+            )
+            .filter(
+                Transaction.account_id.in_(account_ids),
+                Transaction.date <= to_date_inclusive,
+            )
+            .all()
+        )
+        return [
+            (r.account_id, r.date, Decimal(str(r.signed_amount)))
+            for r in rows
+        ]
+
+    def get_transactions_for_accounts_in_range(
+        self,
+        account_ids: List[UUID],
+        from_date: date,
+        to_date: date,
+    ) -> List[tuple]:
+        """
+        Get transactions for accounts in [from_date, to_date] inclusive.
+        Returns list of (account_id, transaction_date, signed_amount).
+        """
+        if not account_ids:
+            return []
+        logger.debug(
+            f"DB get_transactions_for_accounts_in_range: account_ids={len(account_ids)} "
+            f"from={from_date} to={to_date}"
+        )
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        rows = (
+            self.db.query(
+                Transaction.account_id,
+                Transaction.date,
+                net_amount.label("signed_amount"),
+            )
+            .filter(
+                Transaction.account_id.in_(account_ids),
+                Transaction.date >= from_date,
+                Transaction.date <= to_date,
+            )
+            .order_by(Transaction.date)
+            .all()
+        )
+        return [
+            (r.account_id, r.date, Decimal(str(r.signed_amount)))
+            for r in rows
+        ]
+
+    def get_net_signed_sum_for_account(
+        self, account_id: UUID, date_from: date, date_to: date
+    ) -> Decimal:
+        """
+        Net-signed sum of transactions for one account in [date_from, date_to] (inclusive).
+
+        Used for balance reporting: income adds, expense subtracts.
+        Transactions = ledger (facts); this is read-only aggregation for reporting.
+        """
+        logger.debug(
+            f"DB get_net_signed_sum_for_account: account_id={account_id} "
+            f"date_from={date_from} date_to={date_to}"
+        )
+        net_amount = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=-Transaction.amount,
+        )
+        row = (
+            self.db.query(func.coalesce(func.sum(net_amount), 0).label("net"))
+            .filter(
+                Transaction.account_id == account_id,
+                Transaction.date >= date_from,
+                Transaction.date <= date_to,
+            )
+            .first()
+        )
+        return Decimal(str(row.net)) if row and row.net is not None else Decimal("0")

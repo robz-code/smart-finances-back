@@ -11,6 +11,7 @@ from app.entities.category import CategoryType
 from app.entities.concept import Concept
 from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
+from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
@@ -30,6 +31,7 @@ from app.services.base_service import BaseService
 from app.services.category_service import CategoryService
 from app.services.concept_service import ConceptService
 from app.services.tag_service import TagService
+from app.shared.helpers.date_helper import first_day_of_month
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,7 @@ class TransactionService(BaseService[Transaction]):
         category_service: CategoryService,
         concept_service: ConceptService,
         tag_service: TagService,
+        balance_snapshot_repository: Optional[BalanceSnapshotRepository] = None,
     ):
         repository = TransactionRepository(db)
         super().__init__(db, repository, Transaction)
@@ -49,6 +52,8 @@ class TransactionService(BaseService[Transaction]):
         self.category_service = category_service
         self.concept_service = concept_service
         self.tag_service = tag_service
+        # Optional: invalidate balance snapshots on edit/delete (reporting optimization)
+        self.balance_snapshot_repository = balance_snapshot_repository
 
     def get(self, transaction_id: UUID, user_id: UUID) -> TransactionResponse:
         """Retrieve a transaction ensuring it belongs to the requesting user."""
@@ -147,6 +152,18 @@ class TransactionService(BaseService[Transaction]):
             source=source,
         )
 
+    def get_net_signed_sum_for_account(
+        self, account_id: UUID, date_from: date, date_to: date
+    ) -> Decimal:
+        """
+        Net-signed sum of transactions for one account in [date_from, date_to] (inclusive).
+
+        Used by reporting for balance computation. Read-only; does not mutate ledger.
+        """
+        return self.repository.get_net_signed_sum_for_account(
+            account_id=account_id, date_from=date_from, date_to=date_to
+        )
+
     def create_transaction(
         self, payload: TransactionCreate, *, user_id: UUID
     ) -> TransactionResponse:
@@ -175,8 +192,20 @@ class TransactionService(BaseService[Transaction]):
 
     def update(self, id: UUID, obj_in: Any, **kwargs: Any) -> TransactionResponse:
         """Update a transaction and return its response representation."""
-
+        # On edit: future balance snapshots must be invalidated (reporting optimization)
+        old_transaction = self.repository.get(id)
         updated_transaction = super().update(id, obj_in, **kwargs)
+        if self.balance_snapshot_repository:
+            if old_transaction:
+                from_date_old = first_day_of_month(old_transaction.date)
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    old_transaction.account_id, from_date_old
+                )
+            from_date_new = first_day_of_month(updated_transaction.date)
+            self.balance_snapshot_repository.delete_future_snapshots(
+                updated_transaction.account_id, from_date_new
+            )
+            self.db.commit()
         return self._build_transaction_response(updated_transaction)
 
     def create_transfer_transaction(
@@ -383,19 +412,20 @@ class TransactionService(BaseService[Transaction]):
         return True
 
     def before_delete(self, id: UUID, **kwargs: Any) -> Transaction:
-        """Validate transaction before deletion"""
-        # Get the existing transaction
-        existing_transaction = self.repository.get(id)
-        if not existing_transaction:
-            raise HTTPException(status_code=404, detail="Transaction not found")
-
+        """Validate transaction before deletion; invalidate future balance snapshots."""
+        existing_transaction = super().before_delete(id, **kwargs)
         # Validate that the user owns the transaction
         user_id = kwargs.get("user_id")
         if user_id and existing_transaction.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
             )
-
+        # On delete: future balance snapshots must be invalidated (reporting optimization)
+        if self.balance_snapshot_repository:
+            from_date = first_day_of_month(existing_transaction.date)
+            self.balance_snapshot_repository.delete_future_snapshots(
+                existing_transaction.account_id, from_date
+            )
         return existing_transaction
 
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
