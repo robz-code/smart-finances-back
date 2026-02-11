@@ -47,6 +47,15 @@ erDiagram
         BOOLEAN is_deleted
     }
 
+    balance_snapshots {
+        UUID id PK
+        UUID account_id FK
+        TEXT currency
+        DATE snapshot_date
+        NUMERIC balance
+        TIMESTAMP created_at
+    }
+
     credits {
         UUID id PK
         UUID account_id FK,UK
@@ -210,6 +219,7 @@ erDiagram
     users ||--o{ concepts : "owns"
     users ||--o{ tags : "owns"
 
+    accounts ||--o{ balance_snapshots : "has"
     accounts ||--o{ credits : "has"
     accounts ||--o{ transactions : "contains"
     accounts ||--o{ recurring_transactions : "contains"
@@ -245,6 +255,7 @@ erDiagram
 
 ### Financial Management
 - **accounts**: User financial accounts (bank, credit, etc.) with optional color metadata for UI theming
+- **balance_snapshots**: Monthly balance cache per account (lazy-created, rebuildable; used for reporting only; see migrations/001_balance_snapshots.sql)
 - **credits**: Credit card and loan information
 - **categories**: Transaction categorization
 - **concepts**: User-specific transaction concepts
