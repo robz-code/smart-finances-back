@@ -108,7 +108,7 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 
 ## Architecture
 
-### Component Flow (Strategy-Based, O(1) Queries)
+### Component Flow (Engine-Based, O(1) Queries)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -121,15 +121,15 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 │  ReportingService                                                            │
 │  - get_balance_response, get_balance_accounts_response,                      │
 │    get_balance_history_response                                              │
-│  - Creates strategy via BalanceStrategyFactory, calls strategy.execute()     │
+│  - Validates inputs and calls BalanceEngine methods                          │
 └───────────────────────────────────────┬─────────────────────────────────────┘
                                         │
                                         ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Balance Strategies (batch-load, compute in memory)                          │
-│  - TotalBalanceAtDateStrategy      → GET /balance                            │
-│  - PerAccountBalanceAtDateStrategy → GET /balance/accounts                   │
-│  - BalanceHistoryStrategy          → GET /balance/history                    │
+│  BalanceEngine (batch-load, compute in memory)                               │
+│  - get_total_balance      → GET /balance                                     │
+│  - get_accounts_balance   → GET /balance/accounts                            │
+│  - get_balance_history    → GET /balance/history                             │
 └───────────────────────────────────────┬─────────────────────────────────────┘
                                         │
           ┌─────────────────────────────┼─────────────────────────────┐
@@ -150,16 +150,16 @@ CREATE INDEX idx_balance_snapshots_account_date ON balance_snapshots(account_id,
 
 ### Balance Execution (Engines Layer)
 
-For balance reporting endpoints, **ReportingService executes strategies directly** (`strategy.execute()`).
-Strategies batch-load required data in O(1) queries and compute results in memory.
+For balance reporting endpoints, **ReportingService calls BalanceEngine methods**.
+The engine batch-loads required data in O(1) queries and computes results in memory.
 
-- **Strategies**: Each strategy batch-loads all required data in O(1) queries, then computes in memory.
-- **Date utils**: Day/Week/Month iteration for BalanceHistoryStrategy (in-memory only).
+- **Engine**: Set-based repository calls only; no DB calls inside loops.
+- **Date helper**: Day/Week/Month iteration for history (in-memory only).
 - See [EnginesArchitecture.md](EnginesArchitecture.md) for details.
 
 ### Balance Computation Logic
 
-Implemented in **balance strategies** (`app/engines/balance/strategies.py`):
+Implemented in **BalanceEngine** (`app/engines/balance_engine.py`):
 
 1. **Batch-load** (one query each): accounts, latest snapshots, transactions until `as_of` (or in range for history).
 2. **If snapshot exists** for account at or before `as_of`:
@@ -194,12 +194,8 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 | `app/entities/balance_snapshot.py` | SQLAlchemy entity for `balance_snapshots` |
 | `app/repository/balance_snapshot_repository.py` | Set-based: `get_latest_snapshots_for_accounts`, `get_latest_before_for_accounts`, `get_snapshots_at_date`, `add_many` |
 | `app/dependencies/balance_snapshot_dependencies.py` | FastAPI dependency for `BalanceSnapshotRepository` |
-| `app/dependencies/balance_strategy_dependencies.py` | FastAPI dependency for `BalanceStrategyFactory` |
 | `app/services/fx_service.py` | FX conversion at read time (stub: 1:1) |
-| `app/engines/balance_engine.py` | Orchestrator: `calculate(strategy)` only |
-| `app/engines/balance/strategy.py` | BalanceStrategy protocol |
-| `app/engines/balance/strategies.py` | TotalBalanceAtDateStrategy, PerAccountBalanceAtDateStrategy, BalanceHistoryStrategy |
-| `app/engines/balance/factory.py` | BalanceStrategyFactory |
+| `app/engines/balance_engine.py` | BalanceEngine: batch-load + compute in memory for balance endpoints |
 | `app/shared/helpers/date_helper.py` | Date helpers: month boundaries, period iteration |
 | `docs/migrations/001_balance_snapshots.sql` | Migration to create `balance_snapshots` table |
 | `docs/EnginesArchitecture.md` | Engines layer documentation |
@@ -210,8 +206,8 @@ Implementation: `BalanceSnapshotRepository.delete_future_snapshots(account_id, f
 |------|---------|
 | `app/routes/reporting_route.py` | Added `/balance`, `/balance/accounts`, `/balance/history` endpoints |
 | `app/schemas/reporting_schemas.py` | Added `BalanceResponse`, `AccountBalanceItem`, `BalanceAccountsResponse`, `BalanceHistoryPoint`, `BalanceHistoryResponse` |
-| `app/services/reporting_service.py` | Creates strategies via factory and executes them directly; O(1) queries |
-| `app/dependencies/reporting_dependencies.py` | Injects `BalanceStrategyFactory` into `ReportingService` |
+| `app/services/reporting_service.py` | Calls BalanceEngine methods; O(1) queries |
+| `app/dependencies/reporting_dependencies.py` | Injects BalanceEngine into `ReportingService` |
 | `app/dependencies/transaction_dependencies.py` | Injects `BalanceSnapshotRepository` into `TransactionService` |
 | `app/services/transaction_service.py` | Snapshot invalidation in `update()` and `before_delete()` |
 | `app/entities/__init__.py` | Export `BalanceSnapshot` |

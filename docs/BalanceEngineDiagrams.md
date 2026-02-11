@@ -1,6 +1,6 @@
 # Balance Engine — Architecture Diagrams
 
-Mermaid diagrams for the strategy-based balance implementation (O(1) queries, N+1 safe).
+Mermaid diagrams for the engine-based balance implementation (O(1) queries, N+1 safe).
 
 ---
 
@@ -8,18 +8,11 @@ Mermaid diagrams for the strategy-based balance implementation (O(1) queries, N+
 
 ```
 ┌─────────────┐     ┌─────────────────────┐     ┌──────────────────────┐
-│   Route     │────▶│  ReportingService   │────▶│  BalanceStrategy     │
-│             │     │  (selects strategy) │     │  Factory             │
-└─────────────┘     └──────────┬──────────┘     └──────────┬───────────┘
-                               │                           │
-                               │ create_strategy()         │
-                               ▼                           ▼
-                    ┌──────────────────────┐
-                    │  Strategy.execute()  │
-                    │  (batch-load + compute)│
-                    └──────────┬───────────┘
-                               │
-                               ▼
+│   Route     │────▶│  ReportingService   │────▶│  BalanceEngine        │
+│             │     │  (validates + calls)│     │  (batch-load + compute)│
+└─────────────┘     └─────────────────────┘     └──────────┬───────────┘
+                                                          │
+                                                          ▼
                                                 ┌──────────────────────┐
                                                 │  Repositories        │
                                                 │  (set-based queries) │
@@ -46,27 +39,10 @@ classDiagram
         +get_balance_history_response()
     }
 
-    class BalanceStrategy {
-        <<protocol>>
-        +execute()
-    }
-
-    class BalanceStrategyFactory {
-        +create_total_balance_strategy()
-        +create_per_account_balance_strategy()
-        +create_balance_history_strategy()
-    }
-
-    class TotalBalanceAtDateStrategy {
-        +execute() Decimal
-    }
-
-    class PerAccountBalanceAtDateStrategy {
-        +execute() tuple
-    }
-
-    class BalanceHistoryStrategy {
-        +execute() List
+    class BalanceEngine {
+        +get_total_balance()
+        +get_accounts_balance()
+        +get_balance_history()
     }
 
     class AccountRepository {
@@ -86,20 +62,10 @@ classDiagram
     }
 
     ReportingRoute --> ReportingService
-    ReportingService --> BalanceStrategyFactory
-    BalanceStrategyFactory ..> TotalBalanceAtDateStrategy : creates
-    BalanceStrategyFactory ..> PerAccountBalanceAtDateStrategy : creates
-    BalanceStrategyFactory ..> BalanceHistoryStrategy : creates
-    TotalBalanceAtDateStrategy ..|> BalanceStrategy
-    PerAccountBalanceAtDateStrategy ..|> BalanceStrategy
-    BalanceHistoryStrategy ..|> BalanceStrategy
-    TotalBalanceAtDateStrategy --> AccountRepository
-    TotalBalanceAtDateStrategy --> BalanceSnapshotRepository
-    TotalBalanceAtDateStrategy --> TransactionRepository
-    PerAccountBalanceAtDateStrategy --> TotalBalanceAtDateStrategy : reuses logic
-    BalanceHistoryStrategy --> AccountRepository
-    BalanceHistoryStrategy --> BalanceSnapshotRepository
-    BalanceHistoryStrategy --> TransactionRepository
+    ReportingService --> BalanceEngine
+    BalanceEngine --> AccountRepository
+    BalanceEngine --> BalanceSnapshotRepository
+    BalanceEngine --> TransactionRepository
 ```
 
 ---
@@ -111,8 +77,7 @@ sequenceDiagram
     participant Client
     participant Route
     participant ReportingSvc
-    participant Factory
-    participant Strategy
+    participant Engine
     participant AccountRepo
     participant SnapshotRepo
     participant TxRepo
@@ -121,32 +86,28 @@ sequenceDiagram
     Client->>Route: GET /balance?as_of=...
     Route->>ReportingSvc: get_balance_response(user_id, as_of, currency)
 
-    ReportingSvc->>Factory: create_total_balance_strategy(...)
-    Factory-->>ReportingSvc: TotalBalanceAtDateStrategy
+    ReportingSvc->>Engine: get_total_balance(user_id, as_of, base_currency)
 
-    ReportingSvc->>Strategy: execute()
+    Note over Engine: 1. Batch-load (O(1) queries)
+    Engine->>AccountRepo: get_by_user_id(user_id)
+    AccountRepo-->>Engine: accounts
+    Engine->>SnapshotRepo: get_latest_snapshots_for_accounts(account_ids, as_of)
+    SnapshotRepo-->>Engine: snapshots
+    Engine->>TxRepo: get_transactions_for_accounts_until_date(account_ids, as_of)
+    TxRepo-->>Engine: tx_rows
 
-    Note over Strategy: 1. Batch-load (O(1) queries)
-    Strategy->>AccountRepo: get_by_user_id(user_id)
-    AccountRepo-->>Strategy: accounts
-    Strategy->>SnapshotRepo: get_latest_snapshots_for_accounts(account_ids, as_of)
-    SnapshotRepo-->>Strategy: snapshots
-    Strategy->>TxRepo: get_transactions_for_accounts_until_date(account_ids, as_of)
-    TxRepo-->>Strategy: tx_rows
+    Note over Engine: 2. If accounts without snapshot: batch-load more
+    Engine->>SnapshotRepo: get_latest_before_for_accounts(...)
+    Engine->>SnapshotRepo: get_snapshots_at_date(...)
+    Engine->>SnapshotRepo: add_many(to_create)  [if needed]
 
-    Note over Strategy: 2. If accounts without snapshot: batch-load more
-    Strategy->>SnapshotRepo: get_latest_before_for_accounts(...)
-    Strategy->>SnapshotRepo: get_snapshots_at_date(...)
-    Strategy->>SnapshotRepo: add_many(to_create)  [if needed]
-
-    Note over Strategy: 3. Compute in memory
-    Strategy->>Strategy: _compute_native_balances(...)
+    Note over Engine: 3. Compute in memory
     loop For each account (in memory)
-        Strategy->>FxSvc: convert(native, currency, base_currency)
-        FxSvc-->>Strategy: converted
+        Engine->>FxSvc: convert(native, currency, base_currency)
+        FxSvc-->>Engine: converted
     end
 
-    Strategy-->>ReportingSvc: total
+    Engine-->>ReportingSvc: total
     ReportingSvc-->>Route: BalanceResponse
     Route-->>Client: 200 OK
 ```
@@ -162,8 +123,7 @@ sequenceDiagram
     participant Client
     participant Route
     participant ReportingSvc
-    participant Factory
-    participant Strategy
+    participant Engine
     participant AccountRepo
     participant SnapshotRepo
     participant TxRepo
@@ -172,26 +132,22 @@ sequenceDiagram
     Client->>Route: GET /balance/accounts
     Route->>ReportingSvc: get_balance_accounts_response(...)
 
-    ReportingSvc->>Factory: create_per_account_balance_strategy(...)
-    Factory-->>ReportingSvc: PerAccountBalanceAtDateStrategy
+    ReportingSvc->>Engine: get_accounts_balance(user_id, as_of, base_currency)
 
-    ReportingSvc->>Strategy: execute()
+    Note over Engine: Batch-load + compute
+    Engine->>AccountRepo: get_by_user_id(user_id)
+    Engine->>SnapshotRepo: get_latest_snapshots_for_accounts(...)
+    Engine->>TxRepo: get_transactions_for_accounts_until_date(...)
+    Engine->>SnapshotRepo: get_latest_before_for_accounts(...)
+    Engine->>SnapshotRepo: get_snapshots_at_date(...)
+    Engine->>SnapshotRepo: add_many(...)
 
-    Note over Strategy: Reuses TotalBalanceAtDateStrategy logic
-    Strategy->>AccountRepo: get_by_user_id(user_id)
-    Strategy->>SnapshotRepo: get_latest_snapshots_for_accounts(...)
-    Strategy->>TxRepo: get_transactions_for_accounts_until_date(...)
-    Strategy->>SnapshotRepo: get_latest_before_for_accounts(...)
-    Strategy->>SnapshotRepo: get_snapshots_at_date(...)
-    Strategy->>SnapshotRepo: add_many(...)
-
-    Note over Strategy: Build per-account list + total
+    Note over Engine: Build per-account list + total
     loop For each account (in memory)
-        Strategy->>FxSvc: convert(...)
-        Strategy->>Strategy: append to accounts_list
+        Engine->>FxSvc: convert(...)
     end
 
-    Strategy-->>ReportingSvc: (accounts_list, total)
+    Engine-->>ReportingSvc: (accounts_list, total)
     ReportingSvc-->>Route: BalanceAccountsResponse
     Route-->>Client: 200 OK
 ```
@@ -207,8 +163,7 @@ sequenceDiagram
     participant Client
     participant Route
     participant ReportingSvc
-    participant Factory
-    participant Strategy
+    participant Engine
     participant AccountRepo
     participant SnapshotRepo
     participant TxRepo
@@ -218,33 +173,29 @@ sequenceDiagram
     Client->>Route: GET /balance/history?from=...&to=...&period=day
     Route->>ReportingSvc: get_balance_history_response(...)
 
-    ReportingSvc->>Factory: create_balance_history_strategy(...)
-    Factory-->>ReportingSvc: BalanceHistoryStrategy
+    ReportingSvc->>Engine: get_balance_history(user_id, from, to, period, base_currency)
 
-    ReportingSvc->>Strategy: execute()
+    Note over Engine: 1. Batch-load once (O(1) queries)
+    Engine->>AccountRepo: get_by_user_id(user_id)
+    Engine->>SnapshotRepo: get_latest_snapshots_for_accounts(...)
+    Engine->>SnapshotRepo: get_latest_before_for_accounts(...)
+    Engine->>TxRepo: get_transactions_for_accounts_until_date(account_ids, to_date)
+    TxRepo-->>Engine: tx_rows (all in range)
 
-    Note over Strategy: 1. Batch-load once (O(1) queries)
-    Strategy->>AccountRepo: get_by_user_id(user_id)
-    Strategy->>SnapshotRepo: get_latest_snapshots_for_accounts(...)
-    Strategy->>SnapshotRepo: get_latest_before_for_accounts(...)
-    Strategy->>TxRepo: get_transactions_for_accounts_until_date(account_ids, to_date)
-    TxRepo-->>Strategy: tx_rows (all in range)
+    Note over Engine: 2. Compute initial balances (in memory)
 
-    Note over Strategy: 2. Compute initial balances (in memory)
-    Strategy->>Strategy: _compute_initial_balances(tx_before)
-
-    Note over Strategy: 3. Walk forward by period (in memory only)
+    Note over Engine: 3. Walk forward by period (in memory only)
     loop For each date d in DateUtils.iter_dates(from, to, period)
-        Strategy->>DateUtils: iter_dates(from, to, period)
-        DateUtils-->>Strategy: d
-        Note over Strategy: Apply tx for dates <= d (in memory)
+        Engine->>DateUtils: iter_dates(from, to, period)
+        DateUtils-->>Engine: d
+        Note over Engine: Apply tx for dates <= d (in memory)
         loop For each account (in memory)
-            Strategy->>FxSvc: convert(balance, currency, base_currency, d)
+            Engine->>FxSvc: convert(balance, currency, base_currency, d)
         end
-        Strategy->>Strategy: append point
+        Note over Engine: append point
     end
 
-    Strategy-->>ReportingSvc: points
+    Engine-->>ReportingSvc: points
     ReportingSvc-->>Route: BalanceHistoryResponse
     Route-->>Client: 200 OK
 ```
@@ -255,7 +206,7 @@ sequenceDiagram
 
 ---
 
-## 6. Strategy Data Flow (TotalBalanceAtDateStrategy)
+## 6. Engine Data Flow (BalanceEngine.get_total_balance)
 
 ```mermaid
 flowchart TB
@@ -297,7 +248,7 @@ flowchart TB
 
 ---
 
-## 7. Strategy Data Flow (BalanceHistoryStrategy)
+## 7. Engine Data Flow (BalanceEngine.get_balance_history)
 
 ```mermaid
 flowchart TB

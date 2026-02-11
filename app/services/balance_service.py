@@ -113,6 +113,6 @@ class BalanceService:
                 user_id, d, base_currency
             )
 
-        return self.balance_engine.get_balance_history(
+        return self.balance_engine.get_balance_history_from_callback(
             from_date, to_date, period, balance_at_date_fn
         )

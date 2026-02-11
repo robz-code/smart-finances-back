@@ -21,8 +21,7 @@ from app.schemas.reporting_schemas import (
     ReportingParameters,
     TransactionSummaryPeriod,
 )
-from app.engines.balance.factory import BalanceStrategyFactory
-from app.services.account_service import AccountService
+from app.engines.balance_engine import BalanceEngine
 from app.services.category_service import CategoryService
 from app.services.transaction_service import TransactionService
 from app.shared.helpers.date_helper import calculate_period_dates
@@ -47,13 +46,11 @@ class ReportingService:
         self,
         category_service: CategoryService,
         transaction_service: TransactionService,
-        account_service: AccountService,
-        balance_strategy_factory: BalanceStrategyFactory,
+        balance_engine: BalanceEngine,
     ):
         self.category_service = category_service
         self.transaction_service = transaction_service
-        self.account_service = account_service
-        self.balance_strategy_factory = balance_strategy_factory
+        self.balance_engine = balance_engine
 
     def get_categories_summary(
         self,
@@ -196,13 +193,10 @@ class ReportingService:
     ) -> BalanceResponse:
         """
         Return total balance as of a date (default: today) in base currency.
-        Uses TotalBalanceAtDateStrategy (O(1) queries).
+        Uses BalanceEngine (O(1) queries).
         """
         as_of_date = as_of or date.today()
-        strategy = self.balance_strategy_factory.create_total_balance_strategy(
-            user_id, as_of_date, currency
-        )
-        total = strategy.execute()
+        total = self.balance_engine.get_total_balance(user_id, as_of_date, currency)
         return BalanceResponse(
             as_of=as_of_date, currency=currency, balance=total
         )
@@ -215,13 +209,12 @@ class ReportingService:
     ) -> BalanceAccountsResponse:
         """
         Return balance per account as of a date. Includes native and converted amounts.
-        Uses PerAccountBalanceAtDateStrategy (O(1) queries).
+        Uses BalanceEngine (O(1) queries).
         """
         as_of_date = as_of or date.today()
-        strategy = self.balance_strategy_factory.create_per_account_balance_strategy(
+        accounts_list, total = self.balance_engine.get_accounts_balance(
             user_id, as_of_date, currency
         )
-        accounts_list, total = strategy.execute()
         items = [AccountBalanceItem(**a) for a in accounts_list]
         return BalanceAccountsResponse(
             as_of=as_of_date, currency=currency, accounts=items, total=total
@@ -238,7 +231,7 @@ class ReportingService:
     ) -> BalanceHistoryResponse:
         """
         Return balance history for charts or lists. Validates inputs and builds response.
-        Uses BalanceHistoryStrategy (O(1) queries).
+        Uses BalanceEngine (O(1) queries).
         """
         if from_date > to_date:
             raise HTTPException(
@@ -250,10 +243,14 @@ class ReportingService:
                 detail="period must be one of: day, week, month (year not supported)",
             )
         period_str = period.value
-        strategy = self.balance_strategy_factory.create_balance_history_strategy(
-            user_id, from_date, to_date, period_str, currency, account_id
+        points_data = self.balance_engine.get_balance_history(
+            user_id=user_id,
+            from_date=from_date,
+            to_date=to_date,
+            period=period_str,
+            base_currency=currency,
+            account_id=account_id,
         )
-        points_data = strategy.execute()
         points = [
             BalanceHistoryPoint(date=p["date"], balance=p["balance"])
             for p in points_data
