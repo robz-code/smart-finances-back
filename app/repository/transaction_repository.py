@@ -214,16 +214,13 @@ class TransactionRepository(BaseRepository[Transaction]):
             else_=0,
         )
 
-        query = (
-            self.db.query(
-                func.coalesce(func.sum(income_expr), 0).label("income"),
-                func.coalesce(func.sum(expense_expr), 0).label("expense"),
-            )
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.date >= date_from,
-                Transaction.date <= date_to,
-            )
+        query = self.db.query(
+            func.coalesce(func.sum(income_expr), 0).label("income"),
+            func.coalesce(func.sum(expense_expr), 0).label("expense"),
+        ).filter(
+            Transaction.user_id == user_id,
+            Transaction.date >= date_from,
+            Transaction.date <= date_to,
         )
 
         if category_ids is not None:

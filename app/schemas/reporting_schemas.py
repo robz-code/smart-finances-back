@@ -1,8 +1,8 @@
+from datetime import date as Date
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID
-from datetime import date as Date
 
 from pydantic import UUID4, BaseModel, Field, model_validator
 
@@ -51,6 +51,7 @@ class ReportingParameters(BaseModel):
         if self.date_from > self.date_to:
             raise ValueError("'date_from' must be before or equal to 'date_to'")
         return self
+
 
 class CategoryAggregationData(BaseModel):
     """DTO for category transaction aggregation data"""

@@ -31,8 +31,7 @@ app = FastAPI(
 def _sanitize_validation_errors(errors: list) -> list:
     """Return only JSON-serializable fields from Pydantic errors (ctx may contain exceptions)."""
     return [
-        {k: v for k, v in err.items() if k in ("type", "loc", "msg")}
-        for err in errors
+        {k: v for k, v in err.items() if k in ("type", "loc", "msg")} for err in errors
     ]
 
 

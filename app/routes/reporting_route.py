@@ -53,14 +53,10 @@ def get_categories_summary(
     (income adds, expense subtracts) for the specified period.
     """
     user_id = cast(UUID, current_user.id)
-    return service.get_categories_summary(
-        user_id=user_id, parameters=parameters
-    )
+    return service.get_categories_summary(user_id=user_id, parameters=parameters)
 
 
-@router.get(
-    "/cashflow-summary", response_model=CashflowSummaryResponse
-)
+@router.get("/cashflow-summary", response_model=CashflowSummaryResponse)
 def get_cashflow_summary(
     parameters: ReportingParameters = Depends(),
     service: ReportingService = Depends(get_reporting_service),

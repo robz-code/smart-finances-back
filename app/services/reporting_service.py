@@ -101,7 +101,10 @@ class ReportingService:
                 ),
             )
             # When full_list is False, skip categories with no transactions
-            if not parameters.full_list and cat.id not in amounts_and_counts_by_category:
+            if (
+                not parameters.full_list
+                and cat.id not in amounts_and_counts_by_category
+            ):
                 continue
             category_summaries.append(
                 CategorySummaryResponse(
