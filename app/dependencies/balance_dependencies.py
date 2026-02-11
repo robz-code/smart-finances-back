@@ -14,7 +14,6 @@ from app.repository.account_repository import AccountRepository
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.services.account_service import AccountService
-from app.services.balance_service import BalanceService
 from app.services.fx_service import FxService
 from app.services.snapshot_service import SnapshotService
 from app.services.transaction_service import TransactionService
@@ -56,17 +55,3 @@ def get_snapshot_service(
         balance_snapshot_repository=balance_snapshot_repository,
     )
 
-
-def get_balance_service(
-    account_service: AccountService = Depends(get_account_service),
-    snapshot_service: SnapshotService = Depends(get_snapshot_service),
-    fx_service: FxService = Depends(get_fx_service),
-    balance_engine: BalanceEngine = Depends(get_balance_engine),
-) -> BalanceService:
-    """Balance service with injected dependencies."""
-    return BalanceService(
-        account_service=account_service,
-        snapshot_service=snapshot_service,
-        fx_service=fx_service,
-        balance_engine=balance_engine,
-    )

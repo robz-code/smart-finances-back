@@ -157,23 +157,6 @@ class BalanceEngine:
         return points
 
     # ---------------------------------------------------------------------
-    # Back-compat API (used by BalanceService; may be removed later)
-    # ---------------------------------------------------------------------
-
-    def get_balance_history_from_callback(
-        self,
-        from_date: date,
-        to_date: date,
-        period: str,
-        balance_at_date_fn,
-    ) -> List[dict]:
-        """Legacy helper: iterate dates and call a provided balance function."""
-        points: List[dict] = []
-        for d in iter_dates(from_date, to_date, period):
-            points.append({"date": d.isoformat(), "balance": balance_at_date_fn(d)})
-        return points
-
-    # ---------------------------------------------------------------------
     # Internal helpers
     # ---------------------------------------------------------------------
 
@@ -317,4 +300,3 @@ class BalanceEngine:
                 result[acc.id] = initial + delta
 
         return result
-

@@ -7,30 +7,15 @@ It never mutates the ledger or snapshots. Balances are stored in account currenc
 conversion to user base currency is done here when returning reporting data.
 """
 
-from abc import ABC, abstractmethod
 from datetime import date
 from decimal import Decimal
-from typing import Protocol
 
-
-class FxServiceProtocol(Protocol):
+class FxService:
     """
-    Interface for FX conversion. Balance logic must not depend on FX internals.
+    FX conversion at read time (presentation concern only).
+
+    MVP implementation: hard-coded rates + passthrough fallback.
     """
-
-    def convert(
-        self,
-        amount: Decimal,
-        from_currency: str,
-        to_currency: str,
-        as_of: date,
-    ) -> Decimal:
-        """Convert amount from from_currency to to_currency using rates as of as_of date."""
-        ...
-
-
-class FxService(ABC):
-    """Abstract base for FX conversion at read time."""
 
     def convert(
         self,
@@ -57,6 +42,6 @@ class FxService(ABC):
             return amount * Decimal(0.050)
         elif from_currency == "EUR" and to_currency == "MXN":
             return amount * Decimal(20.00)
-        pass
-
+        # Unknown pair: keep behavior safe and deterministic for MVP.
+        return amount
 

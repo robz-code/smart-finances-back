@@ -98,4 +98,3 @@ app/
 ## References
 
 - [BackEndProjectArchitecture.md](BackEndProjectArchitecture.md) - Overall architecture
-- [BalanceReportingAndSnapshots.md](BalanceReportingAndSnapshots.md) - Balance feature details
