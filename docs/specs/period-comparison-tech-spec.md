@@ -3,7 +3,7 @@
 
 ## 1. Contexto y objetivo
 
-Este documento define la especificación técnica para implementar el endpoint `GET /period-comparison` dentro del módulo de **Reporting**, siguiendo el estilo arquitectónico existente del proyecto (Route → Service → Repository) y reutilizando la lógica de cashflow ya disponible.
+Este documento define la especificación técnica para implementar el endpoint `GET /period-comparison` dentro del módulo de **Reporting**, siguiendo el estilo arquitectónico existente del proyecto (Route → Service → Repository) y priorizando una estrategia de consulta eficiente para evitar sobrecarga de base de datos.
 
 Objetivo funcional: comparar el desempeño financiero del periodo actual contra el periodo anterior equivalente (misma duración), aplicando exactamente los mismos filtros en ambos periodos.
 
@@ -18,9 +18,15 @@ Objetivo funcional: comparar el desempeño financiero del periodo actual contra 
 - **Service layer (`app/services/reporting_service.py`)**: orquesta validaciones de negocio, resolución de periodos, filtros y agregaciones.
 - **Helper layer (`app/shared/helpers/date_helper.py`)**: contiene utilidades para cálculo de rangos temporales (`calculate_period_dates`).
 
-### 2.2 Reutilización requerida
+### 2.2 Reutilización requerida (sin acoplar queries)
 
-Para cumplir el requisito no-funcional “reutilizar lógica de cashflow”, este endpoint debe reutilizar `ReportingService.get_cashflow_summary(...)` / `TransactionService.get_cashflow_summary(...)` para calcular `income`, `expense` y `net` por periodo, evitando duplicar lógica de agregación.
+Para cumplir el requisito no-funcional “reutilizar lógica de cashflow” **sin degradar performance**, la reutilización debe hacerse en componentes de dominio (validaciones, normalización de filtros, mapeo de parámetros), no en una cadena de llamadas que dispare múltiples consultas agregadas por cada request.
+
+En términos prácticos:
+- **Sí reutilizar**: construcción de filtros comunes de transacciones y reglas de negocio de reporting.
+- **No reutilizar de forma directa**: `ReportingService.get_cashflow_summary(...)` / `TransactionService.get_cashflow_summary(...)` si eso obliga a ejecutar queries adicionales para resolver `current` y `previous`.
+
+La meta es mantener la arquitectura limpia y, al mismo tiempo, optimizar latencia y carga de DB.
 
 ---
 
@@ -170,10 +176,10 @@ Sub-flujo recomendado:
    - Reutilizar la misma lógica de `get_cashflow_summary` para `type/category` si se decide soportar `type` en esta primera versión.
    - Para el contrato funcional solicitado, `category_id` es suficiente como filtro mínimo.
 
-4. **Obtener métricas por periodo**
-   - Llamar `transaction_service.get_cashflow_summary(...)` para `current`.
-   - Llamar `transaction_service.get_cashflow_summary(...)` para `previous`.
-   - Cada llamada devuelve `(income, expense, total)` donde `total = net`.
+4. **Obtener métricas por periodo con query optimizada**
+   - Delegar en repositorio una sola operación de lectura para ambos periodos (idealmente una query con agregación condicional).
+   - La respuesta del repositorio debe incluir métricas de `current` y `previous` ya agregadas (`income`, `expense`, `net`).
+   - Evitar resolver cada periodo con llamadas de servicio independientes si eso incrementa round-trips a DB.
 
 5. **Construir summary**
    - `difference = current.net - previous.net`
@@ -192,10 +198,16 @@ Sub-flujo recomendado:
 
 ### 5.3 Repository / Query strategy
 
-No se requieren cambios obligatorios de repositorio para una primera versión:
-- Se reutilizan agregaciones existentes de `TransactionService.get_cashflow_summary(...)`.
-- Se ejecutan **2 queries agregadas** (una por periodo), cumpliendo O(1) queries por periodo.
-- Se evita completamente cualquier loop de queries por día.
+Se requiere una estrategia explícita de consulta para minimizar round-trips:
+
+- Incorporar un método dedicado en repositorio (por ejemplo, `get_period_comparison_summary(...)`) que reciba ambos rangos y filtros comunes.
+- Ejecutar **1 query agregada** con `CASE WHEN` (u opción equivalente) para obtener en una sola lectura:
+  - `current_income`, `current_expense`, `current_net`
+  - `previous_income`, `previous_expense`, `previous_net`
+- Reutilizar un constructor común de filtros SQL/ORM para preservar consistencia con cashflow sin copiar reglas.
+- Mantener complejidad constante y evitar loops de queries por día/semana/mes.
+
+> Nota: si por restricciones del ORM no se logra una única query mantenible, se permite fallback controlado a 2 queries agregadas (una por periodo), documentando trade-offs. La prioridad sigue siendo estabilidad + claridad + performance.
 
 ---
 
@@ -215,10 +227,11 @@ No se requieren cambios obligatorios de repositorio para una primera versión:
 
 ## 7. Consideraciones no funcionales
 
-- Reutiliza lógica de cashflow existente.
+- Reutiliza lógica de negocio y filtros de cashflow, desacoplando la ejecución de queries para evitar sobre-consulta.
+- Prioriza el menor número posible de round-trips a base de datos por request.
 - No usa snapshots.
 - No usa predicción ni acumulados.
-- Complejidad de consultas: O(1) por periodo (2 consultas agregadas totales en comparación estándar).
+- Complejidad de consultas: O(1) por request, priorizando 1 consulta agregada y permitiendo fallback controlado de 2 consultas agregadas.
 - Endpoint read-only, sin mutaciones.
 
 ---
@@ -259,7 +272,7 @@ Casos mínimos:
 ### Fase 1 (MVP técnico)
 - Nuevos schemas de entrada/salida.
 - Nuevo endpoint en route.
-- Nuevo método en reporting service reutilizando cashflow.
+- Nuevo método en reporting service reutilizando reglas/filtros de cashflow y delegando agregación optimizada al repositorio.
 - Tests unitarios base.
 
 ### Fase 2 (hardening)
