@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -308,6 +308,8 @@ class ReportingService:
         return points
 
     def _normalize_period_start(self, value: object) -> date:
+        if isinstance(value, datetime):
+            return value.date()
         if isinstance(value, date):
             return value
         if isinstance(value, str):
