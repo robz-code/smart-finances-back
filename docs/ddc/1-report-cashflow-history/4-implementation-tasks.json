@@ -19,7 +19,7 @@
       "step": 1,
       "title": "Freeze endpoint contract",
       "description": "Confirm and lock query params, defaults, validation rules, and response schema for GET /api/v1/reporting/cashflow/history.",
-      "status": "todo",
+      "status": "done",
       "points": 2,
       "priority": "high",
       "depends_on": [],
@@ -37,7 +37,7 @@
       "step": 2,
       "title": "Add cashflow history schemas",
       "description": "Implement CashflowHistoryPoint, CashflowHistoryResponse, and CashflowHistoryParameters in reporting schemas.",
-      "status": "todo",
+      "status": "done",
       "points": 3,
       "priority": "high",
       "depends_on": [
@@ -56,7 +56,7 @@
       "step": 3,
       "title": "Implement parameter validators",
       "description": "Add validation for date range and amount bounds in CashflowHistoryParameters.",
-      "status": "todo",
+      "status": "done",
       "points": 2,
       "priority": "high",
       "depends_on": [
@@ -76,7 +76,7 @@
       "step": 4,
       "title": "Build repository aggregation query",
       "description": "Implement get_cashflow_history_grouped with date_trunc buckets, AND filters, and grouped output for explicit and implicit currency flows.",
-      "status": "todo",
+      "status": "done",
       "points": 8,
       "priority": "high",
       "depends_on": [
@@ -97,7 +97,7 @@
       "step": 5,
       "title": "Add transaction service wrapper",
       "description": "Expose get_cashflow_history_grouped in TransactionService as a thin delegation layer.",
-      "status": "todo",
+      "status": "done",
       "points": 2,
       "priority": "medium",
       "depends_on": [
@@ -116,7 +116,7 @@
       "step": 6,
       "title": "Implement continuous bucket generator",
       "description": "Create/extend helper logic to generate all period_start buckets between date_from and date_to for each granularity.",
-      "status": "todo",
+      "status": "done",
       "points": 5,
       "priority": "high",
       "depends_on": [
@@ -136,7 +136,7 @@
       "step": 7,
       "title": "Implement reporting orchestration",
       "description": "Implement get_cashflow_history_response in ReportingService including category ownership validation, bucket population, sign normalization, net formula, and deterministic order.",
-      "status": "todo",
+      "status": "done",
       "points": 8,
       "priority": "high",
       "depends_on": [
@@ -158,7 +158,7 @@
       "step": 8,
       "title": "Add currency normalization behavior",
       "description": "Apply explicit-currency passthrough behavior and implicit-currency conversion to base currency using FxService after aggregation.",
-      "status": "todo",
+      "status": "done",
       "points": 5,
       "priority": "high",
       "depends_on": [
@@ -179,7 +179,7 @@
       "step": 9,
       "title": "Expose route endpoint",
       "description": "Add GET /cashflow/history route, dependencies, and response model wiring.",
-      "status": "todo",
+      "status": "done",
       "points": 3,
       "priority": "high",
       "depends_on": [
@@ -201,7 +201,7 @@
       "step": 10,
       "title": "Add automated tests",
       "description": "Implement tests for continuous series, granularities, filters, sign/net, currency behavior, and 422 validations.",
-      "status": "todo",
+      "status": "done",
       "points": 8,
       "priority": "high",
       "depends_on": [
@@ -221,7 +221,7 @@
       "step": 11,
       "title": "Performance and index validation",
       "description": "Validate query performance and confirm supporting indexes for typical reporting filters.",
-      "status": "todo",
+      "status": "blocked",
       "points": 3,
       "priority": "medium",
       "depends_on": [
@@ -234,14 +234,15 @@
       "acceptance_criteria": [
         "No full scan regression in representative dataset",
         "Index strategy documented if migration is required"
-      ]
+      ],
+      "blocked_reason": "Representative production-like dataset and DB execution-plan validation are not available in this environment; index/perf validation must be done in staging/prod-like Postgres."
     },
     {
       "id": "CFH-012",
       "step": 12,
       "title": "Definition of Done validation",
       "description": "Run test suite, verify acceptance criteria, and close checklist from 3-plan with evidence.",
-      "status": "todo",
+      "status": "blocked",
       "points": 2,
       "priority": "high",
       "depends_on": [
@@ -257,7 +258,8 @@
         "All critical tests pass",
         "No unresolved high-priority gaps",
         "Feature ready for merge"
-      ]
+      ],
+      "blocked_reason": "Cannot close full Definition of Done while CFH-011 remains blocked for production-like performance evidence."
     }
   ],
   "summary": {

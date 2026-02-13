@@ -59,6 +59,8 @@ def _create_transaction(
     amount: str = "100.00",
     transaction_type: str = "expense",
     transaction_date: str = None,
+    currency: str = "USD",
+    source: str = "manual",
 ):
     """Helper function to create a transaction for testing"""
     if transaction_date is None:
@@ -69,8 +71,9 @@ def _create_transaction(
         "category_id": category_id,
         "type": transaction_type,
         "amount": amount,
-        "currency": "USD",
+        "currency": currency,
         "date": transaction_date,
+        "source": source,
     }
     r = client.post("/api/v1/transactions", json=create_payload, headers=auth_headers)
     assert r.status_code == 200
@@ -473,3 +476,284 @@ def test_balance_history_query_count(client, auth_headers, query_counter):
         f"Expected <= 15 queries (O(1)), got {query_counter[0]}. "
         "Balance history must not scale with number of days."
     )
+
+
+# -------------------------------------------------------------------------
+# Cashflow history endpoint tests
+# -------------------------------------------------------------------------
+
+
+def test_cashflow_history_monthly_continuous_series(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "CFH Expense", "expense")
+    salary = _create_category(client, auth_headers, "CFH Salary", "income")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "100.00",
+        "expense",
+        "2025-01-10",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        salary["id"],
+        "300.00",
+        "income",
+        "2025-03-10",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2025-01-01&date_to=2025-03-31&period=month&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["period"] == "month"
+    assert data["currency"] == "USD"
+    assert len(data["points"]) == 3
+    assert [p["period_start"] for p in data["points"]] == [
+        "2025-01-01",
+        "2025-02-01",
+        "2025-03-01",
+    ]
+    feb = data["points"][1]
+    assert feb["income"] == "0.00"
+    assert feb["expense"] == "0.00"
+    assert feb["net"] == "0.00"
+
+
+@pytest.mark.parametrize(
+    "period,date_from,date_to,expected_points",
+    [
+        ("day", "2026-01-01", "2026-01-03", 3),
+        ("week", "2026-01-01", "2026-01-10", 2),
+        ("month", "2026-01-01", "2026-03-31", 3),
+        ("year", "2025-01-01", "2026-12-31", 2),
+    ],
+)
+def test_cashflow_history_day_week_month_year_periods(
+    client,
+    auth_headers,
+    period,
+    date_from,
+    date_to,
+    expected_points,
+):
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "Granularity Cat", "expense")
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "20.00",
+        "expense",
+        "2026-01-02",
+    )
+
+    r = client.get(
+        f"/api/v1/reporting/cashflow/history?date_from={date_from}&date_to={date_to}&period={period}&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["period"] == period
+    assert len(data["points"]) == expected_points
+    assert [p["period_start"] for p in data["points"]] == sorted(
+        [p["period_start"] for p in data["points"]]
+    )
+
+
+def test_cashflow_history_filters_and_logic(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    account_a = _create_account(client, auth_headers, name="A", currency="USD")
+    account_b = _create_account(client, auth_headers, name="B", currency="USD")
+    category_a = _create_category(client, auth_headers, "Food", "expense")
+    category_b = _create_category(client, auth_headers, "Travel", "expense")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        account_a["id"],
+        category_a["id"],
+        "80.00",
+        "expense",
+        "2026-01-05",
+        source="manual",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        account_a["id"],
+        category_a["id"],
+        "20.00",
+        "expense",
+        "2026-01-06",
+        source="imported",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        account_b["id"],
+        category_b["id"],
+        "100.00",
+        "expense",
+        "2026-01-07",
+        source="manual",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        f"?date_from=2026-01-01&date_to=2026-01-31&period=month"
+        f"&account_id={account_a['id']}&category_id={category_a['id']}"
+        "&amount_min=70&amount_max=90&source=manual&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["points"]) == 1
+    point = data["points"][0]
+    assert point["income"] == "0.00"
+    assert point["expense"] == "-80.00"
+    assert point["net"] == "-80.00"
+
+
+def test_cashflow_history_expense_sign_and_net_formula(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    income_category = _create_category(client, auth_headers, "Payroll", "income")
+    expense_category = _create_category(client, auth_headers, "Bills", "expense")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        income_category["id"],
+        "200.00",
+        "income",
+        "2026-01-10",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        expense_category["id"],
+        "75.00",
+        "expense",
+        "2026-01-10",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2026-01-01&date_to=2026-01-31&period=month&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    point = r.json()["points"][0]
+    assert float(point["expense"]) <= 0
+    assert float(point["net"]) == float(point["income"]) + float(point["expense"])
+
+
+def test_cashflow_history_currency_explicit_no_conversion(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    income_category = _create_category(client, auth_headers, "Income", "income")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "100.00",
+        "income",
+        "2026-01-12",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        income_category["id"],
+        "10.00",
+        "income",
+        "2026-01-12",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2026-01-01&date_to=2026-01-31&period=month&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["currency"] == "USD"
+    assert data["points"][0]["income"] == "100.00"
+
+
+def test_cashflow_history_without_currency_converts_to_base(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    income_category = _create_category(client, auth_headers, "Income", "income")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "100.00",
+        "income",
+        "2026-01-12",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        income_category["id"],
+        "10.00",
+        "income",
+        "2026-01-12",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2026-01-01&date_to=2026-01-31&period=month",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["currency"] == "USD"
+    # 100 USD + (10 EUR * 0.90 EUR->USD conversion) = 109.00
+    assert data["points"][0]["income"] == "109.00"
+
+
+def test_cashflow_history_invalid_date_range_returns_422(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2026-02-01&date_to=2026-01-01&period=month",
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_cashflow_history_invalid_amount_range_returns_422(client, auth_headers):
+    _create_user(client, auth_headers, currency="USD")
+    r = client.get(
+        "/api/v1/reporting/cashflow/history"
+        "?date_from=2026-01-01&date_to=2026-02-01&period=month&amount_min=20&amount_max=10",
+        headers=auth_headers,
+    )
+    assert r.status_code == 422

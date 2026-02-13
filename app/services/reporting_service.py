@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -16,6 +16,9 @@ from app.schemas.reporting_schemas import (
     BalanceHistoryPoint,
     BalanceHistoryResponse,
     BalanceResponse,
+    CashflowHistoryParameters,
+    CashflowHistoryPoint,
+    CashflowHistoryResponse,
     CashflowSummaryResponse,
     CategoryAggregationData,
     CategorySummaryResponse,
@@ -23,6 +26,7 @@ from app.schemas.reporting_schemas import (
     TransactionSummaryPeriod,
 )
 from app.services.category_service import CategoryService
+from app.services.fx_service import FxService
 from app.services.transaction_service import TransactionService
 from app.shared.helpers.date_helper import calculate_period_dates
 
@@ -46,10 +50,12 @@ class ReportingService:
         category_service: CategoryService,
         transaction_service: TransactionService,
         balance_engine: BalanceEngine,
+        fx_service: FxService,
     ):
         self.category_service = category_service
         self.transaction_service = transaction_service
         self.balance_engine = balance_engine
+        self.fx_service = fx_service
 
     def get_categories_summary(
         self,
@@ -257,4 +263,128 @@ class ReportingService:
         ]
         return BalanceHistoryResponse(
             currency=currency, period=period_str, points=points
+        )
+
+    def _align_period_start(
+        self, value: date, period: TransactionSummaryPeriod
+    ) -> date:
+        if period == TransactionSummaryPeriod.DAY:
+            return value
+        if period == TransactionSummaryPeriod.WEEK:
+            return value - timedelta(days=value.weekday())
+        if period == TransactionSummaryPeriod.MONTH:
+            return value.replace(day=1)
+        if period == TransactionSummaryPeriod.YEAR:
+            return date(value.year, 1, 1)
+        raise ValueError(f"Unsupported period '{period.value}'")
+
+    def _next_period_start(
+        self, value: date, period: TransactionSummaryPeriod
+    ) -> date:
+        if period == TransactionSummaryPeriod.DAY:
+            return value + timedelta(days=1)
+        if period == TransactionSummaryPeriod.WEEK:
+            return value + timedelta(days=7)
+        if period == TransactionSummaryPeriod.MONTH:
+            if value.month == 12:
+                return date(value.year + 1, 1, 1)
+            return date(value.year, value.month + 1, 1)
+        if period == TransactionSummaryPeriod.YEAR:
+            return date(value.year + 1, 1, 1)
+        raise ValueError(f"Unsupported period '{period.value}'")
+
+    def _build_period_buckets(
+        self,
+        date_from: date,
+        date_to: date,
+        period: TransactionSummaryPeriod,
+    ) -> list[date]:
+        current = self._align_period_start(date_from, period)
+        end = self._align_period_start(date_to, period)
+        points: list[date] = []
+        while current <= end:
+            points.append(current)
+            current = self._next_period_start(current, period)
+        return points
+
+    def _normalize_period_start(self, value: object) -> date:
+        if isinstance(value, date):
+            return value
+        if isinstance(value, str):
+            return date.fromisoformat(value[:10])
+        raise ValueError(f"Unsupported period_start type: {type(value)}")
+
+    def get_cashflow_history_response(
+        self,
+        user_id: UUID,
+        parameters: CashflowHistoryParameters,
+        base_currency: str,
+    ) -> CashflowHistoryResponse:
+        if parameters.category_id is not None:
+            category = self.category_service.get(parameters.category_id)
+            if category.user_id != user_id:
+                raise HTTPException(status_code=404, detail="Category not found")
+
+        rows = self.transaction_service.get_cashflow_history_grouped(
+            user_id=user_id,
+            date_from=parameters.date_from,
+            date_to=parameters.date_to,
+            period=parameters.period.value,
+            account_id=parameters.account_id,
+            category_id=parameters.category_id,
+            currency=parameters.currency,
+            amount_min=parameters.amount_min,
+            amount_max=parameters.amount_max,
+            source=parameters.source,
+        )
+
+        output_currency = parameters.currency or base_currency
+        bucket_dates = self._build_period_buckets(
+            parameters.date_from, parameters.date_to, parameters.period
+        )
+        aggregates: dict[date, dict[str, Decimal]] = {
+            bucket: {"income": Decimal("0"), "expense_abs": Decimal("0")}
+            for bucket in bucket_dates
+        }
+
+        for row in rows:
+            period_start = self._normalize_period_start(row["period_start"])
+            if period_start not in aggregates:
+                continue
+
+            income = row["income"]
+            expense_abs = row["expense_abs"]
+
+            if parameters.currency is None:
+                from_currency = row["currency"] or output_currency
+                income = self.fx_service.convert(
+                    income, from_currency, output_currency, period_start
+                )
+                expense_abs = self.fx_service.convert(
+                    expense_abs, from_currency, output_currency, period_start
+                )
+
+            aggregates[period_start]["income"] += income
+            aggregates[period_start]["expense_abs"] += expense_abs
+
+        points: list[CashflowHistoryPoint] = []
+        for bucket in sorted(aggregates):
+            income = aggregates[bucket]["income"]
+            expense = -aggregates[bucket]["expense_abs"]
+            net = income + expense
+            points.append(
+                CashflowHistoryPoint(
+                    period_start=bucket.isoformat(),
+                    income=income,
+                    expense=expense,
+                    net=net,
+                )
+            )
+
+        return CashflowHistoryResponse(
+            period=parameters.period.value,
+            date_from=parameters.date_from,
+            date_to=parameters.date_to,
+            currency=output_currency,
+            points=points,
         )
