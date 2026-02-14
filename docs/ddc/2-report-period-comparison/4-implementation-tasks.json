@@ -1,0 +1,87 @@
+{
+  "feature": "Period Comparison",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Create response schemas for period comparison",
+      "description": "Add PeriodMetrics, PeriodComparisonSummary, PeriodComparisonResponse to app/schemas/reporting_schemas.py with Decimal json_encoders consistent with reporting.",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "Schemas serialize correctly; PeriodMetrics has start, end, income, expense, net; PeriodComparisonSummary has difference, percentage_change, percentage_change_available, trend; PeriodComparisonResponse has current_period, previous_period, summary.",
+      "status": "pending"
+    },
+    {
+      "id": "T2",
+      "title": "Create PeriodComparisonParameters with period/date validation",
+      "description": "Add PeriodComparisonParameters (period Optional, date_from, date_to Optional, filters) with validator: period present → use period; period null → require both dates; date_from <= date_to. Same pattern as ReportingParameters.",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "Validates period OR date_from+date_to; rejects date_from > date_to; rejects period null with only one date; invalid period returns 422.",
+      "status": "pending"
+    },
+    {
+      "id": "T3",
+      "title": "Add calculate_previous_equivalent_period to date_helper",
+      "description": "Implement calculate_previous_equivalent_period(current_start, current_end) -> Tuple[date, date] with previous_end = current_start - 1 day, previous_start = previous_end - duration.",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "Returns correct (previous_start, previous_end) for arbitrary date ranges; both periods have identical duration.",
+      "status": "pending"
+    },
+    {
+      "id": "T4",
+      "title": "Implement get_period_comparison in ReportingService",
+      "description": "Add get_period_comparison(user_id, parameters) that resolves current period (via calculate_period_dates or date_from/date_to), computes previous via calculate_previous_equivalent_period, calls get_cashflow_summary twice, builds summary (difference, percentage_change with zero-division handling, trend).",
+      "layer": "backend",
+      "depends_on": ["T1", "T2", "T3"],
+      "acceptance_criteria": "Returns PeriodComparisonResponse; period=month compares to previous month; period null + dates uses custom range; previous.net=0 yields percentage_change=null and percentage_change_available=false; trend up/down/flat correct.",
+      "status": "pending"
+    },
+    {
+      "id": "T5",
+      "title": "Add GET /period-comparison endpoint to reporting route",
+      "description": "Register GET /period-comparison with PeriodComparisonParameters=Depends(), ReportingService, get_current_user; response_model=PeriodComparisonResponse.",
+      "layer": "backend",
+      "depends_on": ["T4"],
+      "acceptance_criteria": "Endpoint accessible at /api/v1/reporting/period-comparison; returns 401 without auth; returns valid JSON matching contract; Swagger docs generated.",
+      "status": "pending"
+    },
+    {
+      "id": "T6",
+      "title": "Unit tests for PeriodComparisonParameters validation",
+      "description": "Test PeriodComparisonParameters validator: valid period, valid date range, invalid (date_from > date_to, period null with one date missing, invalid period value).",
+      "layer": "tests",
+      "depends_on": ["T2"],
+      "acceptance_criteria": "All validation cases pass; 422 scenarios covered.",
+      "status": "pending"
+    },
+    {
+      "id": "T7",
+      "title": "Unit tests for calculate_previous_equivalent_period",
+      "description": "Test calculate_previous_equivalent_period returns correct previous range for various current ranges; verify duration equality.",
+      "layer": "tests",
+      "depends_on": ["T3"],
+      "acceptance_criteria": "Tests pass for week, month, 90-day ranges; previous_end = current_start - 1 day; duration preserved.",
+      "status": "pending"
+    },
+    {
+      "id": "T8",
+      "title": "Unit tests for get_period_comparison service",
+      "description": "Test get_period_comparison: period=month/week, period null+dates, previous.net=0, trend up/down/flat, empty periods, filters applied symmetrically.",
+      "layer": "tests",
+      "depends_on": ["T4"],
+      "acceptance_criteria": "All test cases pass; mocks for get_cashflow_summary; edge cases (previous=0, no transactions) covered.",
+      "status": "pending"
+    },
+    {
+      "id": "T9",
+      "title": "Integration tests for period-comparison API",
+      "description": "API tests: invalid params 422, auth required 401, response contract and field order, happy path with period and with date range.",
+      "layer": "tests",
+      "depends_on": ["T5"],
+      "acceptance_criteria": "Integration tests pass; 422 on date_from > date_to, period null + one date; 401 without token; response matches schema.",
+      "status": "pending"
+    }
+  ],
+  "completion_rule": "Feature is complete when all tasks status = done"
+}

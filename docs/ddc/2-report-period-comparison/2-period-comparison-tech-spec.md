@@ -36,15 +36,17 @@ Para cumplir el requisito no-funcional “reutilizar lógica de cashflow”, est
 
 ### 3.2 Query params de entrada
 
-#### 3.2.1 Selección de periodo (mutuamente excluyente)
+#### 3.2.1 Selección de periodo (mismo patrón que ReportingParameters)
 
 **Modo A — Periodo predefinido**
-- `period_type`: `week | month | year`
+- `period`: `week | month | year` (opcional)
 
 **Modo B — Rango personalizado**
-- `period_type`: `custom`
-- `date_from`: `YYYY-MM-DD` (requerido en `custom`)
-- `date_to`: `YYYY-MM-DD` (requerido en `custom`)
+- `period`: null/omitido
+- `date_from`: `YYYY-MM-DD` (requerido cuando period es null)
+- `date_to`: `YYYY-MM-DD` (requerido cuando period es null)
+
+No se especifica valor "custom"; cuando `period` es null y se envían `date_from` y `date_to`, el modo es rango personalizado.
 
 #### 3.2.2 Filtros opcionales (idénticos para ambos periodos)
 
@@ -91,23 +93,16 @@ Orden de respuesta obligatorio:
 
 ## 4. Diseño de esquemas (Pydantic)
 
-Agregar en `app/schemas/reporting_schemas.py`:
-
-- `PeriodComparisonType(str, Enum)`
-  - `WEEK = "week"`
-  - `MONTH = "month"`
-  - `YEAR = "year"`
-  - `CUSTOM = "custom"`
+Reutilizar el patrón de `ReportingParameters` (sin crear enum adicional). Agregar en `app/schemas/reporting_schemas.py`:
 
 - `PeriodComparisonParameters(BaseModel)`
-  - `period_type: PeriodComparisonType`
+  - `period: Optional[TransactionSummaryPeriod]` (valores: week, month, year; day no aplica para este endpoint)
   - `date_from: Optional[date]`
   - `date_to: Optional[date]`
   - filtros opcionales (`account_id`, `category_id`, `currency`, `amount_min`, `amount_max`, `source`)
-  - validador de reglas:
-    - `custom` exige `date_from` y `date_to`
-    - en no-`custom`, `date_from`/`date_to` deben omitirse
-    - `date_from <= date_to`
+  - validador (mismo que `ReportingParameters.ensure_date_range_or_period`):
+    - si `period` está presente → usar periodo predefinido; ignorar date_from/date_to
+    - si `period` es null → exigir ambos `date_from` y `date_to`; validar `date_from <= date_to`
 
 - `PeriodMetrics(BaseModel)`
   - `start: date`
@@ -158,8 +153,8 @@ Agregar en `ReportingService`:
 Sub-flujo recomendado:
 
 1. **Resolver periodo actual**
-   - `week/month/year`: reutilizar `calculate_period_dates(...)` mapeando a `TransactionSummaryPeriod`.
-   - `custom`: usar `[date_from, date_to]`.
+   - Si `parameters.period` está presente (week/month/year): reutilizar `calculate_period_dates(parameters.period)`.
+   - Si `parameters.period` es null: usar `[date_from, date_to]`.
 
 2. **Calcular periodo anterior equivalente**
    - `duration = current_end - current_start`
@@ -208,8 +203,8 @@ No se requieren cambios obligatorios de repositorio para una primera versión:
 5. Nunca dividir por cero en `% change`.
 6. Errores de validación (`422`):
    - `date_from > date_to`
-   - Solo uno de `date_from` o `date_to`
-   - `period_type` inválido
+   - Cuando `period` es null: solo uno de `date_from` o `date_to` enviado
+   - `period` inválido
 
 ---
 
@@ -230,9 +225,9 @@ No se requieren cambios obligatorios de repositorio para una primera versión:
 Archivo sugerido: `tests/test_reporting.py`
 
 Casos mínimos:
-1. `month` compara contra mes anterior equivalente.
-2. `week` compara contra semana anterior equivalente.
-3. `custom` 90 días compara con 90 días previos.
+1. `period=month` compara contra mes anterior equivalente.
+2. `period=week` compara contra semana anterior equivalente.
+3. `period` null + `date_from`/`date_to` (90 días) compara con 90 días previos.
 4. `previous.net = 0` devuelve `percentage_change = null` y flag en `false`.
 5. `difference > 0` => `trend=up`; `<0` => `down`; `==0` => `flat`.
 6. Sin transacciones en uno o ambos periodos => ceros.
