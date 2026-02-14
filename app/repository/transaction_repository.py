@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
+from sqlalchemy import Date as SQLDate
 from sqlalchemy import Integer, case, cast, func, literal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
@@ -13,7 +14,7 @@ from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
-from app.schemas.reporting_schemas import CategoryAggregationData
+from app.schemas.reporting_schemas import CategoryAggregationData, TransactionSummaryPeriod
 from app.schemas.transaction_schemas import TransactionSearch
 
 logger = logging.getLogger(__name__)
@@ -254,40 +255,39 @@ class TransactionRepository(BaseRepository[Transaction]):
         total = income - expense
         return (income, expense, total)
 
-    def _build_period_start_expr(self, period: str):
+    def _build_period_start_expr(self, period: TransactionSummaryPeriod):
         """Build DB-specific period bucket expression."""
         dialect = self.db.bind.dialect.name if self.db.bind else ""
         if dialect == "sqlite":
-            if period == "day":
+            if period == TransactionSummaryPeriod.DAY:
                 return func.date(Transaction.date)
-            if period == "week":
+            if period == TransactionSummaryPeriod.WEEK:
                 # SQLite strftime('%w'): Sunday=0..Saturday=6. Normalize to Monday start.
                 weekday = cast(func.strftime("%w", Transaction.date), Integer)
                 days_since_monday = (weekday + 6) % 7
                 return func.date(
                     Transaction.date, func.printf("-%d days", days_since_monday)
                 )
-            if period == "month":
+            if period == TransactionSummaryPeriod.MONTH:
                 return func.strftime("%Y-%m-01", Transaction.date)
-            if period == "year":
+            if period == TransactionSummaryPeriod.YEAR:
                 return func.strftime("%Y-01-01", Transaction.date)
         else:
-            if period == "day":
-                return func.date_trunc("day", Transaction.date)
-            if period == "week":
-                return func.date_trunc("week", Transaction.date)
-            if period == "month":
-                return func.date_trunc("month", Transaction.date)
-            if period == "year":
-                return func.date_trunc("year", Transaction.date)
-        raise ValueError(f"Unsupported period '{period}'")
+            if period in {
+                TransactionSummaryPeriod.DAY,
+                TransactionSummaryPeriod.WEEK,
+                TransactionSummaryPeriod.MONTH,
+                TransactionSummaryPeriod.YEAR,
+            }:
+                return cast(func.date_trunc(period.value, Transaction.date), SQLDate)
+        raise ValueError(f"Unsupported period '{period.value}'")
 
     def get_cashflow_history_grouped(
         self,
         user_id: UUID,
         date_from: date,
         date_to: date,
-        period: str,
+        period: TransactionSummaryPeriod,
         *,
         account_id: Optional[UUID] = None,
         category_id: Optional[UUID] = None,

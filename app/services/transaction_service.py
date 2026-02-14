@@ -17,6 +17,7 @@ from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
 from app.schemas.reporting_schemas import CategoryAggregationData
+from app.schemas.reporting_schemas import TransactionSummaryPeriod
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
@@ -157,7 +158,7 @@ class TransactionService(BaseService[Transaction]):
         user_id: UUID,
         date_from: date,
         date_to: date,
-        period: str,
+        period: TransactionSummaryPeriod,
         *,
         account_id: Optional[UUID] = None,
         category_id: Optional[UUID] = None,

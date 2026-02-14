@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
@@ -28,7 +28,7 @@ from app.schemas.reporting_schemas import (
 from app.services.category_service import CategoryService
 from app.services.fx_service import FxService
 from app.services.transaction_service import TransactionService
-from app.shared.helpers.date_helper import calculate_period_dates
+from app.shared.helpers.date_helper import build_period_buckets, calculate_period_dates
 
 logger = logging.getLogger(__name__)
 
@@ -265,48 +265,6 @@ class ReportingService:
             currency=currency, period=period_str, points=points
         )
 
-    def _align_period_start(
-        self, value: date, period: TransactionSummaryPeriod
-    ) -> date:
-        if period == TransactionSummaryPeriod.DAY:
-            return value
-        if period == TransactionSummaryPeriod.WEEK:
-            return value - timedelta(days=value.weekday())
-        if period == TransactionSummaryPeriod.MONTH:
-            return value.replace(day=1)
-        if period == TransactionSummaryPeriod.YEAR:
-            return date(value.year, 1, 1)
-        raise ValueError(f"Unsupported period '{period.value}'")
-
-    def _next_period_start(
-        self, value: date, period: TransactionSummaryPeriod
-    ) -> date:
-        if period == TransactionSummaryPeriod.DAY:
-            return value + timedelta(days=1)
-        if period == TransactionSummaryPeriod.WEEK:
-            return value + timedelta(days=7)
-        if period == TransactionSummaryPeriod.MONTH:
-            if value.month == 12:
-                return date(value.year + 1, 1, 1)
-            return date(value.year, value.month + 1, 1)
-        if period == TransactionSummaryPeriod.YEAR:
-            return date(value.year + 1, 1, 1)
-        raise ValueError(f"Unsupported period '{period.value}'")
-
-    def _build_period_buckets(
-        self,
-        date_from: date,
-        date_to: date,
-        period: TransactionSummaryPeriod,
-    ) -> list[date]:
-        current = self._align_period_start(date_from, period)
-        end = self._align_period_start(date_to, period)
-        points: list[date] = []
-        while current <= end:
-            points.append(current)
-            current = self._next_period_start(current, period)
-        return points
-
     def _normalize_period_start(self, value: object) -> date:
         if isinstance(value, datetime):
             return value.date()
@@ -331,7 +289,7 @@ class ReportingService:
             user_id=user_id,
             date_from=parameters.date_from,
             date_to=parameters.date_to,
-            period=parameters.period.value,
+            period=parameters.period,
             account_id=parameters.account_id,
             category_id=parameters.category_id,
             currency=parameters.currency,
@@ -341,7 +299,7 @@ class ReportingService:
         )
 
         output_currency = parameters.currency or base_currency
-        bucket_dates = self._build_period_buckets(
+        bucket_dates = build_period_buckets(
             parameters.date_from, parameters.date_to, parameters.period
         )
         aggregates: dict[date, dict[str, Decimal]] = {
