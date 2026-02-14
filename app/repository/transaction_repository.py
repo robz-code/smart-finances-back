@@ -14,7 +14,10 @@ from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
-from app.schemas.reporting_schemas import CategoryAggregationData, TransactionSummaryPeriod
+from app.schemas.reporting_schemas import (
+    CategoryAggregationData,
+    TransactionSummaryPeriod,
+)
 from app.schemas.transaction_schemas import TransactionSearch
 
 logger = logging.getLogger(__name__)
@@ -352,7 +355,9 @@ class TransactionRepository(BaseRepository[Transaction]):
             {
                 "period_start": r.period_start,
                 "currency": r.currency,
-                "income": Decimal(str(r.income)) if r.income is not None else Decimal("0"),
+                "income": (
+                    Decimal(str(r.income)) if r.income is not None else Decimal("0")
+                ),
                 "expense_abs": (
                     Decimal(str(r.expense_abs))
                     if r.expense_abs is not None
