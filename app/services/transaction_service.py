@@ -16,7 +16,10 @@ from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
-from app.schemas.reporting_schemas import CategoryAggregationData
+from app.schemas.reporting_schemas import (
+    CategoryAggregationData,
+    TransactionSummaryPeriod,
+)
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     TransactionCreate,
@@ -146,6 +149,34 @@ class TransactionService(BaseService[Transaction]):
             date_to=date_to,
             category_ids=category_ids,
             account_id=account_id,
+            currency=currency,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            source=source,
+        )
+
+    def get_cashflow_history_grouped(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        period: TransactionSummaryPeriod,
+        *,
+        account_id: Optional[UUID] = None,
+        category_id: Optional[UUID] = None,
+        currency: Optional[str] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        source: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Thin wrapper delegating historical cashflow aggregation to repository."""
+        return self.repository.get_cashflow_history_grouped(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            period=period,
+            account_id=account_id,
+            category_id=category_id,
             currency=currency,
             amount_min=amount_min,
             amount_max=amount_max,

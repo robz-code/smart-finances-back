@@ -98,6 +98,63 @@ class CashflowSummaryResponse(BaseModel):
     }
 
 
+class CashflowHistoryPoint(BaseModel):
+    """One point in historical cashflow series."""
+
+    period_start: str  # YYYY-MM-DD
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: format(v, ".2f"),
+        }
+    }
+
+
+class CashflowHistoryResponse(BaseModel):
+    """Historical cashflow response by period."""
+
+    period: str
+    date_from: Date
+    date_to: Date
+    currency: str
+    points: list[CashflowHistoryPoint]
+
+    model_config = {
+        "json_encoders": {
+            Decimal: lambda v: format(v, ".2f"),
+        }
+    }
+
+
+class CashflowHistoryParameters(BaseModel):
+    """Query parameters for cashflow history endpoint."""
+
+    account_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    currency: Optional[str] = None
+    date_from: Date
+    date_to: Date
+    amount_min: Optional[Decimal] = None
+    amount_max: Optional[Decimal] = None
+    source: Optional[str] = None
+    period: TransactionSummaryPeriod = TransactionSummaryPeriod.MONTH
+
+    @model_validator(mode="after")
+    def validate_ranges(self) -> "CashflowHistoryParameters":
+        if self.date_from > self.date_to:
+            raise ValueError("'date_from' must be before or equal to 'date_to'")
+        if (
+            self.amount_min is not None
+            and self.amount_max is not None
+            and self.amount_min > self.amount_max
+        ):
+            raise ValueError("'amount_min' must be before or equal to 'amount_max'")
+        return self
+
+
 # -------------------------------------------------------------------------
 # Balance reporting (read-only; never mutates ledger).
 # Balances = projections; FX = presentation at read time.

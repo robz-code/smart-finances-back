@@ -5,7 +5,8 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import case, func
+from sqlalchemy import Date as SQLDate
+from sqlalchemy import Integer, case, cast, func, literal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,7 +14,10 @@ from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
-from app.schemas.reporting_schemas import CategoryAggregationData
+from app.schemas.reporting_schemas import (
+    CategoryAggregationData,
+    TransactionSummaryPeriod,
+)
 from app.schemas.transaction_schemas import TransactionSearch
 
 logger = logging.getLogger(__name__)
@@ -253,6 +257,115 @@ class TransactionRepository(BaseRepository[Transaction]):
         expense = Decimal(str(row.expense)) if row and row.expense else Decimal("0")
         total = income - expense
         return (income, expense, total)
+
+    def _build_period_start_expr(self, period: TransactionSummaryPeriod):
+        """Build DB-specific period bucket expression."""
+        dialect = self.db.bind.dialect.name if self.db.bind else ""
+        if dialect == "sqlite":
+            if period == TransactionSummaryPeriod.DAY:
+                return func.date(Transaction.date)
+            if period == TransactionSummaryPeriod.WEEK:
+                # SQLite strftime('%w'): Sunday=0..Saturday=6. Normalize to Monday start.
+                weekday = cast(func.strftime("%w", Transaction.date), Integer)
+                days_since_monday = (weekday + 6) % 7
+                return func.date(
+                    Transaction.date, func.printf("-%d days", days_since_monday)
+                )
+            if period == TransactionSummaryPeriod.MONTH:
+                return func.strftime("%Y-%m-01", Transaction.date)
+            if period == TransactionSummaryPeriod.YEAR:
+                return func.strftime("%Y-01-01", Transaction.date)
+        else:
+            if period in {
+                TransactionSummaryPeriod.DAY,
+                TransactionSummaryPeriod.WEEK,
+                TransactionSummaryPeriod.MONTH,
+                TransactionSummaryPeriod.YEAR,
+            }:
+                return cast(func.date_trunc(period.value, Transaction.date), SQLDate)
+        raise ValueError(f"Unsupported period '{period.value}'")
+
+    def get_cashflow_history_grouped(
+        self,
+        user_id: UUID,
+        date_from: date,
+        date_to: date,
+        period: TransactionSummaryPeriod,
+        *,
+        account_id: Optional[UUID] = None,
+        category_id: Optional[UUID] = None,
+        currency: Optional[str] = None,
+        amount_min: Optional[Decimal] = None,
+        amount_max: Optional[Decimal] = None,
+        source: Optional[str] = None,
+    ) -> List[dict]:
+        """
+        Aggregate historical cashflow rows grouped by period.
+
+        If currency is provided, rows are grouped only by period and currency is returned
+        as a constant. Otherwise rows are grouped by period and transaction currency.
+        """
+        period_start_expr = self._build_period_start_expr(period).label("period_start")
+        income_expr = case(
+            (Transaction.type == TransactionType.INCOME.value, Transaction.amount),
+            else_=0,
+        )
+        expense_expr = case(
+            (Transaction.type == TransactionType.EXPENSE.value, Transaction.amount),
+            else_=0,
+        )
+
+        if currency is not None:
+            query = self.db.query(
+                period_start_expr,
+                literal(currency).label("currency"),
+                func.coalesce(func.sum(income_expr), 0).label("income"),
+                func.coalesce(func.sum(expense_expr), 0).label("expense_abs"),
+            ).group_by(period_start_expr)
+        else:
+            query = self.db.query(
+                period_start_expr,
+                Transaction.currency.label("currency"),
+                func.coalesce(func.sum(income_expr), 0).label("income"),
+                func.coalesce(func.sum(expense_expr), 0).label("expense_abs"),
+            ).group_by(period_start_expr, Transaction.currency)
+
+        query = query.filter(
+            Transaction.user_id == user_id,
+            Transaction.date >= date_from,
+            Transaction.date <= date_to,
+        )
+
+        if account_id is not None:
+            query = query.filter(Transaction.account_id == account_id)
+        if category_id is not None:
+            query = query.filter(Transaction.category_id == category_id)
+        if currency is not None:
+            query = query.filter(Transaction.currency == currency)
+        if amount_min is not None:
+            query = query.filter(Transaction.amount >= amount_min)
+        if amount_max is not None:
+            query = query.filter(Transaction.amount <= amount_max)
+        if source is not None:
+            query = query.filter(Transaction.source == source)
+
+        query = query.order_by(period_start_expr.asc())
+        rows = query.all()
+        return [
+            {
+                "period_start": r.period_start,
+                "currency": r.currency,
+                "income": (
+                    Decimal(str(r.income)) if r.income is not None else Decimal("0")
+                ),
+                "expense_abs": (
+                    Decimal(str(r.expense_abs))
+                    if r.expense_abs is not None
+                    else Decimal("0")
+                ),
+            }
+            for r in rows
+        ]
 
     def get_transactions_for_accounts_until_date(
         self, account_ids: List[UUID], to_date_inclusive: date
