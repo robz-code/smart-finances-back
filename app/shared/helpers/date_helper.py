@@ -61,6 +61,28 @@ def iter_dates(from_date: date, to_date: date, period: str) -> Iterator[date]:
     raise ValueError(f"period must be one of: day, week, month (got {period})")
 
 
+def calculate_previous_equivalent_period(
+    current_start: date, current_end: date
+) -> Tuple[date, date]:
+    """
+    Calculate the previous period with the same duration, ending the day before current_start.
+
+    previous_end = current_start - 1 day
+    previous_start = previous_end - duration
+
+    Args:
+        current_start: Start of the current period (inclusive)
+        current_end: End of the current period (inclusive)
+
+    Returns:
+        Tuple of (previous_start, previous_end) where both dates are inclusive
+    """
+    duration = (current_end - current_start).days
+    previous_end = current_start - timedelta(days=1)
+    previous_start = previous_end - timedelta(days=duration)
+    return (previous_start, previous_end)
+
+
 def calculate_period_dates(period: TransactionSummaryPeriod) -> Tuple[date, date]:
     """
     Calculate the date range for a given transaction summary period.

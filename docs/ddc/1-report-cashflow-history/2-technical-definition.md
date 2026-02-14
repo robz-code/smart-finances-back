@@ -69,7 +69,7 @@ Decisión de arquitectura: implementar `cashflow/history` reutilizando el mismo 
     {
       "period_start": "2026-01-01",
       "income": "1200.00",
-      "expense": "-800.00",
+      "expense": "800.00",
       "net": "400.00"
     }
   ]
@@ -78,9 +78,9 @@ Decisión de arquitectura: implementar `cashflow/history` reutilizando el mismo 
 
 Notas de semántica:
 
-- `income >= 0`.
-- `expense <= 0` (se devuelve con signo negativo).
-- `net = income + expense`.
+- `income >= 0` (siempre positivo).
+- `expense >= 0` (siempre positivo).
+- `net = income - expense` (único campo que puede ser negativo).
 - Cada punto es independiente (no acumulativo).
 
 ---
@@ -159,7 +159,7 @@ Resultado recomendado (estructura interna):
 - `period_start: date`
 - `currency: str`
 - `income: Decimal` (positivo)
-- `expense_abs: Decimal` (positivo para simplificar SUM; signo se aplica arriba)
+- `expense_abs: Decimal` (positivo, suma de montos de tipo expense)
 
 #### 4.5.1 Estrategia SQL de agrupación
 
@@ -191,8 +191,8 @@ Agrupación:
 1. Generar ejes temporales entre `date_from` y `date_to` según granularidad.
 2. Inicializar todos los buckets con `{income=0, expense=0, net=0}`.
 3. Inyectar agregados del repositorio en cada bucket.
-4. Normalizar `expense` con signo negativo (`expense = -expense_abs`).
-5. Calcular `net = income + expense`.
+4. Asignar `expense = expense_abs` (expense se devuelve como positivo).
+5. Calcular `net = income - expense`.
 
 ### 5.1 Regla de límites
 
@@ -255,7 +255,7 @@ Agregar en `tests/test_reporting.py`:
 3. `test_cashflow_history_filters_and_logic`
    - combinación de `account_id + category_id + source + amount_min/max`.
 4. `test_cashflow_history_expense_sign_and_net_formula`
-   - asegura `expense <= 0` y `net = income + expense`.
+   - asegura `expense >= 0` y `net = income - expense`.
 5. `test_cashflow_history_currency_explicit_no_conversion`
    - con `currency=USD` excluye otras monedas.
 6. `test_cashflow_history_without_currency_converts_to_base`

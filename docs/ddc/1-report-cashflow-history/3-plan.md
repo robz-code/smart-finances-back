@@ -67,7 +67,7 @@ No se implementa:
     {
       "period_start": "2026-01-01",
       "income": "1200.00",
-      "expense": "-800.00",
+      "expense": "800.00",
       "net": "400.00"
     }
   ]
@@ -76,9 +76,9 @@ No se implementa:
 
 Reglas de signo y cálculo:
 
-- `income >= 0`
-- `expense <= 0`
-- `net = income + expense`
+- `income >= 0` (siempre positivo)
+- `expense >= 0` (siempre positivo)
+- `net = income - expense` (único campo que puede ser negativo)
 
 ---
 
@@ -129,8 +129,8 @@ Implementar orquestación principal:
 4. Normalización de moneda:
    - Si `currency` explícita: sin FX.
    - Si no: convertir post-agregación usando `FxService` a moneda base.
-5. Normalizar `expense` a signo negativo.
-6. Calcular `net` y ordenar ascendente.
+5. Asignar `expense` como valor positivo (expense_abs).
+6. Calcular `net = income - expense` y ordenar ascendente.
 7. Construir `CashflowHistoryResponse`.
 
 ### 4.5 `app/routes/reporting_route.py`
@@ -154,8 +154,8 @@ Exponer endpoint y dependencias:
 5. Poblar buckets:
    - Con `currency` explícita: sumar directo.
    - Sin `currency`: convertir cada agregado por moneda y sumar convertido.
-6. Transformar `expense_abs` a `expense` negativo.
-7. Calcular `net` por bucket.
+6. Asignar `expense = expense_abs` (expense se devuelve positivo).
+7. Calcular `net = income - expense` por bucket.
 8. Producir `points` ordenados ascendente por fecha.
 
 ---
@@ -210,7 +210,7 @@ Pruebas obligatorias:
 1. Serie mensual continua con meses vacíos en 0.
 2. Variantes `day/week/month/year` con cardinalidad y orden correctos.
 3. Filtros combinados (AND) alteran resultados correctamente.
-4. Signo de `expense` y fórmula `net = income + expense`.
+4. Signo de `expense` (positivo) y fórmula `net = income - expense`.
 5. Con `currency` explícita no hay FX y se excluyen otras monedas.
 6. Sin `currency` se convierte a moneda base.
 7. `date_from > date_to` retorna 422.
