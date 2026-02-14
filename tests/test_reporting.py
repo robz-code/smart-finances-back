@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date
 
 import pytest
@@ -766,17 +767,16 @@ def test_cashflow_history_invalid_amount_range_returns_422(client, auth_headers)
 
 def test_calculate_previous_equivalent_period():
     """Unit test for date_helper.calculate_previous_equivalent_period."""
-    from app.shared.helpers.date_helper import calculate_previous_equivalent_period
     from datetime import date
+
+    from app.shared.helpers.date_helper import calculate_previous_equivalent_period
 
     # 90-day range
     prev_start, prev_end = calculate_previous_equivalent_period(
         date(2026, 4, 1), date(2026, 6, 29)
     )
     assert prev_end == date(2026, 3, 31)
-    assert (date(2026, 6, 29) - date(2026, 4, 1)).days == (
-        prev_end - prev_start
-    ).days
+    assert (date(2026, 6, 29) - date(2026, 4, 1)).days == (prev_end - prev_start).days
 
     # One week
     prev_start, prev_end = calculate_previous_equivalent_period(
@@ -868,6 +868,12 @@ def test_period_comparison_previous_net_zero(client, auth_headers):
     _create_user(client, auth_headers, currency="USD")
     account = _create_account(client, auth_headers, currency="USD")
     category = _create_category(client, auth_headers, "Salary", "income")
+
+    today = date.today()
+    _, last_day = monthrange(today.year, today.month)
+    current_start = date(today.year, today.month, 1)
+    current_end = date(today.year, today.month, last_day)
+
     _create_transaction(
         client,
         auth_headers,
@@ -875,12 +881,12 @@ def test_period_comparison_previous_net_zero(client, auth_headers):
         category["id"],
         "100.00",
         "income",
-        "2026-02-15",
+        today.isoformat(),
     )
 
     r = client.get(
         "/api/v1/reporting/period-comparison"
-        "?date_from=2026-02-01&date_to=2026-02-28",
+        f"?date_from={current_start}&date_to={current_end}",
         headers=auth_headers,
     )
     assert r.status_code == 200
@@ -897,10 +903,22 @@ def test_period_comparison_trend_up(client, auth_headers):
     category = _create_category(client, auth_headers, "Salary", "income")
 
     _create_transaction(
-        client, auth_headers, account["id"], category["id"], "50.00", "income", "2025-12-15"
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "50.00",
+        "income",
+        "2025-12-15",
     )
     _create_transaction(
-        client, auth_headers, account["id"], category["id"], "150.00", "income", "2026-01-15"
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "150.00",
+        "income",
+        "2026-01-15",
     )
 
     r = client.get(

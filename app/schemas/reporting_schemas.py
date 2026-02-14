@@ -229,6 +229,7 @@ class CashflowHistoryParameters(BaseModel):
 # Balances = projections; FX = presentation at read time.
 # -------------------------------------------------------------------------
 
+
 class BalanceResponse(BaseModel):
     """Total balance as of a date in user base currency."""
 
