@@ -8,7 +8,7 @@
       "layer": "backend",
       "depends_on": [],
       "acceptance_criteria": "Schemas serialize correctly; PeriodMetrics has start, end, income, expense, net; PeriodComparisonSummary has difference, percentage_change, percentage_change_available, trend; PeriodComparisonResponse has current_period, previous_period, summary.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T2",
@@ -17,7 +17,7 @@
       "layer": "backend",
       "depends_on": [],
       "acceptance_criteria": "Validates period OR date_from+date_to; rejects date_from > date_to; rejects period null with only one date; invalid period returns 422.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T3",
@@ -26,7 +26,7 @@
       "layer": "backend",
       "depends_on": [],
       "acceptance_criteria": "Returns correct (previous_start, previous_end) for arbitrary date ranges; both periods have identical duration.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T4",
@@ -35,7 +35,7 @@
       "layer": "backend",
       "depends_on": ["T1", "T2", "T3"],
       "acceptance_criteria": "Returns PeriodComparisonResponse; period=month compares to previous month; period null + dates uses custom range; previous.net=0 yields percentage_change=null and percentage_change_available=false; trend up/down/flat correct.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T5",
@@ -44,7 +44,7 @@
       "layer": "backend",
       "depends_on": ["T4"],
       "acceptance_criteria": "Endpoint accessible at /api/v1/reporting/period-comparison; returns 401 without auth; returns valid JSON matching contract; Swagger docs generated.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T6",
@@ -53,7 +53,7 @@
       "layer": "tests",
       "depends_on": ["T2"],
       "acceptance_criteria": "All validation cases pass; 422 scenarios covered.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T7",
@@ -62,7 +62,7 @@
       "layer": "tests",
       "depends_on": ["T3"],
       "acceptance_criteria": "Tests pass for week, month, 90-day ranges; previous_end = current_start - 1 day; duration preserved.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T8",
@@ -71,7 +71,7 @@
       "layer": "tests",
       "depends_on": ["T4"],
       "acceptance_criteria": "All test cases pass; mocks for get_cashflow_summary; edge cases (previous=0, no transactions) covered.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T9",
@@ -80,7 +80,7 @@
       "layer": "tests",
       "depends_on": ["T5"],
       "acceptance_criteria": "Integration tests pass; 422 on date_from > date_to, period null + one date; 401 without token; response matches schema.",
-      "status": "pending"
+      "status": "done"
     }
   ],
   "completion_rule": "Feature is complete when all tasks status = done"

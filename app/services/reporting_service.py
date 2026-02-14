@@ -22,13 +22,21 @@ from app.schemas.reporting_schemas import (
     CashflowSummaryResponse,
     CategoryAggregationData,
     CategorySummaryResponse,
+    PeriodComparisonParameters,
+    PeriodComparisonResponse,
+    PeriodMetrics,
+    PeriodComparisonSummary,
     ReportingParameters,
     TransactionSummaryPeriod,
 )
 from app.services.category_service import CategoryService
 from app.services.fx_service import FxService
 from app.services.transaction_service import TransactionService
-from app.shared.helpers.date_helper import build_period_buckets, calculate_period_dates
+from app.shared.helpers.date_helper import (
+    build_period_buckets,
+    calculate_period_dates,
+    calculate_previous_equivalent_period,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +194,101 @@ class ReportingService:
             source=parameters.source,
         )
         return CashflowSummaryResponse(income=income, expense=expense, total=total)
+
+    def get_period_comparison(
+        self,
+        user_id: UUID,
+        parameters: PeriodComparisonParameters,
+    ) -> PeriodComparisonResponse:
+        """
+        Compare current period vs previous equivalent period.
+        Reuses get_cashflow_summary logic; 2 queries total.
+        """
+        # 1. Resolve current period
+        if parameters.period is not None:
+            current_start, current_end = calculate_period_dates(parameters.period)
+        else:
+            current_start = parameters.date_from
+            current_end = parameters.date_to
+            assert current_start is not None and current_end is not None
+
+        # 2. Calculate previous equivalent period
+        previous_start, previous_end = calculate_previous_equivalent_period(
+            current_start, current_end
+        )
+
+        # 3. Resolve category_ids (same logic as get_cashflow_summary)
+        category_ids: Optional[List[UUID]] = None
+        if parameters.category_id is not None:
+            categories_response = self.category_service.get_by_user_id(user_id)
+            categories = [
+                c for c in categories_response.results if c.id == parameters.category_id
+            ]
+            category_ids = [c.id for c in categories] if categories else []
+
+        # 4. Get metrics for both periods
+        filter_kwargs = dict(
+            category_ids=category_ids if category_ids else None,
+            account_id=parameters.account_id,
+            currency=parameters.currency,
+            amount_min=parameters.amount_min,
+            amount_max=parameters.amount_max,
+            source=parameters.source,
+        )
+        income_curr, expense_curr, total_curr = (
+            self.transaction_service.get_cashflow_summary(
+                user_id=user_id,
+                date_from=current_start,
+                date_to=current_end,
+                **filter_kwargs,
+            )
+        )
+        income_prev, expense_prev, total_prev = (
+            self.transaction_service.get_cashflow_summary(
+                user_id=user_id,
+                date_from=previous_start,
+                date_to=previous_end,
+                **filter_kwargs,
+            )
+        )
+
+        # 5. Build summary
+        difference = total_curr - total_prev
+        if total_prev == 0:
+            percentage_change = None
+            percentage_change_available = False
+        else:
+            percentage_change = (difference / abs(total_prev)) * Decimal("100")
+            percentage_change_available = True
+        if difference > 0:
+            trend = "up"
+        elif difference < 0:
+            trend = "down"
+        else:
+            trend = "flat"
+
+        return PeriodComparisonResponse(
+            current_period=PeriodMetrics(
+                start=current_start,
+                end=current_end,
+                income=income_curr,
+                expense=expense_curr,
+                net=total_curr,
+            ),
+            previous_period=PeriodMetrics(
+                start=previous_start,
+                end=previous_end,
+                income=income_prev,
+                expense=expense_prev,
+                net=total_prev,
+            ),
+            summary=PeriodComparisonSummary(
+                difference=difference,
+                percentage_change=percentage_change,
+                percentage_change_available=percentage_change_available,
+                trend=trend,
+            ),
+        )
 
     # -------------------------------------------------------------------------
     # Balance reporting (read-only; strategy-based, O(1) queries).

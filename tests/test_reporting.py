@@ -757,3 +757,156 @@ def test_cashflow_history_invalid_amount_range_returns_422(client, auth_headers)
         headers=auth_headers,
     )
     assert r.status_code == 422
+
+
+# -------------------------------------------------------------------------
+# Period Comparison tests
+# -------------------------------------------------------------------------
+
+
+def test_calculate_previous_equivalent_period():
+    """Unit test for date_helper.calculate_previous_equivalent_period."""
+    from app.shared.helpers.date_helper import calculate_previous_equivalent_period
+    from datetime import date
+
+    # 90-day range
+    prev_start, prev_end = calculate_previous_equivalent_period(
+        date(2026, 4, 1), date(2026, 6, 29)
+    )
+    assert prev_end == date(2026, 3, 31)
+    assert (date(2026, 6, 29) - date(2026, 4, 1)).days == (
+        prev_end - prev_start
+    ).days
+
+    # One week
+    prev_start, prev_end = calculate_previous_equivalent_period(
+        date(2026, 2, 9), date(2026, 2, 15)
+    )
+    assert prev_end == date(2026, 2, 8)
+    assert prev_start == date(2026, 2, 2)
+
+
+def test_period_comparison_requires_auth(client):
+    """Period comparison returns 401 without auth."""
+    r = client.get("/api/v1/reporting/period-comparison?period=month")
+    assert r.status_code == 401
+
+
+def test_period_comparison_invalid_params_returns_422(client, auth_headers):
+    """Invalid params: date_from > date_to, period null with one date."""
+    _create_user(client, auth_headers)
+    r = client.get(
+        "/api/v1/reporting/period-comparison"
+        "?date_from=2026-02-01&date_to=2026-01-01",
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+    r2 = client.get(
+        "/api/v1/reporting/period-comparison?date_from=2026-01-01",
+        headers=auth_headers,
+    )
+    assert r2.status_code == 422
+
+
+def test_period_comparison_with_period_month(client, auth_headers):
+    """Happy path: period=month compares current month vs previous."""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "Food", "expense")
+
+    r = client.get(
+        "/api/v1/reporting/period-comparison?period=month",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert "current_period" in data
+    assert "previous_period" in data
+    assert "summary" in data
+    assert "start" in data["current_period"]
+    assert "end" in data["current_period"]
+    assert "income" in data["current_period"]
+    assert "expense" in data["current_period"]
+    assert "net" in data["current_period"]
+    assert "difference" in data["summary"]
+    assert "percentage_change" in data["summary"]
+    assert "percentage_change_available" in data["summary"]
+    assert data["summary"]["trend"] in ("up", "down", "flat")
+
+
+def test_period_comparison_with_date_range(client, auth_headers):
+    """Happy path: date_from/date_to for custom range."""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "Food", "expense")
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "50.00",
+        "expense",
+        "2026-01-15",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/period-comparison"
+        "?date_from=2026-01-01&date_to=2026-01-31",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["current_period"]["start"] == "2026-01-01"
+    assert data["current_period"]["end"] == "2026-01-31"
+    assert data["previous_period"]["end"] == "2025-12-31"
+    assert data["current_period"]["expense"] == "-50.00"
+
+
+def test_period_comparison_previous_net_zero(client, auth_headers):
+    """When previous.net=0, percentage_change is null and percentage_change_available false."""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "Salary", "income")
+    _create_transaction(
+        client,
+        auth_headers,
+        account["id"],
+        category["id"],
+        "100.00",
+        "income",
+        "2026-02-15",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/period-comparison"
+        "?date_from=2026-02-01&date_to=2026-02-28",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["previous_period"]["net"] == "0.00"
+    assert data["summary"]["percentage_change"] is None
+    assert data["summary"]["percentage_change_available"] is False
+
+
+def test_period_comparison_trend_up(client, auth_headers):
+    """Trend is up when current net > previous net."""
+    _create_user(client, auth_headers, currency="USD")
+    account = _create_account(client, auth_headers, currency="USD")
+    category = _create_category(client, auth_headers, "Salary", "income")
+
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "50.00", "income", "2025-12-15"
+    )
+    _create_transaction(
+        client, auth_headers, account["id"], category["id"], "150.00", "income", "2026-01-15"
+    )
+
+    r = client.get(
+        "/api/v1/reporting/period-comparison"
+        "?date_from=2026-01-01&date_to=2026-01-31",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["summary"]["trend"] == "up"

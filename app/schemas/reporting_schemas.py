@@ -1,7 +1,7 @@
 from datetime import date as Date
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import UUID4, BaseModel, Field, model_validator
@@ -98,6 +98,75 @@ class CashflowSummaryResponse(BaseModel):
     }
 
 
+# -------------------------------------------------------------------------
+# Period Comparison (current vs previous equivalent period).
+# -------------------------------------------------------------------------
+
+_decimal_json = {"json_encoders": {Decimal: lambda v: format(v, ".2f")}}
+
+
+class PeriodMetrics(BaseModel):
+    """Income, expense, and net for a single period."""
+
+    start: Date
+    end: Date
+    income: Decimal
+    expense: Decimal
+    net: Decimal
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class PeriodComparisonSummary(BaseModel):
+    """Comparison summary: difference, percentage change, trend."""
+
+    difference: Decimal
+    percentage_change: Optional[Decimal] = None
+    percentage_change_available: bool
+    trend: Literal["up", "down", "flat"]
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class PeriodComparisonResponse(BaseModel):
+    """Response for period comparison endpoint."""
+
+    current_period: PeriodMetrics
+    previous_period: PeriodMetrics
+    summary: PeriodComparisonSummary
+
+    model_config = {"populate_by_name": True, **_decimal_json}
+
+
+class PeriodComparisonParameters(BaseModel):
+    """Query parameters for period comparison. Use either period OR date_from/date_to."""
+
+    model_config = {"populate_by_name": True}
+
+    account_id: Optional[UUID] = None
+    category_id: Optional[UUID] = None
+    currency: Optional[str] = None
+    date_from: Optional[Date] = None
+    date_to: Optional[Date] = None
+    amount_min: Optional[Decimal] = None
+    amount_max: Optional[Decimal] = None
+    source: Optional[str] = None
+    period: Optional[TransactionSummaryPeriod] = None
+
+    @model_validator(mode="after")
+    def ensure_date_range_or_period(self) -> "PeriodComparisonParameters":
+        """Ensure either period is set OR both date_from and date_to. Period takes precedence."""
+        if self.period is not None:
+            return self
+        if self.date_from is None or self.date_to is None:
+            raise ValueError(
+                "Either 'period' or both 'date_from' and 'date_to' must be provided"
+            )
+        if self.date_from > self.date_to:
+            raise ValueError("'date_from' must be before or equal to 'date_to'")
+        return self
+
+
 class CashflowHistoryPoint(BaseModel):
     """One point in historical cashflow series."""
 
@@ -159,9 +228,6 @@ class CashflowHistoryParameters(BaseModel):
 # Balance reporting (read-only; never mutates ledger).
 # Balances = projections; FX = presentation at read time.
 # -------------------------------------------------------------------------
-
-_decimal_json = {"json_encoders": {Decimal: lambda v: format(v, ".2f")}}
-
 
 class BalanceResponse(BaseModel):
     """Total balance as of a date in user base currency."""

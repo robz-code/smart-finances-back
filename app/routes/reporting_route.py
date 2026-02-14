@@ -16,6 +16,8 @@ from app.schemas.reporting_schemas import (
     CashflowHistoryResponse,
     CashflowSummaryResponse,
     CategorySummaryResponse,
+    PeriodComparisonParameters,
+    PeriodComparisonResponse,
     ReportingParameters,
     TransactionSummaryPeriod,
 )
@@ -77,6 +79,23 @@ def get_cashflow_summary(
     """
     user_id = cast(UUID, current_user.id)
     return service.get_cashflow_summary(user_id=user_id, parameters=parameters)
+
+
+@router.get("/period-comparison", response_model=PeriodComparisonResponse)
+def get_period_comparison(
+    parameters: PeriodComparisonParameters = Depends(),
+    service: ReportingService = Depends(get_reporting_service),
+    current_user: User = Depends(get_current_user),
+) -> PeriodComparisonResponse:
+    """
+    Compare financial performance of current period vs previous equivalent period.
+
+    Use either `period` (week|month|year) for predefined periods, or `date_from` and
+    `date_to` for a custom range. Optional filters: account_id, category_id, currency,
+    amount_min, amount_max, source.
+    """
+    user_id = cast(UUID, current_user.id)
+    return service.get_period_comparison(user_id=user_id, parameters=parameters)
 
 
 @router.get("/cashflow/history", response_model=CashflowHistoryResponse)
