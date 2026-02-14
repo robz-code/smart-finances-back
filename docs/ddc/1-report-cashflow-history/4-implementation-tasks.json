@@ -1,0 +1,282 @@
+{
+  "feature": "reporting-cashflow-history",
+  "version": "1.0.0",
+  "created_from": [
+    "1-functional-definition.md",
+    "2-technical-definition.md",
+    "3-plan.md"
+  ],
+  "status_scale": [
+    "todo",
+    "in_progress",
+    "blocked",
+    "done"
+  ],
+  "point_scale": "Fibonacci",
+  "tasks": [
+    {
+      "id": "CFH-001",
+      "step": 1,
+      "title": "Freeze endpoint contract",
+      "description": "Confirm and lock query params, defaults, validation rules, and response schema for GET /api/v1/reporting/cashflow/history.",
+      "status": "done",
+      "points": 2,
+      "priority": "high",
+      "depends_on": [],
+      "deliverables": [
+        "Final contract notes in 3-plan.md",
+        "No open ambiguities on currency and period semantics"
+      ],
+      "acceptance_criteria": [
+        "date_from/date_to/period/filter contract approved",
+        "Response fields and signs (income/expense/net) approved"
+      ]
+    },
+    {
+      "id": "CFH-002",
+      "step": 2,
+      "title": "Add cashflow history schemas",
+      "description": "Implement CashflowHistoryPoint, CashflowHistoryResponse, and CashflowHistoryParameters in reporting schemas.",
+      "status": "done",
+      "points": 3,
+      "priority": "high",
+      "depends_on": [
+        "CFH-001"
+      ],
+      "files": [
+        "app/schemas/reporting_schemas.py"
+      ],
+      "acceptance_criteria": [
+        "Schemas compile and are importable",
+        "period enum default is month"
+      ]
+    },
+    {
+      "id": "CFH-003",
+      "step": 3,
+      "title": "Implement parameter validators",
+      "description": "Add validation for date range and amount bounds in CashflowHistoryParameters.",
+      "status": "done",
+      "points": 2,
+      "priority": "high",
+      "depends_on": [
+        "CFH-002"
+      ],
+      "files": [
+        "app/schemas/reporting_schemas.py"
+      ],
+      "acceptance_criteria": [
+        "date_from <= date_to enforced",
+        "amount_min <= amount_max enforced",
+        "Invalid input maps to 422"
+      ]
+    },
+    {
+      "id": "CFH-004",
+      "step": 4,
+      "title": "Build repository aggregation query",
+      "description": "Implement get_cashflow_history_grouped with date_trunc buckets, AND filters, and grouped output for explicit and implicit currency flows.",
+      "status": "done",
+      "points": 8,
+      "priority": "high",
+      "depends_on": [
+        "CFH-001"
+      ],
+      "files": [
+        "app/repository/transaction_repository.py"
+      ],
+      "acceptance_criteria": [
+        "Supports day/week/month/year buckets",
+        "Applies user/date and optional filters with AND",
+        "Returns period_start, currency, income, expense_abs",
+        "Sorts by period_start ASC"
+      ]
+    },
+    {
+      "id": "CFH-005",
+      "step": 5,
+      "title": "Add transaction service wrapper",
+      "description": "Expose get_cashflow_history_grouped in TransactionService as a thin delegation layer.",
+      "status": "done",
+      "points": 2,
+      "priority": "medium",
+      "depends_on": [
+        "CFH-004"
+      ],
+      "files": [
+        "app/services/transaction_service.py"
+      ],
+      "acceptance_criteria": [
+        "Wrapper passes parameters unchanged",
+        "No business logic duplicated"
+      ]
+    },
+    {
+      "id": "CFH-006",
+      "step": 6,
+      "title": "Implement continuous bucket generator",
+      "description": "Create/extend helper logic to generate all period_start buckets between date_from and date_to for each granularity.",
+      "status": "done",
+      "points": 5,
+      "priority": "high",
+      "depends_on": [
+        "CFH-001"
+      ],
+      "files": [
+        "app/services/reporting_service.py"
+      ],
+      "acceptance_criteria": [
+        "No missing buckets within range",
+        "Single-day ranges handled correctly",
+        "Week buckets align with DB semantics"
+      ]
+    },
+    {
+      "id": "CFH-007",
+      "step": 7,
+      "title": "Implement reporting orchestration",
+      "description": "Implement get_cashflow_history_response in ReportingService including category ownership validation, bucket population, sign normalization, net formula, and deterministic order.",
+      "status": "done",
+      "points": 8,
+      "priority": "high",
+      "depends_on": [
+        "CFH-005",
+        "CFH-006"
+      ],
+      "files": [
+        "app/services/reporting_service.py"
+      ],
+      "acceptance_criteria": [
+        "Empty buckets return zeros",
+        "expense is negative",
+        "net equals income + expense",
+        "Output sorted by period_start ASC"
+      ]
+    },
+    {
+      "id": "CFH-008",
+      "step": 8,
+      "title": "Add currency normalization behavior",
+      "description": "Apply explicit-currency passthrough behavior and implicit-currency conversion to base currency using FxService after aggregation.",
+      "status": "done",
+      "points": 5,
+      "priority": "high",
+      "depends_on": [
+        "CFH-007"
+      ],
+      "files": [
+        "app/services/reporting_service.py",
+        "app/services/fx_service.py"
+      ],
+      "acceptance_criteria": [
+        "Explicit currency excludes others and skips FX",
+        "Implicit currency converts aggregated values to base currency",
+        "response.currency is correct in both modes"
+      ]
+    },
+    {
+      "id": "CFH-009",
+      "step": 9,
+      "title": "Expose route endpoint",
+      "description": "Add GET /cashflow/history route, dependencies, and response model wiring.",
+      "status": "done",
+      "points": 3,
+      "priority": "high",
+      "depends_on": [
+        "CFH-007",
+        "CFH-008"
+      ],
+      "files": [
+        "app/routes/reporting_route.py",
+        "app/dependencies/balance_dependencies.py"
+      ],
+      "acceptance_criteria": [
+        "Endpoint available under /api/v1/reporting/cashflow/history",
+        "Uses current_user and base currency dependency",
+        "OpenAPI shows correct schema"
+      ]
+    },
+    {
+      "id": "CFH-010",
+      "step": 10,
+      "title": "Add automated tests",
+      "description": "Implement tests for continuous series, granularities, filters, sign/net, currency behavior, and 422 validations.",
+      "status": "done",
+      "points": 8,
+      "priority": "high",
+      "depends_on": [
+        "CFH-009"
+      ],
+      "files": [
+        "tests/test_reporting.py"
+      ],
+      "acceptance_criteria": [
+        "All mandatory cases from 3-plan covered",
+        "Edge cases for invalid ranges validated",
+        "Tests are deterministic"
+      ]
+    },
+    {
+      "id": "CFH-011",
+      "step": 11,
+      "title": "Performance and index validation",
+      "description": "Validate query performance and confirm supporting indexes for typical reporting filters.",
+      "status": "blocked",
+      "points": 3,
+      "priority": "medium",
+      "depends_on": [
+        "CFH-004"
+      ],
+      "files": [
+        "app/repository/transaction_repository.py",
+        "migrations/"
+      ],
+      "acceptance_criteria": [
+        "No full scan regression in representative dataset",
+        "Index strategy documented if migration is required"
+      ],
+      "blocked_reason": "Representative production-like dataset and DB execution-plan validation are not available in this environment; index/perf validation must be done in staging/prod-like Postgres."
+    },
+    {
+      "id": "CFH-012",
+      "step": 12,
+      "title": "Definition of Done validation",
+      "description": "Run test suite, verify acceptance criteria, and close checklist from 3-plan with evidence.",
+      "status": "blocked",
+      "points": 2,
+      "priority": "high",
+      "depends_on": [
+        "CFH-010",
+        "CFH-011"
+      ],
+      "deliverables": [
+        "Test execution summary",
+        "Final checklist status",
+        "Known limitations (if any)"
+      ],
+      "acceptance_criteria": [
+        "All critical tests pass",
+        "No unresolved high-priority gaps",
+        "Feature ready for merge"
+      ],
+      "blocked_reason": "Cannot close full Definition of Done while CFH-011 remains blocked for production-like performance evidence."
+    }
+  ],
+  "summary": {
+    "total_tasks": 12,
+    "total_points": 51,
+    "critical_path": [
+      "CFH-001",
+      "CFH-002",
+      "CFH-003",
+      "CFH-004",
+      "CFH-005",
+      "CFH-006",
+      "CFH-007",
+      "CFH-008",
+      "CFH-009",
+      "CFH-010",
+      "CFH-012"
+    ]
+  }
+}

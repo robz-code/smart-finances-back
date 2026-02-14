@@ -107,3 +107,48 @@ def calculate_period_dates(period: TransactionSummaryPeriod) -> Tuple[date, date
 
     else:
         raise ValueError(f"Unknown period: {period}")
+
+
+def align_period_start(value: date, period: TransactionSummaryPeriod) -> date:
+    """Align a date to the start of its day/week/month/year bucket."""
+    from app.schemas.reporting_schemas import TransactionSummaryPeriod
+
+    if period == TransactionSummaryPeriod.DAY:
+        return value
+    if period == TransactionSummaryPeriod.WEEK:
+        return value - timedelta(days=value.weekday())
+    if period == TransactionSummaryPeriod.MONTH:
+        return value.replace(day=1)
+    if period == TransactionSummaryPeriod.YEAR:
+        return date(value.year, 1, 1)
+    raise ValueError(f"Unsupported period '{period.value}'")
+
+
+def next_period_start(value: date, period: TransactionSummaryPeriod) -> date:
+    """Return next bucket start for the given period."""
+    from app.schemas.reporting_schemas import TransactionSummaryPeriod
+
+    if period == TransactionSummaryPeriod.DAY:
+        return value + timedelta(days=1)
+    if period == TransactionSummaryPeriod.WEEK:
+        return value + timedelta(days=7)
+    if period == TransactionSummaryPeriod.MONTH:
+        if value.month == 12:
+            return date(value.year + 1, 1, 1)
+        return date(value.year, value.month + 1, 1)
+    if period == TransactionSummaryPeriod.YEAR:
+        return date(value.year + 1, 1, 1)
+    raise ValueError(f"Unsupported period '{period.value}'")
+
+
+def build_period_buckets(
+    date_from: date, date_to: date, period: TransactionSummaryPeriod
+) -> list[date]:
+    """Build all bucket starts between two dates, inclusive, for a period."""
+    current = align_period_start(date_from, period)
+    end = align_period_start(date_to, period)
+    points: list[date] = []
+    while current <= end:
+        points.append(current)
+        current = next_period_start(current, period)
+    return points

@@ -12,6 +12,8 @@ from app.schemas.reporting_schemas import (
     BalanceAccountsResponse,
     BalanceHistoryResponse,
     BalanceResponse,
+    CashflowHistoryParameters,
+    CashflowHistoryResponse,
     CashflowSummaryResponse,
     CategorySummaryResponse,
     ReportingParameters,
@@ -75,6 +77,22 @@ def get_cashflow_summary(
     """
     user_id = cast(UUID, current_user.id)
     return service.get_cashflow_summary(user_id=user_id, parameters=parameters)
+
+
+@router.get("/cashflow/history", response_model=CashflowHistoryResponse)
+def get_cashflow_history(
+    parameters: CashflowHistoryParameters = Depends(),
+    service: ReportingService = Depends(get_reporting_service),
+    current_user: User = Depends(get_current_user),
+    base_currency: str = Depends(get_user_base_currency),
+) -> CashflowHistoryResponse:
+    """Get historical cashflow series by period and date range."""
+    user_id = cast(UUID, current_user.id)
+    return service.get_cashflow_history_response(
+        user_id=user_id,
+        parameters=parameters,
+        base_currency=base_currency,
+    )
 
 
 # -------------------------------------------------------------------------
