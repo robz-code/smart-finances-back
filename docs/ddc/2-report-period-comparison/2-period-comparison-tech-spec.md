@@ -198,7 +198,7 @@ No se requieren cambios obligatorios de repositorio para una primera versión:
 
 1. Ambos periodos deben tener **idéntica duración**.
 2. Los filtros se aplican de forma **idéntica** a current y previous.
-3. Si no hay transacciones en un periodo: `income=0`, `expense=0`, `net=0`.
+3. Si no hay transacciones en un periodo: `income=0`, `expense=0`, `net=0`. Income y expense siempre positivos; net puede ser negativo.
 4. Resultado determinista para mismo set de entradas.
 5. Nunca dividir por cero en `% change`.
 6. Errores de validación (`422`):

@@ -108,15 +108,15 @@ Para cada periodo:
 
 El sistema debe calcular:
 
-* `income` → suma de montos positivos
-* `expense` → suma de montos negativos
-* `net` → income + expense
+* `income` → suma de montos de transacciones tipo income (siempre positivo)
+* `expense` → suma de montos de transacciones tipo expense (siempre positivo)
+* `net` → income - expense
 
 ### Reglas funcionales
 
 * `income` siempre ≥ 0
-* `expense` siempre ≤ 0
-* `net` puede ser positivo, negativo o 0
+* `expense` siempre ≥ 0
+* `net` puede ser positivo, negativo o 0 (único campo que puede ser negativo)
 * No es acumulativo entre periodos
 
 Cada periodo es independiente.

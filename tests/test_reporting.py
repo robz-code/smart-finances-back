@@ -623,7 +623,7 @@ def test_cashflow_history_filters_and_logic(client, auth_headers):
     assert len(data["points"]) == 1
     point = data["points"][0]
     assert point["income"] == "0.00"
-    assert point["expense"] == "-80.00"
+    assert point["expense"] == "80.00"
     assert point["net"] == "-80.00"
 
 
@@ -659,8 +659,8 @@ def test_cashflow_history_expense_sign_and_net_formula(client, auth_headers):
     )
     assert r.status_code == 200
     point = r.json()["points"][0]
-    assert float(point["expense"]) <= 0
-    assert float(point["net"]) == float(point["income"]) + float(point["expense"])
+    assert float(point["expense"]) >= 0
+    assert float(point["net"]) == float(point["income"]) - float(point["expense"])
 
 
 def test_cashflow_history_currency_explicit_no_conversion(client, auth_headers):
@@ -860,7 +860,7 @@ def test_period_comparison_with_date_range(client, auth_headers):
     assert data["current_period"]["start"] == "2026-01-01"
     assert data["current_period"]["end"] == "2026-01-31"
     assert data["previous_period"]["end"] == "2025-12-31"
-    assert data["current_period"]["expense"] == "-50.00"
+    assert data["current_period"]["expense"] == "50.00"
 
 
 def test_period_comparison_previous_net_zero(client, auth_headers):

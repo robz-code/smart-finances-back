@@ -29,7 +29,7 @@
       ],
       "acceptance_criteria": [
         "date_from/date_to/period/filter contract approved",
-        "Response fields and signs (income/expense/net) approved"
+        "Response fields and signs (income/expense positive, net=income-expense) approved"
       ]
     },
     {
@@ -135,7 +135,7 @@
       "id": "CFH-007",
       "step": 7,
       "title": "Implement reporting orchestration",
-      "description": "Implement get_cashflow_history_response in ReportingService including category ownership validation, bucket population, sign normalization, net formula, and deterministic order.",
+      "description": "Implement get_cashflow_history_response in ReportingService including category ownership validation, bucket population, expense as positive value, net = income - expense formula, and deterministic order.",
       "status": "done",
       "points": 8,
       "priority": "high",
@@ -148,8 +148,8 @@
       ],
       "acceptance_criteria": [
         "Empty buckets return zeros",
-        "expense is negative",
-        "net equals income + expense",
+        "expense is positive",
+        "net equals income - expense",
         "Output sorted by period_start ASC"
       ]
     },

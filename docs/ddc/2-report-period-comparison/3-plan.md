@@ -86,7 +86,7 @@ Orden obligatorio: `current_period` → `previous_period` → `summary`.
 
 Reglas de cálculo:
 
-- `income` = suma montos > 0; `expense` = suma montos < 0; `net` = income + expense.
+- `income` = suma montos tipo income (≥ 0); `expense` = suma montos tipo expense (≥ 0); `net` = income - expense (puede ser negativo).
 - `difference` = current.net - previous.net.
 - `percentage_change` = `(difference / |previous.net|) * 100`; si `previous.net == 0` → `null` y `percentage_change_available = false`.
 - `trend`: `up` si difference > 0, `down` si < 0, `flat` si == 0.

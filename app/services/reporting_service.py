@@ -272,14 +272,14 @@ class ReportingService:
                 start=current_start,
                 end=current_end,
                 income=income_curr,
-                expense=-expense_curr,
+                expense=expense_curr,
                 net=total_curr,
             ),
             previous_period=PeriodMetrics(
                 start=previous_start,
                 end=previous_end,
                 income=income_prev,
-                expense=-expense_prev,
+                expense=expense_prev,
                 net=total_prev,
             ),
             summary=PeriodComparisonSummary(
@@ -433,8 +433,8 @@ class ReportingService:
         points: list[CashflowHistoryPoint] = []
         for bucket in sorted(aggregates):
             income = aggregates[bucket]["income"]
-            expense = -aggregates[bucket]["expense_abs"]
-            net = income + expense
+            expense = aggregates[bucket]["expense_abs"]
+            net = income - expense
             points.append(
                 CashflowHistoryPoint(
                     period_start=bucket.isoformat(),

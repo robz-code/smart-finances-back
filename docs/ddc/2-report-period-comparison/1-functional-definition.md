@@ -132,9 +132,9 @@ Para cada periodo se debe calcular:
 
 ### Definiciones
 
-* income = suma de montos > 0
-* expense = suma de montos < 0
-* net = income + expense
+* income = suma de montos de transacciones tipo income (siempre positivo)
+* expense = suma de montos de transacciones tipo expense (siempre positivo)
+* net = income - expense (único campo que puede ser negativo)
 
 Cada periodo se calcula de forma independiente.
 
