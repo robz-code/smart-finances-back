@@ -19,6 +19,7 @@ from app.schemas.reporting_schemas import (
     TransactionSummaryPeriod,
 )
 from app.schemas.transaction_schemas import TransactionSearch
+from app.shared.helpers.date_helper import calculate_period_dates
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,46 @@ class TransactionRepository(BaseRepository[Transaction]):
             .filter(Transaction.user_id == user_id)
         )
 
+        # Optional period filter (mutually exclusive with custom date range, validated in schema)
+        if getattr(search_params, "period", None) is not None:
+            date_from, date_to = calculate_period_dates(search_params.period)
+            query = query.filter(
+                Transaction.date >= date_from, Transaction.date <= date_to
+            )
+
         for filter_condition in search_params.build_filters():
             query = query.filter(filter_condition)
 
         # Order by date descending (most recent first)
-        query = query.order_by(Transaction.date.desc(), Transaction.created_at.desc())
+        query = query.order_by(
+            Transaction.date.desc(),
+            Transaction.created_at.desc(),
+            Transaction.id.desc(),
+        )
+
+        return query.all()
+
+    def search_recent(self, user_id: UUID, limit: int) -> List[Transaction]:
+        """Return most recent transactions for a user with a fixed limit."""
+        logger.debug(f"DB search_recent: Transaction user_id={user_id} limit={limit}")
+        query = (
+            self.db.query(Transaction)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.concept),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
+            )
+            .filter(Transaction.user_id == user_id)
+            .order_by(
+                Transaction.date.desc(),
+                Transaction.created_at.desc(),
+                Transaction.id.desc(),
+            )
+            .limit(limit)
+        )
 
         return query.all()
 

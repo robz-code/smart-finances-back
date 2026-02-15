@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -528,6 +528,77 @@ class TestTransactionSearch:
         for transaction in result["results"]:
             transaction_date = date.fromisoformat(transaction["date"])
             assert date(2024, 1, 15) <= transaction_date <= date(2024, 1, 31)
+
+    def test_search_transactions_by_period_day(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test searching transactions by predefined day period"""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+
+        today = date.today()
+        # Ensure yesterday is strictly before today; avoid month boundary complexity.
+        yesterday = today - timedelta(days=1)
+
+        _create_transaction(
+            client,
+            auth_headers,
+            account["id"],
+            "100.00",
+            "expense",
+            None,
+            today.isoformat(),
+        )
+        _create_transaction(
+            client,
+            auth_headers,
+            account["id"],
+            "200.00",
+            "income",
+            None,
+            yesterday.isoformat(),
+        )
+
+        r = client.get("/api/v1/transactions?period=day", headers=auth_headers)
+        assert r.status_code == 200
+        result = r.json()
+        for tx in result["results"]:
+            assert date.fromisoformat(tx["date"]) == today
+
+    def test_recent_transactions_limit_and_ordering(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Test recent transactions endpoint returns <= limit and is ordered"""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+
+        _create_transaction(
+            client, auth_headers, account["id"], "100.00", "expense", None, "2024-01-15"
+        )
+        _create_transaction(
+            client, auth_headers, account["id"], "200.00", "income", None, "2024-01-16"
+        )
+        _create_transaction(
+            client, auth_headers, account["id"], "150.00", "expense", None, "2024-01-17"
+        )
+
+        r = client.get("/api/v1/transactions/recent?limit=5", headers=auth_headers)
+        assert r.status_code == 200
+        body = r.json()
+        assert "results" in body
+        assert len(body["results"]) <= 5
+        # newest first
+        assert body["results"][0]["date"] >= body["results"][1]["date"]
+
+    def test_recent_transactions_rejects_period_param(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Recent endpoint rejects period/date filters"""
+        _create_user(client, auth_headers)
+        r = client.get(
+            "/api/v1/transactions/recent?limit=10&period=day", headers=auth_headers
+        )
+        assert r.status_code == 422
 
     def test_search_transactions_by_amount_range(
         self, client: TestClient, auth_headers: dict

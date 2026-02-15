@@ -8,6 +8,8 @@ from app.dependencies.user_dependencies import get_current_user
 from app.entities.user import User
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.transaction_schemas import (
+    RecentTransactionsParams,
+    RecentTransactionsResponse,
     TransactionCreate,
     TransactionResponse,
     TransactionSearch,
@@ -31,6 +33,16 @@ def search_transactions(
     and source for the authenticated user.
     """
     return service.search(cast(UUID, current_user.id), search)
+
+
+@router.get("/recent", response_model=RecentTransactionsResponse)
+def get_recent_transactions(
+    params: RecentTransactionsParams = Depends(),
+    service: TransactionService = Depends(get_transaction_service),
+    current_user: User = Depends(get_current_user),
+) -> RecentTransactionsResponse:
+    """Return a fixed-size list of the most recent transactions."""
+    return service.get_recent(cast(UUID, current_user.id), params)
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

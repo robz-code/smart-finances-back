@@ -22,6 +22,8 @@ from app.schemas.reporting_schemas import (
 )
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
+    RecentTransactionsParams,
+    RecentTransactionsResponse,
     TransactionCreate,
     TransactionRelatedEntity,
     TransactionResponse,
@@ -79,6 +81,26 @@ class TransactionService(BaseService[Transaction]):
         except Exception as e:
             logger.error(f"Error searching transactions: {str(e)}")
             raise HTTPException(status_code=500, detail="Error searching transactions")
+
+    def get_recent(
+        self, user_id: UUID, params: RecentTransactionsParams
+    ) -> RecentTransactionsResponse:
+        """Return most recent transactions with strict limit validation."""
+        try:
+            if params.limit is None:
+                # Defensive: schema should prevent this.
+                raise HTTPException(status_code=422, detail="limit is required.")
+
+            rows = self.repository.search_recent(user_id, params.limit)
+            responses = [self._build_transaction_response(tx) for tx in rows]
+            return RecentTransactionsResponse(results=responses)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching recent transactions: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail="Error fetching recent transactions"
+            )
 
     def get_net_signed_amounts_and_counts_by_category(
         self,
