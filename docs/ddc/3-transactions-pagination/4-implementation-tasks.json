@@ -1,0 +1,115 @@
+{
+  "feature": "Transactions search period + recent transactions endpoint",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Extend TransactionSearch with period param",
+      "description": "Update `app/schemas/transaction_schemas.py` to add optional `period` (day|week|month|year) to `TransactionSearch` using `TransactionSummaryPeriod` (or an equivalent local enum if needed).",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "TransactionSearch accepts `period` values {day, week, month, year} and continues to accept existing fields without breaking parsing.",
+      "status": "pending"
+    },
+    {
+      "id": "T2",
+      "title": "Add TransactionSearch validations for period vs custom date range",
+      "description": "Add Pydantic validation rules to `TransactionSearch`: reject `period` combined with `date_from`/`date_to`; require both `date_from` and `date_to` together; enforce `date_from <= date_to`.",
+      "layer": "backend",
+      "depends_on": ["T1"],
+      "acceptance_criteria": "Invalid combinations produce 422 via existing validation handling; valid combinations pass validation deterministically.",
+      "status": "pending"
+    },
+    {
+      "id": "T3",
+      "title": "Add RecentTransactionsParams and response schema",
+      "description": "Create `RecentTransactionsParams` (required `limit` in {5,10,20,50,100} and rejects `date_from`/`date_to`/`period`) and `RecentTransactionsResponse` ({results: TransactionResponse[]}).",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "Schema validation rejects invalid/missing limits and rejects any date/period fields for recent requests; response schema matches `{ results: [...] }`.",
+      "status": "pending"
+    },
+    {
+      "id": "T4",
+      "title": "Enforce deterministic ordering in transaction search queries",
+      "description": "Update `TransactionRepository.search` in `app/repository/transaction_repository.py` to order by `date DESC`, `created_at DESC`, `id DESC` (add the missing `id` tie-breaker).",
+      "layer": "backend",
+      "depends_on": [],
+      "acceptance_criteria": "Repository search orders results strictly by (date desc, created_at desc, id desc) for all searches.",
+      "status": "pending"
+    },
+    {
+      "id": "T5",
+      "title": "Apply period-derived date range in repository search",
+      "description": "Implement period resolution for search: when `TransactionSearch.period` is provided, compute `(date_from, date_to)` using `app/shared/helpers/date_helper.py::calculate_period_dates` and apply the resulting date filters in `TransactionRepository.search`.",
+      "layer": "backend",
+      "depends_on": ["T2", "T4"],
+      "acceptance_criteria": "Search with `period` returns only transactions within the computed inclusive range and matches the same behavior as providing explicit `date_from`/`date_to` for that range.",
+      "status": "pending"
+    },
+    {
+      "id": "T6",
+      "title": "Add repository method for recent transactions",
+      "description": "Add `TransactionRepository.search_recent(user_id, limit)` that filters by user_id, orders by (date desc, created_at desc, id desc), and applies `LIMIT limit` with relationship eager loading consistent with search.",
+      "layer": "backend",
+      "depends_on": ["T4"],
+      "acceptance_criteria": "Repository recent method returns at most `limit` transactions, in the required deterministic order, and includes expected related entities via eager loading.",
+      "status": "pending"
+    },
+    {
+      "id": "T7",
+      "title": "Add TransactionService.get_recent",
+      "description": "Implement `TransactionService.get_recent(user_id, params)` that calls repository `search_recent`, maps to `TransactionResponse`, and returns `RecentTransactionsResponse`.",
+      "layer": "backend",
+      "depends_on": ["T3", "T6"],
+      "acceptance_criteria": "Service returns `{results: [...]}` with correct DTO mapping for recent transactions and propagates validation errors as 422.",
+      "status": "pending"
+    },
+    {
+      "id": "T8",
+      "title": "Add GET /transactions/recent route before /{transaction_id}",
+      "description": "Update `app/routes/transaction_route.py` to add `GET /recent` using `RecentTransactionsParams` and `TransactionService.get_recent`, and ensure it is declared before `GET /{transaction_id}` to avoid route collisions.",
+      "layer": "backend",
+      "depends_on": ["T7"],
+      "acceptance_criteria": "Route `/api/v1/transactions/recent` is reachable and does not conflict with `/{transaction_id}`; returns 200 with results for valid requests.",
+      "status": "pending"
+    },
+    {
+      "id": "T9",
+      "title": "Create DB migration for composite ordering index",
+      "description": "Add a migration that creates index `ix_transactions_user_date_created_id` on `(user_id, date DESC, created_at DESC, id DESC)` for performance with deterministic ordering.",
+      "layer": "db",
+      "depends_on": [],
+      "acceptance_criteria": "Migration applies successfully on a clean DB and the index exists with the specified columns and sort order.",
+      "status": "pending"
+    },
+    {
+      "id": "T10",
+      "title": "Unit tests for TransactionSearch period/date validations",
+      "description": "Add/extend tests to cover: valid period values; rejecting period+date range; requiring both date_from/date_to; rejecting date_from>date_to.",
+      "layer": "tests",
+      "depends_on": ["T2"],
+      "acceptance_criteria": "All validation scenarios are covered with deterministic assertions; tests fail if validations regress.",
+      "status": "pending"
+    },
+    {
+      "id": "T11",
+      "title": "Unit tests for RecentTransactionsParams validation",
+      "description": "Add tests covering: limit required; limit enum enforcement; rejection of date_from/date_to/period on recent endpoint params.",
+      "layer": "tests",
+      "depends_on": ["T3"],
+      "acceptance_criteria": "All recent validation scenarios are covered; tests fail if invalid inputs pass.",
+      "status": "pending"
+    },
+    {
+      "id": "T12",
+      "title": "Integration tests for /transactions period and /recent endpoint",
+      "description": "Add API tests to verify: `/transactions?period=...` filters correctly and orders by (date, created_at, id) desc; `/transactions/recent?limit=...` returns <= limit in correct order; recent rejects date/period params with 422; auth required returns 401.",
+      "layer": "tests",
+      "depends_on": ["T5", "T8"],
+      "acceptance_criteria": "Integration suite passes with coverage of 200/401/422 for both endpoints and verifies deterministic ordering including `id` tie-breaker.",
+      "status": "pending"
+    }
+  ],
+  "completion_rule": "Feature is complete when all tasks status = done"
+}
+
