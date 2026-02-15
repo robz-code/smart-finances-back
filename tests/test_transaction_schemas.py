@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.entities.transaction import Transaction
 from app.schemas.transaction_schemas import (
+    RecentTransactionsParams,
     TransactionBase,
     TransactionCreate,
     TransactionResponse,
@@ -333,6 +334,7 @@ class TestTransactionSearch:
         assert search.currency is None
         assert search.date_from is None
         assert search.date_to is None
+        assert search.period is None
         assert search.amount_min is None
         assert search.amount_max is None
         assert search.source is None
@@ -362,9 +364,34 @@ class TestTransactionSearch:
         assert search.currency == "USD"
         assert search.date_from == date(2024, 1, 1)
         assert search.date_to == date(2024, 1, 31)
+        assert search.period is None
         assert search.amount_min == Decimal("100.00")
         assert search.amount_max == Decimal("500.00")
         assert search.source == "manual"
+
+    def test_transaction_search_with_period(self):
+        """Test TransactionSearch with predefined period"""
+        search = TransactionSearch(period="month")
+        assert search.period is not None
+        assert search.period.value == "month"
+
+    def test_transaction_search_rejects_period_and_date_range(self):
+        """Reject period combined with custom date range"""
+        with pytest.raises(ValidationError) as exc:
+            TransactionSearch(period="month", date_from="2024-01-01", date_to="2024-01-31")
+        assert "Use either 'period' or 'date_from'/'date_to'" in str(exc.value)
+
+    def test_transaction_search_requires_both_date_from_and_date_to(self):
+        """Reject only one of date_from/date_to"""
+        with pytest.raises(ValidationError) as exc:
+            TransactionSearch(date_from="2024-01-01")
+        assert "Both 'date_from' and 'date_to' must be provided together." in str(exc.value)
+
+    def test_transaction_search_rejects_date_from_after_date_to(self):
+        """Reject date_from > date_to"""
+        with pytest.raises(ValidationError) as exc:
+            TransactionSearch(date_from="2024-02-01", date_to="2024-01-01")
+        assert "'date_from' must be before or equal to 'date_to'." in str(exc.value)
 
     def test_transaction_search_with_decimal_amounts(self):
         """Test TransactionSearch with decimal amount filters"""
@@ -487,3 +514,24 @@ class TestSchemaValidation:
         # Invalid date
         with pytest.raises(ValidationError):
             TransactionSearch(date_from="not-a-date")
+
+
+class TestRecentTransactionsParams:
+    def test_recent_transactions_params_requires_limit(self):
+        with pytest.raises(ValidationError) as exc:
+            RecentTransactionsParams()
+        assert "limit is required." in str(exc.value)
+
+    def test_recent_transactions_params_limit_enum(self):
+        with pytest.raises(ValidationError) as exc:
+            RecentTransactionsParams(limit=7)
+        assert "limit must be one of: 5, 10, 20, 50, 100." in str(exc.value)
+
+    def test_recent_transactions_params_rejects_date_filters(self):
+        with pytest.raises(ValidationError) as exc:
+            RecentTransactionsParams(limit=10, date_from="2024-01-01")
+        assert "Recent transactions does not support date filters or period." in str(exc.value)
+
+    def test_recent_transactions_params_accepts_valid_limit(self):
+        params = RecentTransactionsParams(limit=20)
+        assert params.limit == 20

@@ -7,11 +7,12 @@ from decimal import Decimal
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
+from app.schemas.reporting_schemas import TransactionSummaryPeriod
 from app.schemas.tag_schemas import TagTransactionCreate
 
 
@@ -159,6 +160,7 @@ class TransactionSearch(BaseModel):
     currency: Optional[str] = None
     date_from: Optional[Date] = None
     date_to: Optional[Date] = None
+    period: Optional[TransactionSummaryPeriod] = None
     amount_min: Optional[Decimal] = None
     amount_max: Optional[Decimal] = None
     source: Optional[str] = None
@@ -192,6 +194,23 @@ class TransactionSearch(BaseModel):
         "source": lambda value: Transaction.source == value,
     }
 
+    @model_validator(mode="after")
+    def ensure_date_range_or_period(self) -> "TransactionSearch":
+        """
+        Enforce mutually exclusive date strategies:
+        - Either `period` OR (`date_from` and `date_to`) OR neither.
+        """
+        if self.period is not None and (self.date_from is not None or self.date_to is not None):
+            raise ValueError("Use either 'period' or 'date_from'/'date_to', not both.")
+
+        if (self.date_from is None) ^ (self.date_to is None):
+            raise ValueError("Both 'date_from' and 'date_to' must be provided together.")
+
+        if self.date_from is not None and self.date_to is not None and self.date_from > self.date_to:
+            raise ValueError("'date_from' must be before or equal to 'date_to'.")
+
+        return self
+
     def build_filters(self) -> list[Any]:
         """Generate SQLAlchemy filter expressions for the provided search fields."""
 
@@ -206,3 +225,32 @@ class TransactionSearch(BaseModel):
                 filters.append(builder(value))
 
         return filters
+
+
+class RecentTransactionsParams(BaseModel):
+    """
+    Query params for recent transactions endpoint.
+    Only `limit` is allowed. Date-related params are explicitly rejected.
+    """
+
+    limit: Optional[int] = None
+    date_from: Optional[Date] = None
+    date_to: Optional[Date] = None
+    period: Optional[TransactionSummaryPeriod] = None
+
+    @model_validator(mode="after")
+    def validate_recent_params(self) -> "RecentTransactionsParams":
+        if self.limit is None:
+            raise ValueError("limit is required.")
+
+        if self.limit not in {5, 10, 20, 50, 100}:
+            raise ValueError("limit must be one of: 5, 10, 20, 50, 100.")
+
+        if self.date_from is not None or self.date_to is not None or self.period is not None:
+            raise ValueError("Recent transactions does not support date filters or period.")
+
+        return self
+
+
+class RecentTransactionsResponse(BaseModel):
+    results: List[TransactionResponse]
