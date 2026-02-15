@@ -49,7 +49,9 @@ class TransactionRepository(BaseRepository[Transaction]):
         # Optional period filter (mutually exclusive with custom date range, validated in schema)
         if getattr(search_params, "period", None) is not None:
             date_from, date_to = calculate_period_dates(search_params.period)
-            query = query.filter(Transaction.date >= date_from, Transaction.date <= date_to)
+            query = query.filter(
+                Transaction.date >= date_from, Transaction.date <= date_to
+            )
 
         for filter_condition in search_params.build_filters():
             query = query.filter(filter_condition)

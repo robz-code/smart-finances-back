@@ -378,14 +378,18 @@ class TestTransactionSearch:
     def test_transaction_search_rejects_period_and_date_range(self):
         """Reject period combined with custom date range"""
         with pytest.raises(ValidationError) as exc:
-            TransactionSearch(period="month", date_from="2024-01-01", date_to="2024-01-31")
+            TransactionSearch(
+                period="month", date_from="2024-01-01", date_to="2024-01-31"
+            )
         assert "Use either 'period' or 'date_from'/'date_to'" in str(exc.value)
 
     def test_transaction_search_requires_both_date_from_and_date_to(self):
         """Reject only one of date_from/date_to"""
         with pytest.raises(ValidationError) as exc:
             TransactionSearch(date_from="2024-01-01")
-        assert "Both 'date_from' and 'date_to' must be provided together." in str(exc.value)
+        assert "Both 'date_from' and 'date_to' must be provided together." in str(
+            exc.value
+        )
 
     def test_transaction_search_rejects_date_from_after_date_to(self):
         """Reject date_from > date_to"""
@@ -530,7 +534,9 @@ class TestRecentTransactionsParams:
     def test_recent_transactions_params_rejects_date_filters(self):
         with pytest.raises(ValidationError) as exc:
             RecentTransactionsParams(limit=10, date_from="2024-01-01")
-        assert "Recent transactions does not support date filters or period." in str(exc.value)
+        assert "Recent transactions does not support date filters or period." in str(
+            exc.value
+        )
 
     def test_recent_transactions_params_accepts_valid_limit(self):
         params = RecentTransactionsParams(limit=20)

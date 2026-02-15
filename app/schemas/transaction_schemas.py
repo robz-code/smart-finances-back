@@ -200,13 +200,21 @@ class TransactionSearch(BaseModel):
         Enforce mutually exclusive date strategies:
         - Either `period` OR (`date_from` and `date_to`) OR neither.
         """
-        if self.period is not None and (self.date_from is not None or self.date_to is not None):
+        if self.period is not None and (
+            self.date_from is not None or self.date_to is not None
+        ):
             raise ValueError("Use either 'period' or 'date_from'/'date_to', not both.")
 
         if (self.date_from is None) ^ (self.date_to is None):
-            raise ValueError("Both 'date_from' and 'date_to' must be provided together.")
+            raise ValueError(
+                "Both 'date_from' and 'date_to' must be provided together."
+            )
 
-        if self.date_from is not None and self.date_to is not None and self.date_from > self.date_to:
+        if (
+            self.date_from is not None
+            and self.date_to is not None
+            and self.date_from > self.date_to
+        ):
             raise ValueError("'date_from' must be before or equal to 'date_to'.")
 
         return self
@@ -246,8 +254,14 @@ class RecentTransactionsParams(BaseModel):
         if self.limit not in {5, 10, 20, 50, 100}:
             raise ValueError("limit must be one of: 5, 10, 20, 50, 100.")
 
-        if self.date_from is not None or self.date_to is not None or self.period is not None:
-            raise ValueError("Recent transactions does not support date filters or period.")
+        if (
+            self.date_from is not None
+            or self.date_to is not None
+            or self.period is not None
+        ):
+            raise ValueError(
+                "Recent transactions does not support date filters or period."
+            )
 
         return self
 
