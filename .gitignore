@@ -83,3 +83,6 @@ pylint.log
 # Ignore docs build
 /docs/_build/
 
+.vercel
+.env*.local
+node_modules/
