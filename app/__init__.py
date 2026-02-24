@@ -136,7 +136,6 @@ app.include_router(
 def read_root() -> dict[str, str]:
     """Root endpoint."""
     if not settings.DEBUG:
-        logger.info("Root endpoint accessed")
         raise HTTPException(status_code=404)
     return {
         "message": "Welcome to Smart Finances API",
