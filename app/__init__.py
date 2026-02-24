@@ -26,6 +26,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
+logger = logging.getLogger(__name__)
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -34,6 +36,16 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.DEBUG else None,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
+)
+
+import os
+
+# Log application startup details
+db_type = "Postgres" if "postgres" in settings.DATABASE_URL.lower() else "SQLite"
+logger.info(
+    f"Starting {settings.PROJECT_NAME} v1.0.0 (DEBUG={settings.DEBUG}, "
+    f"ENV={'Vercel' if os.environ.get('VERCEL') else 'Local'}, "
+    f"DB={db_type})"
 )
 
 
@@ -124,6 +136,7 @@ app.include_router(
 def read_root() -> dict[str, str]:
     """Root endpoint."""
     if not settings.DEBUG:
+        logger.info("Root endpoint accessed")
         raise HTTPException(status_code=404)
     return {
         "message": "Welcome to Smart Finances API",
