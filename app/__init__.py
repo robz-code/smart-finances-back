@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -26,12 +26,26 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
+logger = logging.getLogger(__name__)
+
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     description="A FastAPI application for smart finances management",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    openapi_url=f"{settings.API_V1_STR}/openapi.json" if settings.DEBUG else None,
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+)
+
+import os
+
+# Log application startup details
+db_type = "Postgres" if "postgres" in settings.DATABASE_URL.lower() else "SQLite"
+logger.info(
+    f"Starting {settings.PROJECT_NAME} v1.0.0 (DEBUG={settings.DEBUG}, "
+    f"ENV={'Vercel' if os.environ.get('VERCEL') else 'Local'}, "
+    f"DB={db_type})"
 )
 
 
@@ -121,6 +135,8 @@ app.include_router(
 @app.get("/")
 def read_root() -> dict[str, str]:
     """Root endpoint."""
+    if not settings.DEBUG:
+        raise HTTPException(status_code=404)
     return {
         "message": "Welcome to Smart Finances API",
         "version": "1.0.0",

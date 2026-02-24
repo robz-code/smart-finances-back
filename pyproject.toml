@@ -4,15 +4,28 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smart-finances"
-version = "0.1.0"
+version = "1.0.0"
 description = "Smart Finances - A financial management application"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Smart Finances Team"}
 ]
 keywords = ["finance", "budget", "fastapi", "python"]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.35.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+    "python-dotenv>=1.1.0",
+    "psycopg2-binary>=2.9.10",
+    "SQLAlchemy>=2.0.40",
+    "supabase",
+    "httpx",
+    "pyjwt",
+    "email_validator>=2.2.0",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
