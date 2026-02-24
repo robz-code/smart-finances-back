@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-    {name = "Smart Finances Team"}
+    {name = "robz.code"}
 ]
 keywords = ["finance", "budget", "fastapi", "python"]
 dependencies = [
@@ -29,12 +29,14 @@ dependencies = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
 
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
+
+[tool.setuptools]
+packages = ["app"]
 
 [tool.black]
 line-length = 88
