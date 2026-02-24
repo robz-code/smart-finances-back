@@ -1,11 +1,13 @@
 import pytest
+
 from app.config.settings import get_settings
+
 
 def test_root_endpoint_access(client):
     """Test root endpoint access based on DEBUG setting."""
     settings = get_settings()
     resp = client.get("/")
-    
+
     if settings.DEBUG:
         assert resp.status_code == 200
         data = resp.json()
@@ -13,10 +15,11 @@ def test_root_endpoint_access(client):
     else:
         assert resp.status_code == 404
 
+
 def test_docs_access(client):
     """Test documentation access based on DEBUG setting."""
     settings = get_settings()
-    
+
     # Check /docs
     resp_docs = client.get("/docs")
     # Check /redoc
@@ -24,7 +27,7 @@ def test_docs_access(client):
     # Check openapi.json
     api_str = settings.API_V1_STR
     resp_openapi = client.get(f"{api_str}/openapi.json")
-    
+
     if settings.DEBUG:
         assert resp_docs.status_code == 200
         assert resp_redoc.status_code == 200
