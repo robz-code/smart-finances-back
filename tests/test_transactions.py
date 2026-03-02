@@ -986,6 +986,7 @@ class TestTransferCRUD:
     def test_update_transfer_forbidden(self, client: TestClient, auth_headers: dict):
         """A different user cannot update another user's transfer."""
         import os
+
         import jwt as pyjwt
 
         # User A creates the transfer
@@ -1143,6 +1144,7 @@ class TestTransferCRUD:
     def test_delete_transfer_forbidden(self, client: TestClient, auth_headers: dict):
         """A different user cannot delete another user's transfer."""
         import os
+
         import jwt as pyjwt
 
         # User A creates the transfer
