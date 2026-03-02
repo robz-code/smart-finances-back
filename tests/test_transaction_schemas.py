@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from app.entities.transaction import Transaction
+from app.entities.transaction import Transaction, TransactionType
 from app.schemas.transaction_schemas import (
     RecentTransactionsParams,
     TransactionBase,
@@ -439,6 +439,21 @@ class TestTransactionSearch:
         assert search.model_config.get("from_attributes") is True
         assert "json_schema_extra" in search.model_config
         assert "example" in search.model_config["json_schema_extra"]
+
+    def test_transaction_search_accepts_valid_type(self):
+        """Test TransactionSearch accepts valid type values"""
+        # Test "income"
+        search = TransactionSearch(type="income")
+        assert search.type == TransactionType.INCOME
+
+        # Test "expense"
+        search = TransactionSearch(type="expense")
+        assert search.type == TransactionType.EXPENSE
+
+    def test_transaction_search_rejects_invalid_type(self):
+        """Test TransactionSearch rejects invalid type values"""
+        with pytest.raises(ValidationError):
+            TransactionSearch(type="transfer")
 
 
 class TestSchemaValidation:

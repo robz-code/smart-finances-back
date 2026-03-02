@@ -156,7 +156,7 @@ class TransferTransactionCreate(BaseModel):
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
-    type: Optional[str] = None
+    type: Optional[TransactionType] = None
     currency: Optional[str] = None
     date_from: Optional[Date] = None
     date_to: Optional[Date] = None
