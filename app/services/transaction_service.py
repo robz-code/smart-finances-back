@@ -28,8 +28,10 @@ from app.schemas.transaction_schemas import (
     TransactionRelatedEntity,
     TransactionResponse,
     TransactionSearch,
+    TransactionUpdate,
     TransferResponse,
     TransferTransactionCreate,
+    TransferUpdate,
 )
 from app.services.account_service import AccountService
 from app.services.base_service import BaseService
@@ -488,6 +490,134 @@ class TransactionService(BaseService[Transaction]):
         self.repository.remove_all_tags(existing_transaction.id)
 
         return super().delete(id, **kwargs)
+
+    def delete_transfer(self, transfer_id: UUID, **kwargs: Any) -> None:
+        """Delete both transactions in a transfer pair."""
+        user_id = kwargs.get("user_id")
+
+        transactions = self.repository.get_by_transfer_id(transfer_id)
+        if not transactions:
+            raise HTTPException(status_code=404, detail="Transfer not found")
+
+        for t in transactions:
+            if t.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Access denied to this transfer"
+                )
+
+        for t in transactions:
+            if self.balance_snapshot_repository:
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    t.account_id, first_day_of_month(t.date)
+                )
+            self.repository.remove_all_tags(t.id)
+            self.repository.delete(t.id)
+
+    def update_transfer(
+        self, transfer_id: UUID, obj_in: TransferUpdate, **kwargs: Any
+    ) -> TransferResponse:
+        """Update both transactions in a transfer pair."""
+        user_id = kwargs.get("user_id")
+
+        transactions = self.repository.get_by_transfer_id(transfer_id)
+        if not transactions:
+            raise HTTPException(status_code=404, detail="Transfer not found")
+
+        from_transaction = next(
+            (t for t in transactions if t.type == TransactionType.EXPENSE.value), None
+        )
+        to_transaction = next(
+            (t for t in transactions if t.type == TransactionType.INCOME.value), None
+        )
+        if not from_transaction or not to_transaction:
+            raise HTTPException(status_code=404, detail="Transfer not found")
+
+        for t in transactions:
+            if t.user_id != user_id:
+                raise HTTPException(
+                    status_code=403, detail="Access denied to this transfer"
+                )
+
+        if obj_in.from_account_id and not self._validate_account_ownership(
+            user_id, obj_in.from_account_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="From account not found or access denied"
+            )
+        if obj_in.to_account_id and not self._validate_account_ownership(
+            user_id, obj_in.to_account_id
+        ):
+            raise HTTPException(
+                status_code=403, detail="To account not found or access denied"
+            )
+
+        if obj_in.amount is not None and obj_in.amount <= 0:
+            raise HTTPException(
+                status_code=400, detail="Transaction amount must be greater than zero"
+            )
+
+        if obj_in.date is not None:
+            check_date = (
+                obj_in.date.date() if isinstance(obj_in.date, datetime) else obj_in.date
+            )
+            if check_date > datetime.now(timezone.utc).date():
+                raise HTTPException(
+                    status_code=400, detail="Transaction date cannot be in the future"
+                )
+
+        effective_from = obj_in.from_account_id or from_transaction.account_id
+        effective_to = obj_in.to_account_id or to_transaction.account_id
+        if effective_from == effective_to:
+            raise HTTPException(
+                status_code=400, detail="From and to account cannot be the same"
+            )
+
+        # Save old state before updating for snapshot invalidation
+        old_from_account_id = from_transaction.account_id
+        old_from_date = from_transaction.date
+        old_to_account_id = to_transaction.account_id
+        old_to_date = to_transaction.date
+
+        updated_from = self.repository.update(
+            from_transaction.id,
+            TransactionUpdate(
+                account_id=obj_in.from_account_id,
+                amount=obj_in.amount,
+                date=obj_in.date,
+            ),
+        )
+        updated_to = self.repository.update(
+            to_transaction.id,
+            TransactionUpdate(
+                account_id=obj_in.to_account_id,
+                amount=obj_in.amount,
+                date=obj_in.date,
+            ),
+        )
+
+        if self.balance_snapshot_repository:
+            self.balance_snapshot_repository.delete_future_snapshots(
+                old_from_account_id, first_day_of_month(old_from_date)
+            )
+            self.balance_snapshot_repository.delete_future_snapshots(
+                old_to_account_id, first_day_of_month(old_to_date)
+            )
+            self.balance_snapshot_repository.delete_future_snapshots(
+                updated_from.account_id, first_day_of_month(updated_from.date)
+            )
+            self.balance_snapshot_repository.delete_future_snapshots(
+                updated_to.account_id, first_day_of_month(updated_to.date)
+            )
+            self.db.commit()
+
+        self.db.refresh(updated_from)
+        self.db.refresh(updated_to)
+
+        return TransferResponse(
+            transfer_id=transfer_id,
+            from_transaction=self._build_transaction_response(updated_from),
+            to_transaction=self._build_transaction_response(updated_to),
+        )
 
     def _build_search_response(
         self, transactions: List[Transaction]
