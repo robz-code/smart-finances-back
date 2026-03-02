@@ -153,6 +153,15 @@ class TransferTransactionCreate(BaseModel):
         )
 
 
+class TransferUpdate(BaseModel):
+    from_account_id: Optional[UUID] = None
+    to_account_id: Optional[UUID] = None
+    amount: Optional[Decimal] = None
+    date: Optional[Date] = None
+
+    model_config = {"from_attributes": True}
+
+
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
