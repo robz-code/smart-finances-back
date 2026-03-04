@@ -1,0 +1,1 @@
+# Smart Finances MCP Server
