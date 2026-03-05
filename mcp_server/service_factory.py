@@ -1,20 +1,31 @@
-"""Factory functions that build domain services with a given DB session."""
+"""
+Thin adapter layer: wire existing app/dependencies/ functions for use
+outside of FastAPI's DI context.
+
+Since all dependency functions accept plain arguments (Depends() is only
+a default-value marker), they can be called directly by passing `db`.
+No logic is duplicated here — every factory delegates to the existing
+dependency function.
+"""
 
 from sqlalchemy.orm import Session
 
 from app.config.database import get_session_factory
-from app.engines.balance_engine import BalanceEngine
-from app.repository.account_repository import AccountRepository
-from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
-from app.repository.transaction_repository import TransactionRepository
-from app.services.account_service import AccountService
-from app.services.category_service import CategoryService
-from app.services.concept_service import ConceptService
-from app.services.fx_service import FxService
-from app.services.reporting_service import ReportingService
-from app.services.tag_service import TagService
-from app.services.transaction_service import TransactionService
-from app.services.user_service import UserService
+
+# Re-export existing dependency functions under stable MCP-side names.
+from app.dependencies.account_dependencies import get_account_repository
+from app.dependencies.account_dependencies import get_account_service as build_account_service
+from app.dependencies.balance_dependencies import get_balance_engine, get_fx_service
+from app.dependencies.balance_snapshot_dependencies import get_balance_snapshot_repository
+from app.dependencies.category_dependencies import get_category_service as build_category_service
+from app.dependencies.concept_dependencies import get_concept_service as build_concept_service
+from app.dependencies.reporting_dependencies import get_reporting_service
+from app.dependencies.tag_dependencies import get_tag_service as build_tag_service
+from app.dependencies.transaction_dependencies import (
+    get_transaction_repository,
+    get_transaction_service,
+)
+from app.dependencies.user_dependencies import get_user_service as build_user_service
 
 
 def get_db() -> Session:
@@ -22,48 +33,30 @@ def get_db() -> Session:
     return get_session_factory()()
 
 
-def build_user_service(db: Session) -> UserService:
-    return UserService(db)
-
-
-def build_account_service(db: Session) -> AccountService:
-    return AccountService(db)
-
-
-def build_category_service(db: Session) -> CategoryService:
-    return CategoryService(db)
-
-
-def build_concept_service(db: Session) -> ConceptService:
-    return ConceptService(db)
-
-
-def build_tag_service(db: Session) -> TagService:
-    return TagService(db)
-
-
-def build_transaction_service(db: Session) -> TransactionService:
-    return TransactionService(
+def build_transaction_service(db: Session):
+    """Compose TransactionService via the existing dependency function."""
+    return get_transaction_service(
         db,
-        account_service=AccountService(db),
-        category_service=CategoryService(db),
-        concept_service=ConceptService(db),
-        tag_service=TagService(db),
-        balance_snapshot_repository=BalanceSnapshotRepository(db),
+        build_account_service(db),
+        build_category_service(db),
+        build_concept_service(db),
+        build_tag_service(db),
+        get_balance_snapshot_repository(db),
     )
 
 
-def build_reporting_service(db: Session) -> ReportingService:
-    fx_service = FxService()
-    balance_engine = BalanceEngine(
-        account_repo=AccountRepository(db),
-        snapshot_repo=BalanceSnapshotRepository(db),
-        transaction_repo=TransactionRepository(db),
-        fx_service=fx_service,
+def build_reporting_service(db: Session):
+    """Compose ReportingService via the existing dependency functions."""
+    fx_svc = get_fx_service()
+    balance_engine = get_balance_engine(
+        account_repo=get_account_repository(db),
+        snapshot_repo=get_balance_snapshot_repository(db),
+        transaction_repo=get_transaction_repository(db),
+        fx_service=fx_svc,
     )
-    return ReportingService(
-        category_service=CategoryService(db),
+    return get_reporting_service(
+        category_service=build_category_service(db),
         transaction_service=build_transaction_service(db),
         balance_engine=balance_engine,
-        fx_service=fx_service,
+        fx_service=fx_svc,
     )
