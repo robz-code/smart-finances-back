@@ -21,3 +21,4 @@ httpx
 clipboard
 pyjwt
 pytest
+mcp[cli]>=1.2.0
