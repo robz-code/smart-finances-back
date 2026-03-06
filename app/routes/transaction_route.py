@@ -16,6 +16,7 @@ from app.schemas.transaction_schemas import (
     TransactionUpdate,
     TransferResponse,
     TransferTransactionCreate,
+    TransferUpdate,
 )
 from app.services.transaction_service import TransactionService
 
@@ -94,6 +95,45 @@ async def create_transfer_transaction(
     return service.create_transfer_transaction(
         transaction_data, user_id=cast(UUID, current_user.id)
     )
+
+
+@router.put(
+    "/transfer/{transfer_id}",
+    response_model=TransferResponse,
+    summary="Update an existing transfer",
+    description=(
+        "Update a transfer transaction pair. All fields are optional. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
+)
+async def update_transfer_transaction(
+    transfer_id: UUID,
+    transaction_data: TransferUpdate,
+    service: TransactionService = Depends(get_transaction_service),
+    current_user: User = Depends(get_current_user),
+) -> TransferResponse:
+    """Update both transactions in a transfer pair owned by the current user."""
+    return service.update_transfer(
+        transfer_id, transaction_data, user_id=cast(UUID, current_user.id)
+    )
+
+
+@router.delete(
+    "/transfer/{transfer_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a transfer",
+    description=(
+        "Delete both transactions in a transfer pair. "
+        "Requires a valid JWT token in the Authorization header."
+    ),
+)
+async def delete_transfer_transaction(
+    transfer_id: UUID,
+    service: TransactionService = Depends(get_transaction_service),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Delete both transactions in a transfer pair owned by the current user."""
+    service.delete_transfer(transfer_id, user_id=cast(UUID, current_user.id))
 
 
 @router.put(

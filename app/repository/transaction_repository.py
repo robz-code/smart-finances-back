@@ -123,7 +123,23 @@ class TransactionRepository(BaseRepository[Transaction]):
                 status_code=500, detail="Error linking tags to transaction"
             ) from exc
 
-    def remove_all_tags(self, transaction_id: UUID) -> int:
+    def get_by_transfer_id(self, transfer_id: UUID) -> List[Transaction]:
+        """Return both transactions that share the given transfer_id."""
+        return (
+            self.db.query(Transaction)
+            .filter(Transaction.transfer_id == transfer_id)
+            .options(
+                selectinload(Transaction.account),
+                selectinload(Transaction.category),
+                selectinload(Transaction.concept),
+                selectinload(Transaction.transaction_tags).selectinload(
+                    TransactionTag.tag
+                ),
+            )
+            .all()
+        )
+
+    def remove_all_tags(self, transaction_id: UUID, auto_commit: bool = True) -> int:
         """Delete all tag associations for the given transaction."""
         logger.debug(f"DB remove_all_tags: transaction_id={transaction_id}")
         try:
@@ -138,7 +154,10 @@ class TransactionRepository(BaseRepository[Transaction]):
                     deleted,
                     transaction_id,
                 )
-            self.db.commit()
+            if auto_commit:
+                self.db.commit()
+            else:
+                self.db.flush()
             return deleted
         except SQLAlchemyError as exc:
             self.db.rollback()

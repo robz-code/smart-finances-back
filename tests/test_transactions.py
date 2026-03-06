@@ -838,3 +838,339 @@ class TestTransactionValidation:
             "/api/v1/transactions", json=create_payload, headers=auth_headers
         )
         assert r.status_code == 400  # Bad request
+
+
+def _create_transfer(
+    client: TestClient,
+    auth_headers: dict,
+    from_account_id: str,
+    to_account_id: str,
+    amount: str = "100.00",
+    transfer_date: str = "2024-01-15",
+):
+    """Helper to create a transfer and return the response body."""
+    r = client.post(
+        "/api/v1/transactions/transfer",
+        json={
+            "from_account_id": from_account_id,
+            "to_account_id": to_account_id,
+            "amount": amount,
+            "date": transfer_date,
+        },
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    return r.json()
+
+
+class TestTransferCRUD:
+    """Test update and delete operations for transfer transactions."""
+
+    # ── UPDATE TESTS ──────────────────────────────────────────────────────────
+
+    def test_update_transfer_amount(self, client: TestClient, auth_headers: dict):
+        """Updating amount propagates to both legs of the transfer."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"], amount="100.00"
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"amount": "200.00"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["transfer_id"] == transfer_id
+        assert body["from_transaction"]["amount"] == "200.00"
+        assert body["to_transaction"]["amount"] == "200.00"
+
+    def test_update_transfer_from_account(self, client: TestClient, auth_headers: dict):
+        """Changing from_account_id updates only the expense leg."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        account_c = _create_account(client, auth_headers, name="Account C")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"from_account_id": account_c["id"]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["from_transaction"]["account"]["id"] == account_c["id"]
+        assert body["to_transaction"]["account"]["id"] == account_b["id"]
+
+    def test_update_transfer_to_account(self, client: TestClient, auth_headers: dict):
+        """Changing to_account_id updates only the income leg."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        account_c = _create_account(client, auth_headers, name="Account C")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"to_account_id": account_c["id"]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["from_transaction"]["account"]["id"] == account_a["id"]
+        assert body["to_transaction"]["account"]["id"] == account_c["id"]
+
+    def test_update_transfer_date(self, client: TestClient, auth_headers: dict):
+        """Updating date propagates to both legs."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"date": "2024-03-10"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["from_transaction"]["date"] == "2024-03-10"
+        assert body["to_transaction"]["date"] == "2024-03-10"
+
+    def test_update_transfer_no_fields(self, client: TestClient, auth_headers: dict):
+        """Empty update body is idempotent — returns 200 with unchanged data."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"], amount="50.00"
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["transfer_id"] == transfer_id
+        assert body["from_transaction"]["amount"] == "50.00"
+        assert body["to_transaction"]["amount"] == "50.00"
+
+    def test_update_transfer_not_found(self, client: TestClient, auth_headers: dict):
+        """Updating a non-existent transfer returns 404."""
+        _create_user(client, auth_headers)
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{uuid.uuid4()}",
+            json={"amount": "99.00"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 404
+
+    def test_update_transfer_forbidden(self, client: TestClient, auth_headers: dict):
+        """A different user cannot update another user's transfer."""
+        import os
+
+        import jwt as pyjwt
+
+        # User A creates the transfer
+        _create_user(client, auth_headers, name="User A", email="usera@example.com")
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        # User B tries to update it
+        other_user_id = uuid.uuid4()
+        other_token = pyjwt.encode(
+            {"sub": str(other_user_id)},
+            os.environ["JWT_SECRET_KEY"],
+            algorithm="HS256",
+        )
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+        client.post(
+            "/api/v1/users",
+            json={"name": "User B", "email": "userb@example.com"},
+            headers=other_headers,
+        )
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"amount": "999.00"},
+            headers=other_headers,
+        )
+        assert r.status_code == 403
+
+    def test_update_transfer_same_account(self, client: TestClient, auth_headers: dict):
+        """Setting from and to account to the same account returns 400."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"to_account_id": account_a["id"]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_update_transfer_future_date(self, client: TestClient, auth_headers: dict):
+        """A future date is rejected with 400."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        future_date = (date.today() + timedelta(days=10)).isoformat()
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"date": future_date},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_update_transfer_zero_amount(self, client: TestClient, auth_headers: dict):
+        """Zero amount is rejected with 400."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"amount": "0"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_update_transfer_negative_amount(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Negative amount is rejected with 400."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.put(
+            f"/api/v1/transactions/transfer/{transfer_id}",
+            json={"amount": "-50"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    # ── DELETE TESTS ──────────────────────────────────────────────────────────
+
+    def test_delete_transfer_success(self, client: TestClient, auth_headers: dict):
+        """Deleting a transfer returns 204."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+    def test_delete_transfer_removes_both_transactions(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """After deletion, both individual transaction IDs return 404."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        r = client.get(f"/api/v1/transactions/{from_id}", headers=auth_headers)
+        assert r.status_code == 404
+
+        r = client.get(f"/api/v1/transactions/{to_id}", headers=auth_headers)
+        assert r.status_code == 404
+
+    def test_delete_transfer_not_found(self, client: TestClient, auth_headers: dict):
+        """Deleting a non-existent transfer returns 404."""
+        _create_user(client, auth_headers)
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{uuid.uuid4()}", headers=auth_headers
+        )
+        assert r.status_code == 404
+
+    def test_delete_transfer_forbidden(self, client: TestClient, auth_headers: dict):
+        """A different user cannot delete another user's transfer."""
+        import os
+
+        import jwt as pyjwt
+
+        # User A creates the transfer
+        _create_user(client, auth_headers, name="User A", email="usera@example.com")
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+
+        # User B tries to delete it
+        other_user_id = uuid.uuid4()
+        other_token = pyjwt.encode(
+            {"sub": str(other_user_id)},
+            os.environ["JWT_SECRET_KEY"],
+            algorithm="HS256",
+        )
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+        client.post(
+            "/api/v1/users",
+            json={"name": "User B", "email": "userb@example.com"},
+            headers=other_headers,
+        )
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=other_headers
+        )
+        assert r.status_code == 403

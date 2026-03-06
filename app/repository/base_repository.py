@@ -42,14 +42,17 @@ class BaseRepository(Generic[T]):
             .all()  # type: ignore
         )
 
-    def delete(self, id: UUID) -> Optional[T]:
+    def delete(self, id: UUID, auto_commit: bool = True) -> Optional[T]:
         """Delete entity by ID with transaction handling"""
         logger.debug(f"DB delete: {self.model.__name__} id={id}")
         obj = self.get(id)
         if obj:
             try:
                 self.db.delete(obj)
-                self.db.commit()
+                if auto_commit:
+                    self.db.commit()
+                else:
+                    self.db.flush()
                 logger.info(f"Successfully deleted {self.model.__name__} with ID: {id}")
             except SQLAlchemyError as e:
                 self.db.rollback()
@@ -83,7 +86,7 @@ class BaseRepository(Generic[T]):
             logger.error(f"Database error creating {self.model.__name__}: {str(e)}")
             raise
 
-    def update(self, id: UUID, obj_in: T) -> Optional[T]:
+    def update(self, id: UUID, obj_in: T, auto_commit: bool = True) -> Optional[T]:
         """Update entity by ID with transaction handling"""
         logger.debug(f"DB update: {self.model.__name__} id={id}")
         obj = self.get(id)
@@ -113,8 +116,11 @@ class BaseRepository(Generic[T]):
 
                     obj.updated_at = datetime.now(timezone.utc)
 
-                self.db.commit()
-                self.db.refresh(obj)
+                if auto_commit:
+                    self.db.commit()
+                    self.db.refresh(obj)
+                else:
+                    self.db.flush()
                 logger.info(f"Successfully updated {self.model.__name__} with ID: {id}")
             except SQLAlchemyError as e:
                 self.db.rollback()
