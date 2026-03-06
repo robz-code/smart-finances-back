@@ -12,6 +12,7 @@ from app.schemas.transaction_schemas import (
     TransactionCreate,
     TransactionResponse,
     TransactionSearch,
+    TransactionSearchType,
     TransactionUpdate,
 )
 
@@ -98,38 +99,23 @@ class TestTransactionBase:
         assert transaction.source == "manual"  # default value
         assert transaction.currency is None
 
-    def test_transaction_base_invalid_uuid(self):
-        """Test TransactionBase with invalid UUID"""
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param(
+                {"account": {"id": "invalid-uuid", "name": "X"}}, id="invalid_uuid"
+            ),
+            pytest.param({"amount": "invalid-amount"}, id="invalid_amount"),
+            pytest.param({"date": "invalid-date"}, id="invalid_date"),
+        ],
+    )
+    def test_transaction_base_rejects_invalid_field(self, overrides):
         data = {
             **self._build_payload(),
             "type": "expense",
             "amount": "100.00",
             "date": "2024-01-15",
-        }
-        data["account"]["id"] = "invalid-uuid"
-
-        with pytest.raises(ValidationError):
-            TransactionBase(**data)
-
-    def test_transaction_base_invalid_amount(self):
-        """Test TransactionBase with invalid amount"""
-        data = {
-            **self._build_payload(),
-            "type": "expense",
-            "amount": "invalid-amount",
-            "date": "2024-01-15",
-        }
-
-        with pytest.raises(ValidationError):
-            TransactionBase(**data)
-
-    def test_transaction_base_invalid_date(self):
-        """Test TransactionBase with invalid date"""
-        data = {
-            **self._build_payload(),
-            "type": "expense",
-            "amount": "100.00",
-            "date": "invalid-date",
+            **overrides,
         }
 
         with pytest.raises(ValidationError):
@@ -440,99 +426,104 @@ class TestTransactionSearch:
         assert "json_schema_extra" in search.model_config
         assert "example" in search.model_config["json_schema_extra"]
 
-    def test_transaction_search_accepts_valid_type(self):
-        """Test TransactionSearch accepts valid type values"""
-        # Test "income"
-        search = TransactionSearch(type="income")
-        assert search.type == TransactionType.INCOME
+    @pytest.mark.parametrize(
+        "type_str, expected",
+        [
+            ("income", TransactionSearchType.INCOME),
+            ("expense", TransactionSearchType.EXPENSE),
+            ("transfer", TransactionSearchType.TRANSFER),
+        ],
+    )
+    def test_transaction_search_accepts_valid_type(self, type_str, expected):
+        search = TransactionSearch(type=type_str)
+        assert search.type == expected
 
-        # Test "expense"
-        search = TransactionSearch(type="expense")
-        assert search.type == TransactionType.EXPENSE
-
-    def test_transaction_search_rejects_invalid_type(self):
-        """Test TransactionSearch rejects invalid type values"""
+    @pytest.mark.parametrize("invalid_type", ["refund", "credit", ""])
+    def test_transaction_search_rejects_invalid_type(self, invalid_type):
         with pytest.raises(ValidationError):
-            TransactionSearch(type="transfer")
+            TransactionSearch(type=invalid_type)
+
+    @pytest.mark.parametrize("type_str", ["income", "expense"])
+    def test_build_filters_type_excludes_transfers(self, type_str):
+        """type=income|expense produces type==<value> AND transfer_id IS NULL"""
+        search = TransactionSearch(type=type_str)
+        filters = search.build_filters()
+        assert len(filters) == 1
+        compiled = str(
+            filters[0].compile(compile_kwargs={"literal_binds": True})
+        ).upper()
+        assert "TRANSACTIONS.TYPE" in compiled
+        assert f"'{type_str.upper()}'" in compiled
+        assert "TRANSACTIONS.TRANSFER_ID IS NULL" in compiled
+
+    def test_build_filters_type_transfer(self):
+        """type=transfer produces transfer_id IS NOT NULL"""
+        search = TransactionSearch(type="transfer")
+        filters = search.build_filters()
+        assert len(filters) == 1
+        compiled = str(
+            filters[0].compile(compile_kwargs={"literal_binds": True})
+        ).upper()
+        assert "TRANSACTIONS.TRANSFER_ID IS NOT NULL" in compiled
+
+    def test_build_filters_no_type_omits_type_filter(self):
+        """Omitting type produces no type-related filter"""
+        search = TransactionSearch()
+        filters = search.build_filters()
+        assert len(filters) == 0
 
 
 class TestSchemaValidation:
     """Test schema validation edge cases"""
 
-    def test_transaction_base_missing_required_fields(self):
-        """Test TransactionBase validation with missing required fields"""
-        required_category = {"id": str(uuid.uuid4()), "name": "Groceries"}
-        # Missing account
-        with pytest.raises(ValidationError):
-            TransactionBase(
-                category=required_category,
-                type="expense",
-                amount="100.00",
-                date="2024-01-15",
-            )
+    @pytest.mark.parametrize(
+        "missing_field",
+        ["account", "type", "amount", "date"],
+    )
+    def test_transaction_base_missing_required_field(self, missing_field):
+        base = {
+            "account": {"id": str(uuid.uuid4()), "name": "Checking Account"},
+            "category": {"id": str(uuid.uuid4()), "name": "Groceries"},
+            "type": "expense",
+            "amount": "100.00",
+            "date": "2024-01-15",
+        }
+        del base[missing_field]
 
-        # Missing type
         with pytest.raises(ValidationError):
-            TransactionBase(
-                account={"id": str(uuid.uuid4()), "name": "Checking Account"},
-                category=required_category,
-                amount="100.00",
-                date="2024-01-15",
-            )
+            TransactionBase(**base)
 
-        # Missing amount
-        with pytest.raises(ValidationError):
-            TransactionBase(
-                account={"id": str(uuid.uuid4()), "name": "Checking Account"},
-                category=required_category,
-                type="expense",
-                date="2024-01-15",
-            )
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            pytest.param({"amount": "not-a-number"}, id="invalid_amount"),
+            pytest.param({"date": "not-a-date"}, id="invalid_date"),
+        ],
+    )
+    def test_transaction_base_invalid_field_types(self, overrides):
+        base = {
+            "account": {"id": str(uuid.uuid4()), "name": "Checking Account"},
+            "category": {"id": str(uuid.uuid4()), "name": "Groceries"},
+            "type": "expense",
+            "amount": "100.00",
+            "date": "2024-01-15",
+            **overrides,
+        }
 
-        # Missing date
         with pytest.raises(ValidationError):
-            TransactionBase(
-                account={"id": str(uuid.uuid4()), "name": "Checking Account"},
-                category=required_category,
-                type="expense",
-                amount="100.00",
-            )
+            TransactionBase(**base)
 
-    def test_transaction_base_invalid_field_types(self):
-        """Test TransactionBase validation with invalid field types"""
-        # Invalid amount (string instead of decimal)
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"account_id": "invalid-uuid"}, id="invalid_uuid"),
+            pytest.param({"amount_min": "not-a-number"}, id="invalid_amount"),
+            pytest.param({"date_from": "not-a-date"}, id="invalid_date"),
+        ],
+    )
+    def test_transaction_search_invalid_filters(self, kwargs):
         with pytest.raises(ValidationError):
-            TransactionBase(
-                account={"id": str(uuid.uuid4()), "name": "Checking Account"},
-                category={"id": str(uuid.uuid4()), "name": "Groceries"},
-                type="expense",
-                amount="not-a-number",
-                date="2024-01-15",
-            )
-
-        # Invalid date (string instead of date)
-        with pytest.raises(ValidationError):
-            TransactionBase(
-                account={"id": str(uuid.uuid4()), "name": "Checking Account"},
-                category={"id": str(uuid.uuid4()), "name": "Groceries"},
-                type="expense",
-                amount="100.00",
-                date="not-a-date",
-            )
-
-    def test_transaction_search_invalid_filters(self):
-        """Test TransactionSearch validation with invalid filters"""
-        # Invalid UUID
-        with pytest.raises(ValidationError):
-            TransactionSearch(account_id="invalid-uuid")
-
-        # Invalid amount
-        with pytest.raises(ValidationError):
-            TransactionSearch(amount_min="not-a-number")
-
-        # Invalid date
-        with pytest.raises(ValidationError):
-            TransactionSearch(date_from="not-a-date")
+            TransactionSearch(**kwargs)
 
 
 class TestRecentTransactionsParams:
@@ -541,9 +532,10 @@ class TestRecentTransactionsParams:
             RecentTransactionsParams()
         assert "limit is required." in str(exc.value)
 
-    def test_recent_transactions_params_limit_enum(self):
+    @pytest.mark.parametrize("invalid_limit", [1, 3, 7, 15, 25, 99])
+    def test_recent_transactions_params_limit_enum(self, invalid_limit):
         with pytest.raises(ValidationError) as exc:
-            RecentTransactionsParams(limit=7)
+            RecentTransactionsParams(limit=invalid_limit)
         assert "limit must be one of: 5, 10, 20, 50, 100." in str(exc.value)
 
     def test_recent_transactions_params_rejects_date_filters(self):
@@ -553,6 +545,7 @@ class TestRecentTransactionsParams:
             exc.value
         )
 
-    def test_recent_transactions_params_accepts_valid_limit(self):
-        params = RecentTransactionsParams(limit=20)
-        assert params.limit == 20
+    @pytest.mark.parametrize("valid_limit", [5, 10, 20, 50, 100])
+    def test_recent_transactions_params_accepts_valid_limit(self, valid_limit):
+        params = RecentTransactionsParams(limit=valid_limit)
+        assert params.limit == valid_limit
