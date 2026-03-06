@@ -4,16 +4,26 @@ from collections.abc import Callable
 from datetime import date as Date
 from datetime import datetime, timezone
 from decimal import Decimal
+from enum import Enum
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, field_validator, model_validator
+from sqlalchemy import and_
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
 from app.schemas.reporting_schemas import TransactionSummaryPeriod
 from app.schemas.tag_schemas import TagTransactionCreate
+
+
+class TransactionSearchType(str, Enum):
+    """Search-only enum that extends the stored TransactionType with 'transfer'."""
+
+    INCOME = "income"
+    EXPENSE = "expense"
+    TRANSFER = "transfer"
 
 
 class TransactionRelatedEntity(BaseModel):
@@ -156,7 +166,7 @@ class TransferTransactionCreate(BaseModel):
 class TransactionSearch(BaseModel):
     account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
-    type: Optional[str] = None
+    type: Optional[TransactionSearchType] = None
     currency: Optional[str] = None
     date_from: Optional[Date] = None
     date_to: Optional[Date] = None
@@ -182,10 +192,19 @@ class TransactionSearch(BaseModel):
         },
     }
 
+    @staticmethod
+    def _build_type_filter(value: TransactionSearchType) -> Any:
+        if value == TransactionSearchType.TRANSFER:
+            return Transaction.transfer_id.isnot(None)
+        return and_(
+            Transaction.type == value.value,
+            Transaction.transfer_id.is_(None),
+        )
+
     _filter_builders: ClassVar[dict[str, Callable[[Any], Any]]] = {
         "account_id": lambda value: Transaction.account_id == value,
         "category_id": lambda value: Transaction.category_id == value,
-        "type": lambda value: Transaction.type == value,
+        "type": lambda value: TransactionSearch._build_type_filter(value),
         "currency": lambda value: Transaction.currency == value,
         "date_from": lambda value: Transaction.date >= value,
         "date_to": lambda value: Transaction.date <= value,
