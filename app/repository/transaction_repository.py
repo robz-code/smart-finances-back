@@ -139,7 +139,7 @@ class TransactionRepository(BaseRepository[Transaction]):
             .all()
         )
 
-    def remove_all_tags(self, transaction_id: UUID) -> int:
+    def remove_all_tags(self, transaction_id: UUID, auto_commit: bool = True) -> int:
         """Delete all tag associations for the given transaction."""
         logger.debug(f"DB remove_all_tags: transaction_id={transaction_id}")
         try:
@@ -154,7 +154,10 @@ class TransactionRepository(BaseRepository[Transaction]):
                     deleted,
                     transaction_id,
                 )
-            self.db.commit()
+            if auto_commit:
+                self.db.commit()
+            else:
+                self.db.flush()
             return deleted
         except SQLAlchemyError as exc:
             self.db.rollback()

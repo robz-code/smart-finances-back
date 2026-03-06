@@ -499,19 +499,37 @@ class TransactionService(BaseService[Transaction]):
         if not transactions:
             raise HTTPException(status_code=404, detail="Transfer not found")
 
+        if len(transactions) != 2:
+            raise HTTPException(
+                status_code=409,
+                detail="Transfer integrity violation: expected exactly 2 legs",
+            )
+
+        tx_types = {t.type for t in transactions}
+        if tx_types != {TransactionType.EXPENSE.value, TransactionType.INCOME.value}:
+            raise HTTPException(
+                status_code=409,
+                detail="Transfer integrity violation: expected one expense and one income leg",
+            )
+
         for t in transactions:
             if t.user_id != user_id:
                 raise HTTPException(
                     status_code=403, detail="Access denied to this transfer"
                 )
 
-        for t in transactions:
-            if self.balance_snapshot_repository:
-                self.balance_snapshot_repository.delete_future_snapshots(
-                    t.account_id, first_day_of_month(t.date)
-                )
-            self.repository.remove_all_tags(t.id)
-            self.repository.delete(t.id)
+        try:
+            for t in transactions:
+                if self.balance_snapshot_repository:
+                    self.balance_snapshot_repository.delete_future_snapshots(
+                        t.account_id, first_day_of_month(t.date)
+                    )
+                self.repository.remove_all_tags(t.id, auto_commit=False)
+                self.repository.delete(t.id, auto_commit=False)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
     def update_transfer(
         self, transfer_id: UUID, obj_in: TransferUpdate, **kwargs: Any
@@ -523,14 +541,25 @@ class TransactionService(BaseService[Transaction]):
         if not transactions:
             raise HTTPException(status_code=404, detail="Transfer not found")
 
+        if len(transactions) != 2:
+            raise HTTPException(
+                status_code=409,
+                detail="Transfer integrity violation: expected exactly 2 legs",
+            )
+
+        tx_types = {t.type for t in transactions}
+        if tx_types != {TransactionType.EXPENSE.value, TransactionType.INCOME.value}:
+            raise HTTPException(
+                status_code=409,
+                detail="Transfer integrity violation: expected one expense and one income leg",
+            )
+
         from_transaction = next(
-            (t for t in transactions if t.type == TransactionType.EXPENSE.value), None
+            t for t in transactions if t.type == TransactionType.EXPENSE.value
         )
         to_transaction = next(
-            (t for t in transactions if t.type == TransactionType.INCOME.value), None
+            t for t in transactions if t.type == TransactionType.INCOME.value
         )
-        if not from_transaction or not to_transaction:
-            raise HTTPException(status_code=404, detail="Transfer not found")
 
         for t in transactions:
             if t.user_id != user_id:
@@ -578,37 +607,44 @@ class TransactionService(BaseService[Transaction]):
         old_to_account_id = to_transaction.account_id
         old_to_date = to_transaction.date
 
-        updated_from = self.repository.update(
-            from_transaction.id,
-            TransactionUpdate(
-                account_id=obj_in.from_account_id,
-                amount=obj_in.amount,
-                date=obj_in.date,
-            ),
-        )
-        updated_to = self.repository.update(
-            to_transaction.id,
-            TransactionUpdate(
-                account_id=obj_in.to_account_id,
-                amount=obj_in.amount,
-                date=obj_in.date,
-            ),
-        )
+        try:
+            updated_from = self.repository.update(
+                from_transaction.id,
+                TransactionUpdate(
+                    account_id=obj_in.from_account_id,
+                    amount=obj_in.amount,
+                    date=obj_in.date,
+                ),
+                auto_commit=False,
+            )
+            updated_to = self.repository.update(
+                to_transaction.id,
+                TransactionUpdate(
+                    account_id=obj_in.to_account_id,
+                    amount=obj_in.amount,
+                    date=obj_in.date,
+                ),
+                auto_commit=False,
+            )
 
-        if self.balance_snapshot_repository:
-            self.balance_snapshot_repository.delete_future_snapshots(
-                old_from_account_id, first_day_of_month(old_from_date)
-            )
-            self.balance_snapshot_repository.delete_future_snapshots(
-                old_to_account_id, first_day_of_month(old_to_date)
-            )
-            self.balance_snapshot_repository.delete_future_snapshots(
-                updated_from.account_id, first_day_of_month(updated_from.date)
-            )
-            self.balance_snapshot_repository.delete_future_snapshots(
-                updated_to.account_id, first_day_of_month(updated_to.date)
-            )
+            if self.balance_snapshot_repository:
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    old_from_account_id, first_day_of_month(old_from_date)
+                )
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    old_to_account_id, first_day_of_month(old_to_date)
+                )
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    updated_from.account_id, first_day_of_month(updated_from.date)
+                )
+                self.balance_snapshot_repository.delete_future_snapshots(
+                    updated_to.account_id, first_day_of_month(updated_to.date)
+                )
+
             self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
         self.db.refresh(updated_from)
         self.db.refresh(updated_to)
