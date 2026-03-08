@@ -484,11 +484,7 @@ class TransactionService(BaseService[Transaction]):
         return existing_transaction
 
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
-        existing_transaction = self.before_delete(id, **kwargs)
-
-        # Remove all tag associations before deleting transaction
-        self.repository.remove_all_tags(existing_transaction.id)
-
+        self.before_delete(id, **kwargs)
         return super().delete(id, **kwargs)
 
     def delete_transfer(self, transfer_id: UUID, **kwargs: Any) -> None:
@@ -524,7 +520,6 @@ class TransactionService(BaseService[Transaction]):
                     self.balance_snapshot_repository.delete_future_snapshots(
                         t.account_id, first_day_of_month(t.date)
                     )
-                self.repository.remove_all_tags(t.id, auto_commit=False)
                 self.repository.delete(t.id, auto_commit=False)
             self.db.commit()
         except Exception:

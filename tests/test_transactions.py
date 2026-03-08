@@ -1174,3 +1174,100 @@ class TestTransferCRUD:
             f"/api/v1/transactions/transfer/{transfer_id}", headers=other_headers
         )
         assert r.status_code == 403
+
+
+class TestTagCascadeOnDelete:
+    """Verify that transaction_tags rows are removed when a transaction is deleted.
+
+    These tests ensure the ORM/DB cascade (cascade='all, delete-orphan' +
+    ON DELETE CASCADE on the FK) works correctly without the removed
+    remove_all_tags() manual calls.
+    """
+
+    def test_delete_transaction_removes_tags(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Deleting a transaction cascades and removes its tag associations."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
+
+        # Create a transaction with an inline new tag (auto-created)
+        r = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "category_id": category["id"],
+                "type": "expense",
+                "amount": "25.00",
+                "currency": "USD",
+                "date": "2024-03-01",
+                "tags": [{"name": "groceries", "color": "#ff0000"}],
+            },
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        tx = r.json()
+        assert len(tx["tags"]) == 1
+        tag_id = tx["tags"][0]["id"]
+
+        # Delete the transaction — transaction_tags row should cascade
+        r = client.delete(
+            f"/api/v1/transactions/{tx['id']}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        # Transaction is gone
+        r = client.get(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 404
+
+        # The tag itself should still exist (only the junction row is gone)
+        r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
+        assert r.status_code == 200
+
+    def test_delete_transfer_removes_tags(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Deleting a transfer cascades and removes tag associations for both legs."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+
+        # Create a tag
+        r = client.post(
+            "/api/v1/tags",
+            json={"name": "transfer-tag", "color": "#0000ff"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 201
+        tag_id = r.json()["id"]
+
+        # Create a transfer
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        # Attach tag to the from-leg
+        r = client.put(
+            f"/api/v1/transactions/{from_id}",
+            json={"tags": [tag_id]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+
+        # Delete the transfer — both legs and their tags should be removed
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        # Both legs are gone
+        assert client.get(f"/api/v1/transactions/{from_id}", headers=auth_headers).status_code == 404
+        assert client.get(f"/api/v1/transactions/{to_id}", headers=auth_headers).status_code == 404
+
+        # Tag itself still exists
+        r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
+        assert r.status_code == 200
