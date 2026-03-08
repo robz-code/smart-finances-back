@@ -77,6 +77,7 @@ def test_categories_filter_by_type(client, auth_headers):
 
 
 def test_category_type_defaults_and_override(client, auth_headers):
+    """Test that category type defaults to expense and can be overridden to income."""
     ensure_user(client, auth_headers)
 
     # Create without explicit type -> should default to expense
@@ -101,6 +102,7 @@ def test_category_type_defaults_and_override(client, auth_headers):
 
 
 def test_category_invalid_type_rejected(client, auth_headers):
+    """Test that creating a category with invalid type returns 422 validation error."""
     ensure_user(client, auth_headers)
 
     # Invalid type should be rejected by Pydantic/Enum validation
@@ -113,6 +115,7 @@ def test_category_invalid_type_rejected(client, auth_headers):
 
 
 def test_categories_filter_invalid_type_query(client, auth_headers):
+    """Test that filtering categories with invalid type query param returns 422."""
     ensure_user(client, auth_headers)
 
     # Invalid enum value in query param should yield 422
@@ -124,6 +127,7 @@ class TestCategoryDeleteGuardAndMigrate:
     """Tests for category deletion guard (409) and /migrate endpoint."""
 
     def _ensure_user(self, client: TestClient, auth_headers: dict) -> None:
+        """Ensure the test user exists in the database."""
         r = client.post(
             "/api/v1/users",
             json={"name": "Cat Guard User", "email": "catguard@example.com"},
@@ -132,6 +136,7 @@ class TestCategoryDeleteGuardAndMigrate:
         assert r.status_code == 200
 
     def _create_account(self, client: TestClient, auth_headers: dict) -> dict:
+        """Create a test account for the authenticated user."""
         r = client.post(
             "/api/v1/accounts",
             json={
@@ -152,6 +157,7 @@ class TestCategoryDeleteGuardAndMigrate:
         name: str = "Source Category",
         cat_type: str = "expense",
     ) -> dict:
+        """Create a test category with the specified name and type."""
         r = client.post(
             "/api/v1/categories",
             json={"name": name, "type": cat_type, "color": "#FF0000"},
@@ -167,6 +173,7 @@ class TestCategoryDeleteGuardAndMigrate:
         account_id: str,
         category_id: str,
     ) -> dict:
+        """Create a test transaction in the specified account and category."""
         r = client.post(
             "/api/v1/transactions",
             json={
@@ -185,6 +192,7 @@ class TestCategoryDeleteGuardAndMigrate:
     def test_delete_category_with_transactions_returns_409(
         self, client: TestClient, auth_headers: dict
     ) -> None:
+        """Test that deleting a category with transactions returns 409 Conflict."""
         self._ensure_user(client, auth_headers)
         account = self._create_account(client, auth_headers)
         category = self._create_category(client, auth_headers)
@@ -198,6 +206,7 @@ class TestCategoryDeleteGuardAndMigrate:
     def test_migrate_then_delete_category_succeeds(
         self, client: TestClient, auth_headers: dict
     ) -> None:
+        """Test migration workflow: 409 delete → migrate → 204 delete succeeds."""
         self._ensure_user(client, auth_headers)
         account = self._create_account(client, auth_headers)
         source = self._create_category(client, auth_headers, name="Old Category")
@@ -223,6 +232,7 @@ class TestCategoryDeleteGuardAndMigrate:
     def test_migrate_category_wrong_type_returns_422(
         self, client: TestClient, auth_headers: dict
     ) -> None:
+        """Test that migrating to a different category type returns 422."""
         self._ensure_user(client, auth_headers)
         expense_cat = self._create_category(
             client, auth_headers, name="Expense Cat", cat_type="expense"
@@ -301,6 +311,7 @@ class TestCategoryDeleteGuardAndMigrate:
     def test_delete_empty_category_returns_204(
         self, client: TestClient, auth_headers: dict
     ) -> None:
+        """Test that deleting an empty category (no transactions) returns 204."""
         self._ensure_user(client, auth_headers)
         category = self._create_category(client, auth_headers, name="Empty Cat")
 

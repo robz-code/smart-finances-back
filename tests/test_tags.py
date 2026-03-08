@@ -36,6 +36,7 @@ def _make_other_headers() -> dict:
 
 
 def _ensure_user(client: TestClient, auth_headers: dict, email: str) -> None:
+    """Ensure a test user exists in the database with the given email."""
     r = client.post(
         "/api/v1/users",
         json={"name": "Tag Test User", "email": email},
@@ -45,6 +46,7 @@ def _ensure_user(client: TestClient, auth_headers: dict, email: str) -> None:
 
 
 def _create_account(client: TestClient, auth_headers: dict) -> dict:
+    """Create a test account for tag testing."""
     r = client.post(
         "/api/v1/accounts",
         json={
@@ -60,6 +62,7 @@ def _create_account(client: TestClient, auth_headers: dict) -> dict:
 
 
 def _create_category(client: TestClient, auth_headers: dict) -> dict:
+    """Create a test category for tag testing."""
     r = client.post(
         "/api/v1/categories",
         json={"name": "Tag Category", "type": "expense", "color": "#123456"},
@@ -70,6 +73,7 @@ def _create_category(client: TestClient, auth_headers: dict) -> dict:
 
 
 def _create_tag(client: TestClient, auth_headers: dict, name: str = "test-tag") -> dict:
+    """Create a test tag with the specified name."""
     r = client.post(
         "/api/v1/tags",
         json={"name": name, "color": "#AABBCC"},
@@ -86,7 +90,7 @@ def _create_transaction_with_tags(
     category_id: str,
     tag_names: list[str],
 ) -> dict:
-    """Create a transaction and inline-attach tags by name."""
+    """Create a transaction and inline-attach tags by name for testing."""
     r = client.post(
         "/api/v1/transactions",
         json={
@@ -115,7 +119,7 @@ class TestTagHardDeleteCascade:
     def test_delete_tag_removes_transaction_tag_associations(
         self, client: TestClient, auth_headers: dict
     ) -> None:
-        """Deleting a tag removes its junction rows; the transaction remains."""
+        """Verify that deleting a tag removes junction rows but preserves the transaction."""
         _ensure_user(client, auth_headers, "tag-cascade@example.com")
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
@@ -165,7 +169,7 @@ class TestTagHardDeleteCascade:
     def test_tag_associations_preserved_on_transaction_after_other_tag_deleted(
         self, client: TestClient, auth_headers: dict
     ) -> None:
-        """Deleting tag A does not affect tag B on the same transaction."""
+        """Verify that deleting one tag preserves other tags on the same transaction."""
         _ensure_user(client, auth_headers, "tag-preserve@example.com")
         account = _create_account(client, auth_headers)
         category = _create_category(client, auth_headers)
