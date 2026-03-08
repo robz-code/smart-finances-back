@@ -1371,3 +1371,78 @@ class TestTransactionVisibilityOnAccountSoftDelete:
         )
         assert r.status_code == 200
         assert float(r.json()["expense"]) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — Transfer guard: block single-leg deletion
+# ---------------------------------------------------------------------------
+
+
+class TestTransferSingleLegDeletionGuard:
+    """DELETE /transactions/{id} must be blocked when the transaction is a transfer leg."""
+
+    def _setup_transfer(self, client, auth_headers):
+        """Create user + two accounts + transfer. Return transfer payload."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Transfer A")
+        account_b = _create_account(client, auth_headers, name="Transfer B")
+        return _create_transfer(client, auth_headers, account_a["id"], account_b["id"])
+
+    def test_delete_transfer_leg_via_single_endpoint_returns_409(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Attempting to delete one leg of a transfer via /transactions/{id} → 409."""
+        transfer = self._setup_transfer(client, auth_headers)
+        from_id = transfer["from_transaction"]["id"]
+
+        r = client.delete(f"/api/v1/transactions/{from_id}", headers=auth_headers)
+        assert r.status_code == 409
+        assert "transfer" in r.json()["detail"].lower()
+
+    def test_delete_to_leg_via_single_endpoint_returns_409(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Both legs (from and to) are blocked from single-endpoint deletion."""
+        transfer = self._setup_transfer(client, auth_headers)
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(f"/api/v1/transactions/{to_id}", headers=auth_headers)
+        assert r.status_code == 409
+
+    def test_delete_transfer_via_transfer_endpoint_succeeds(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Deleting via DELETE /transactions/transfer/{transfer_id} succeeds (204)."""
+        transfer = self._setup_transfer(client, auth_headers)
+        transfer_id = transfer["transfer_id"]
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        # Both legs are gone
+        assert (
+            client.get(f"/api/v1/transactions/{from_id}", headers=auth_headers).status_code
+            == 404
+        )
+        assert (
+            client.get(f"/api/v1/transactions/{to_id}", headers=auth_headers).status_code
+            == 404
+        )
+
+    def test_non_transfer_transaction_can_be_deleted(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Regular (non-transfer) transactions can still be deleted normally."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name="Regular Acc")
+        category = _create_category(client, auth_headers)
+        tx = _create_transaction(
+            client, auth_headers, account["id"], category_id=category["id"]
+        )
+
+        r = client.delete(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 204

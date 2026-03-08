@@ -475,6 +475,15 @@ class TransactionService(BaseService[Transaction]):
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
             )
+        # Block single-leg deletion of a transfer pair
+        if existing_transaction.transfer_id is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Cannot delete a transfer leg directly. "
+                    "Use DELETE /transactions/transfer/{transfer_id}."
+                ),
+            )
         # On delete: future balance snapshots must be invalidated (reporting optimization)
         if self.balance_snapshot_repository:
             from_date = first_day_of_month(existing_transaction.date)
