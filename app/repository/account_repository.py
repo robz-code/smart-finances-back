@@ -34,7 +34,9 @@ class AccountRepository(BaseRepository[Account]):
         )
         return (
             self.db.query(Account)
-            .filter(Account.user_id == user_id, Account.is_deleted == False)  # noqa: E712
+            .filter(
+                Account.user_id == user_id, Account.is_deleted == False
+            )  # noqa: E712
             .all()
         )
 

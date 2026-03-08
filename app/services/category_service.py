@@ -78,9 +78,7 @@ class CategoryService(BaseService[Category]):
 
         return category
 
-    def migrate(
-        self, source_id: UUID, target_id: UUID, user_id: UUID
-    ) -> Optional[int]:
+    def migrate(self, source_id: UUID, target_id: UUID, user_id: UUID) -> Optional[int]:
         """Reassign all transactions from source_category to target_category.
 
         Validates:

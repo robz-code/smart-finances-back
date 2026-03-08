@@ -45,7 +45,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 ),
             )
             .join(Account, Transaction.account_id == Account.id)
-            .filter(Transaction.user_id == user_id, Account.is_deleted == False)  # noqa: E712
+            .filter(
+                Transaction.user_id == user_id, Account.is_deleted == False
+            )  # noqa: E712
         )
 
         # Optional period filter (mutually exclusive with custom date range, validated in schema)
@@ -81,7 +83,9 @@ class TransactionRepository(BaseRepository[Transaction]):
                 ),
             )
             .join(Account, Transaction.account_id == Account.id)
-            .filter(Transaction.user_id == user_id, Account.is_deleted == False)  # noqa: E712
+            .filter(
+                Transaction.user_id == user_id, Account.is_deleted == False
+            )  # noqa: E712
             .order_by(
                 Transaction.date.desc(),
                 Transaction.created_at.desc(),

@@ -26,7 +26,9 @@ class TestTransactionRepository:
         mock_query.filter.return_value = mock_query
         mock_query.order_by.return_value = mock_query
         mock_query.options.return_value = mock_query
-        mock_query.join.return_value = mock_query  # needed for is_deleted account filter
+        mock_query.join.return_value = (
+            mock_query  # needed for is_deleted account filter
+        )
         return mock_query
 
     @pytest.fixture

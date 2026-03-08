@@ -10,7 +10,12 @@ def ensure_user(client, auth_headers):
 def _create_account(client, auth_headers):
     r = client.post(
         "/api/v1/accounts",
-        json={"name": "Test Account", "type": "cash", "currency": "USD", "initial_balance": 500},
+        json={
+            "name": "Test Account",
+            "type": "cash",
+            "currency": "USD",
+            "initial_balance": 500,
+        },
         headers=auth_headers,
     )
     assert r.status_code == 200

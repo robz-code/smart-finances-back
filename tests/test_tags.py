@@ -19,7 +19,6 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -70,9 +69,7 @@ def _create_category(client: TestClient, auth_headers: dict) -> dict:
     return r.json()
 
 
-def _create_tag(
-    client: TestClient, auth_headers: dict, name: str = "test-tag"
-) -> dict:
+def _create_tag(client: TestClient, auth_headers: dict, name: str = "test-tag") -> dict:
     r = client.post(
         "/api/v1/tags",
         json={"name": name, "color": "#AABBCC"},
@@ -162,9 +159,7 @@ class TestTagHardDeleteCascade:
             headers=other_headers,
         )
 
-        r = client.delete(
-            f"/api/v1/tags/{owned_tag['id']}", headers=other_headers
-        )
+        r = client.delete(f"/api/v1/tags/{owned_tag['id']}", headers=other_headers)
         assert r.status_code == 403
 
     def test_tag_associations_preserved_on_transaction_after_other_tag_deleted(

@@ -190,9 +190,7 @@ class TestCategoryDeleteGuardAndMigrate:
         category = self._create_category(client, auth_headers)
         self._create_transaction(client, auth_headers, account["id"], category["id"])
 
-        r = client.delete(
-            f"/api/v1/categories/{category['id']}", headers=auth_headers
-        )
+        r = client.delete(f"/api/v1/categories/{category['id']}", headers=auth_headers)
         assert r.status_code == 409
         detail = r.json()["detail"]
         assert "transaction" in detail.lower()
@@ -306,7 +304,5 @@ class TestCategoryDeleteGuardAndMigrate:
         self._ensure_user(client, auth_headers)
         category = self._create_category(client, auth_headers, name="Empty Cat")
 
-        r = client.delete(
-            f"/api/v1/categories/{category['id']}", headers=auth_headers
-        )
+        r = client.delete(f"/api/v1/categories/{category['id']}", headers=auth_headers)
         assert r.status_code == 204

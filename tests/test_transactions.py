@@ -1212,9 +1212,7 @@ class TestTagCascadeOnDelete:
         tag_id = tx["tags"][0]["id"]
 
         # Delete the transaction — transaction_tags row should cascade
-        r = client.delete(
-            f"/api/v1/transactions/{tx['id']}", headers=auth_headers
-        )
+        r = client.delete(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
         assert r.status_code == 204
 
         # Transaction is gone
@@ -1225,9 +1223,7 @@ class TestTagCascadeOnDelete:
         r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
         assert r.status_code == 200
 
-    def test_delete_transfer_removes_tags(
-        self, client: TestClient, auth_headers: dict
-    ):
+    def test_delete_transfer_removes_tags(self, client: TestClient, auth_headers: dict):
         """Deleting a transfer cascades and removes tag associations for both legs."""
         _create_user(client, auth_headers)
         account_a = _create_account(client, auth_headers, name="Account A")
@@ -1265,8 +1261,18 @@ class TestTagCascadeOnDelete:
         assert r.status_code == 204
 
         # Both legs are gone
-        assert client.get(f"/api/v1/transactions/{from_id}", headers=auth_headers).status_code == 404
-        assert client.get(f"/api/v1/transactions/{to_id}", headers=auth_headers).status_code == 404
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
 
         # Tag itself still exists
         r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
@@ -1317,7 +1323,9 @@ class TestTransactionVisibilityOnAccountSoftDelete:
         self, client: TestClient, auth_headers: dict
     ):
         """Recent transactions endpoint excludes transactions from soft-deleted accounts."""
-        acc_id, _cat_id, tx_id = self._setup(client, auth_headers, acc_name="Recent Acc")
+        acc_id, _cat_id, tx_id = self._setup(
+            client, auth_headers, acc_name="Recent Acc"
+        )
 
         # Soft-delete the account
         r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
@@ -1425,11 +1433,15 @@ class TestTransferSingleLegDeletionGuard:
 
         # Both legs are gone
         assert (
-            client.get(f"/api/v1/transactions/{from_id}", headers=auth_headers).status_code
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
             == 404
         )
         assert (
-            client.get(f"/api/v1/transactions/{to_id}", headers=auth_headers).status_code
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
             == 404
         )
 
