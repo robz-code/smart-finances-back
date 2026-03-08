@@ -8,6 +8,12 @@ from pydantic import UUID4, BaseModel, field_validator
 from app.entities.category import Category, CategoryType
 
 
+class CategoryMigrateRequest(BaseModel):
+    """Request body for POST /categories/{id}/migrate."""
+
+    target_category_id: UUID
+
+
 class CategoryResponseBase(BaseModel):
     id: UUID
     name: str

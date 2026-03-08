@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -68,7 +68,61 @@ class CategoryService(BaseService[Category]):
             )
             raise HTTPException(status_code=403, detail="You do not own this category")
 
+        # Block deletion if transactions exist — require migration first
+        count = self.repository.count_transactions(id)
+        if count > 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Category has {count} transaction(s). Migrate them before deleting.",
+            )
+
         return category
+
+    def migrate(
+        self, source_id: UUID, target_id: UUID, user_id: UUID
+    ) -> Optional[int]:
+        """Reassign all transactions from source_category to target_category.
+
+        Validates:
+        - Both categories exist (404)
+        - Both categories are owned by the same user (403)
+        - Both categories share the same type (422 if mismatched)
+
+        Returns the number of transactions migrated.
+        """
+        # Fetch source — 404 if not found
+        source = self.repository.get(source_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail="Source category not found")
+        if source.user_id != user_id:
+            raise HTTPException(
+                status_code=403, detail="You do not own the source category"
+            )
+
+        # Fetch target — 404 if not found
+        target = self.repository.get(target_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Target category not found")
+        if target.user_id != user_id:
+            raise HTTPException(
+                status_code=403, detail="You do not own the target category"
+            )
+
+        # Type must match — cannot migrate expense transactions into an income category
+        if source.type != target.type:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Cannot migrate: source category type '{source.type}' does not "
+                    f"match target category type '{target.type}'."
+                ),
+            )
+
+        migrated = self.repository.migrate_transactions(source_id, target_id)
+        logger.info(
+            f"Migrated {migrated} transaction(s) from category {source_id} → {target_id}"
+        )
+        return migrated
 
     def before_update(self, id: UUID, obj_in: Any, **kwargs: Any) -> bool:
         # Basic validation
