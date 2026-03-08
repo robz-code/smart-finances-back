@@ -512,7 +512,11 @@ class TransactionService(BaseService[Transaction]):
         account_entity = AccountRelatedEntity(
             id=transaction.account_id,
             name=account_name,
-            type=transaction.account.type if getattr(transaction, "account", None) else None,
+            type=(
+                transaction.account.type
+                if getattr(transaction, "account", None)
+                else None
+            ),
         )
         category_entity = category_summary
 
