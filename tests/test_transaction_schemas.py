@@ -70,7 +70,7 @@ class TestTransactionBase:
 
         # Assert - serialized output keeps nested structure
         serialized = transaction.model_dump(mode="json")
-        assert serialized["account"] == data["account"]
+        assert serialized["account"] == {**data["account"], "type": None}
         assert serialized["category"] == data["category"]
         assert serialized["concept"] == data["concept"]
 
@@ -256,7 +256,7 @@ class TestTransactionResponse:
         account_id = str(uuid.uuid4())
         category_id = str(uuid.uuid4())
         concept_id = str(uuid.uuid4())
-        account = {"id": account_id, "name": "Checking Account"}
+        account = {"id": account_id, "name": "Checking Account", "type": None}
         category = {
             "id": category_id,
             "name": "Groceries",

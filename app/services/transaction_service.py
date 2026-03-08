@@ -22,6 +22,7 @@ from app.schemas.reporting_schemas import (
 )
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
+    AccountRelatedEntity,
     RecentTransactionsParams,
     RecentTransactionsResponse,
     TransactionCreate,
@@ -674,9 +675,14 @@ class TransactionService(BaseService[Transaction]):
         concept_entity = self._resolve_concept(transaction)
         tags_entities = self._resolve_tags(transaction)
 
-        account_entity = TransactionRelatedEntity(
+        account_entity = AccountRelatedEntity(
             id=transaction.account_id,
             name=account_name,
+            type=(
+                transaction.account.type
+                if getattr(transaction, "account", None)
+                else None
+            ),
         )
         category_entity = category_summary
 
