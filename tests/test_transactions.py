@@ -1174,3 +1174,323 @@ class TestTransferCRUD:
             f"/api/v1/transactions/transfer/{transfer_id}", headers=other_headers
         )
         assert r.status_code == 403
+
+
+class TestTagCascadeOnDelete:
+    """Verify that transaction_tags rows are removed when a transaction is deleted.
+
+    These tests ensure the ORM/DB cascade (cascade='all, delete-orphan' +
+    ON DELETE CASCADE on the FK) works correctly without the removed
+    remove_all_tags() manual calls.
+    """
+
+    def test_delete_transaction_removes_tags(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Deleting a transaction cascades and removes its tag associations."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers)
+        category = _create_category(client, auth_headers)
+
+        # Create a transaction with an inline new tag (auto-created)
+        r = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "category_id": category["id"],
+                "type": "expense",
+                "amount": "25.00",
+                "currency": "USD",
+                "date": "2024-03-01",
+                "tags": [{"name": "groceries", "color": "#ff0000"}],
+            },
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        tx = r.json()
+        assert len(tx["tags"]) == 1
+        tag_id = tx["tags"][0]["id"]
+
+        # Delete the transaction — transaction_tags row should cascade
+        r = client.delete(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Transaction is gone
+        r = client.get(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 404
+
+        # The tag itself should still exist (only the junction row is gone)
+        r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
+        assert r.status_code == 200
+
+    def test_delete_transfer_removes_tags(self, client: TestClient, auth_headers: dict):
+        """Deleting a transfer cascades and removes tag associations for both legs."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Account A")
+        account_b = _create_account(client, auth_headers, name="Account B")
+
+        # Create a tag
+        r = client.post(
+            "/api/v1/tags",
+            json={"name": "transfer-tag", "color": "#0000ff"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 201
+        tag_id = r.json()["id"]
+
+        # Create a transfer
+        transfer = _create_transfer(
+            client, auth_headers, account_a["id"], account_b["id"]
+        )
+        transfer_id = transfer["transfer_id"]
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        # Attach tag to both legs so cascade cleanup is verified for each side
+        r = client.put(
+            f"/api/v1/transactions/{from_id}",
+            json={"tags": [tag_id]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        r = client.put(
+            f"/api/v1/transactions/{to_id}",
+            json={"tags": [tag_id]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+
+        # Delete the transfer — both legs and their tags should be removed
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        # Both legs are gone
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
+
+        # Tag itself still exists
+        r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
+        assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — Transaction visibility filter for soft-deleted accounts
+# ---------------------------------------------------------------------------
+
+
+class TestTransactionVisibilityOnAccountSoftDelete:
+    """Transactions of soft-deleted accounts must be excluded from all queries."""
+
+    def _setup(self, client, auth_headers, acc_name="Vis Account"):
+        """Create user, account, category, and one transaction. Return ids."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name=acc_name)
+        category = _create_category(client, auth_headers)
+        tx = _create_transaction(
+            client, auth_headers, account["id"], category_id=category["id"]
+        )
+        return account["id"], category["id"], tx["id"]
+
+    def test_search_excludes_transactions_of_deleted_account(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """After soft-deleting an account, its transactions don't appear in search."""
+        acc_id, _cat_id, tx_id = self._setup(client, auth_headers)
+
+        # Transaction visible before soft-delete
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        ids_before = [t["id"] for t in r.json()["results"]]
+        assert tx_id in ids_before
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Transaction no longer visible in search
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        ids_after = [t["id"] for t in r.json()["results"]]
+        assert tx_id not in ids_after
+
+    def test_recent_transactions_excludes_deleted_account(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Recent transactions endpoint excludes transactions from soft-deleted accounts."""
+        acc_id, _cat_id, tx_id = self._setup(
+            client, auth_headers, acc_name="Recent Acc"
+        )
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Transaction absent from /recent
+        r = client.get("/api/v1/transactions/recent?limit=50", headers=auth_headers)
+        assert r.status_code == 200
+        ids = [t["id"] for t in r.json()["results"]]
+        assert tx_id not in ids
+
+    def test_cashflow_summary_excludes_deleted_account_transactions(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Cashflow summary ignores transactions from soft-deleted accounts."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name="CF Account")
+        category = _create_category(client, auth_headers)
+
+        # Create one expense of 100
+        r = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "category_id": category["id"],
+                "type": "expense",
+                "amount": "100.00",
+                "currency": "USD",
+                "date": "2026-01-15",
+            },
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+
+        # Confirm expense shows up in summary
+        r = client.get(
+            "/api/v1/reporting/cashflow-summary?date_from=2026-01-01&date_to=2026-01-31",
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert float(r.json()["expense"]) > 0
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Cashflow summary should now show zero expense
+        r = client.get(
+            "/api/v1/reporting/cashflow-summary?date_from=2026-01-01&date_to=2026-01-31",
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert float(r.json()["expense"]) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — Transfer guard: block single-leg deletion
+# ---------------------------------------------------------------------------
+
+
+class TestTransferSingleLegDeletionGuard:
+    """DELETE /transactions/{id} must be blocked when the transaction is a transfer leg."""
+
+    def _setup_transfer(self, client, auth_headers):
+        """Create user + two accounts + transfer. Return transfer payload."""
+        _create_user(client, auth_headers)
+        account_a = _create_account(client, auth_headers, name="Transfer A")
+        account_b = _create_account(client, auth_headers, name="Transfer B")
+        return _create_transfer(client, auth_headers, account_a["id"], account_b["id"])
+
+    def test_delete_transfer_leg_via_single_endpoint_returns_409(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Attempting to delete one leg of a transfer via /transactions/{id} → 409."""
+        transfer = self._setup_transfer(client, auth_headers)
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(f"/api/v1/transactions/{from_id}", headers=auth_headers)
+        assert r.status_code == 409
+        assert "transfer" in r.json()["detail"].lower()
+
+        # Both legs must still exist — no partial deletion should have occurred
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+
+    def test_delete_to_leg_via_single_endpoint_returns_409(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Both legs (from and to) are blocked from single-endpoint deletion."""
+        transfer = self._setup_transfer(client, auth_headers)
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(f"/api/v1/transactions/{to_id}", headers=auth_headers)
+        assert r.status_code == 409
+
+        # Both legs must still exist — no partial deletion should have occurred
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+
+    def test_delete_transfer_via_transfer_endpoint_succeeds(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Deleting via DELETE /transactions/transfer/{transfer_id} succeeds (204)."""
+        transfer = self._setup_transfer(client, auth_headers)
+        transfer_id = transfer["transfer_id"]
+        from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
+
+        r = client.delete(
+            f"/api/v1/transactions/transfer/{transfer_id}", headers=auth_headers
+        )
+        assert r.status_code == 204
+
+        # Both legs are gone
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 404
+        )
+
+    def test_non_transfer_transaction_can_be_deleted(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Regular (non-transfer) transactions can still be deleted normally."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name="Regular Acc")
+        category = _create_category(client, auth_headers)
+        tx = _create_transaction(
+            client, auth_headers, account["id"], category_id=category["id"]
+        )
+
+        r = client.delete(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 204

@@ -475,6 +475,15 @@ class TransactionService(BaseService[Transaction]):
             raise HTTPException(
                 status_code=403, detail="Access denied to this transaction"
             )
+        # Block single-leg deletion of a transfer pair
+        if existing_transaction.transfer_id is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Cannot delete a transfer leg directly. "
+                    "Use DELETE /transactions/transfer/{transfer_id}."
+                ),
+            )
         # On delete: future balance snapshots must be invalidated (reporting optimization)
         if self.balance_snapshot_repository:
             from_date = first_day_of_month(existing_transaction.date)
@@ -484,11 +493,6 @@ class TransactionService(BaseService[Transaction]):
         return existing_transaction
 
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
-        existing_transaction = self.before_delete(id, **kwargs)
-
-        # Remove all tag associations before deleting transaction
-        self.repository.remove_all_tags(existing_transaction.id)
-
         return super().delete(id, **kwargs)
 
     def delete_transfer(self, transfer_id: UUID, **kwargs: Any) -> None:
@@ -524,7 +528,6 @@ class TransactionService(BaseService[Transaction]):
                     self.balance_snapshot_repository.delete_future_snapshots(
                         t.account_id, first_day_of_month(t.date)
                     )
-                self.repository.remove_all_tags(t.id, auto_commit=False)
                 self.repository.delete(t.id, auto_commit=False)
             self.db.commit()
         except Exception:

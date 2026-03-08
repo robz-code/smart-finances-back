@@ -10,12 +10,35 @@ from app.entities.user import User
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import (
     CategoryCreate,
+    CategoryMigrateRequest,
     CategoryResponse,
     CategoryUpdate,
 )
 from app.services.category_service import CategoryService
 
 router = APIRouter()
+
+
+@router.post("/{category_id}/migrate", status_code=status.HTTP_204_NO_CONTENT)
+def migrate_category(
+    category_id: UUID,
+    migrate_data: CategoryMigrateRequest,
+    current_user: User = Depends(get_current_user),
+    service: CategoryService = Depends(get_category_service),
+) -> None:
+    """
+    Reassign all transactions from this category to another category.
+
+    Use this before deleting a category that still has transactions.
+    Both categories must be owned by the current user and share the same type.
+
+    This endpoint requires authentication via JWT token.
+    Include the token in the Authorization header as: `Bearer <your_token>`
+    """
+    service.migrate(
+        category_id, migrate_data.target_category_id, cast(UUID, current_user.id)
+    )
+    return None
 
 
 @router.get(

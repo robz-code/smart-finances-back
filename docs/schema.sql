@@ -99,7 +99,7 @@ CREATE TABLE transactions (
   user_id UUID REFERENCES users(id),
   account_id UUID REFERENCES accounts(id),
   category_id UUID REFERENCES categories(id),
-  concept_id UUID REFERENCES concepts(id),
+  concept_id UUID REFERENCES concepts(id) ON DELETE SET NULL,
   group_id UUID REFERENCES groups(id),
   recurrent_transaction_id UUID REFERENCES recurring_transactions(id),
   transfer_id UUID,
