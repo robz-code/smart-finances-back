@@ -1246,9 +1246,15 @@ class TestTagCascadeOnDelete:
         from_id = transfer["from_transaction"]["id"]
         to_id = transfer["to_transaction"]["id"]
 
-        # Attach tag to the from-leg
+        # Attach tag to both legs so cascade cleanup is verified for each side
         r = client.put(
             f"/api/v1/transactions/{from_id}",
+            json={"tags": [tag_id]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        r = client.put(
+            f"/api/v1/transactions/{to_id}",
             json={"tags": [tag_id]},
             headers=auth_headers,
         )
@@ -1402,20 +1408,50 @@ class TestTransferSingleLegDeletionGuard:
         """Attempting to delete one leg of a transfer via /transactions/{id} → 409."""
         transfer = self._setup_transfer(client, auth_headers)
         from_id = transfer["from_transaction"]["id"]
+        to_id = transfer["to_transaction"]["id"]
 
         r = client.delete(f"/api/v1/transactions/{from_id}", headers=auth_headers)
         assert r.status_code == 409
         assert "transfer" in r.json()["detail"].lower()
+
+        # Both legs must still exist — no partial deletion should have occurred
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
 
     def test_delete_to_leg_via_single_endpoint_returns_409(
         self, client: TestClient, auth_headers: dict
     ):
         """Both legs (from and to) are blocked from single-endpoint deletion."""
         transfer = self._setup_transfer(client, auth_headers)
+        from_id = transfer["from_transaction"]["id"]
         to_id = transfer["to_transaction"]["id"]
 
         r = client.delete(f"/api/v1/transactions/{to_id}", headers=auth_headers)
         assert r.status_code == 409
+
+        # Both legs must still exist — no partial deletion should have occurred
+        assert (
+            client.get(
+                f"/api/v1/transactions/{from_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
+        assert (
+            client.get(
+                f"/api/v1/transactions/{to_id}", headers=auth_headers
+            ).status_code
+            == 200
+        )
 
     def test_delete_transfer_via_transfer_endpoint_succeeds(
         self, client: TestClient, auth_headers: dict
