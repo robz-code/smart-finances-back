@@ -10,6 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, field_validator, model_validator
 
 from app.entities.transaction import Transaction, TransactionSource, TransactionType
+from app.schemas.account_schemas import AccountType
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
 from app.schemas.reporting_schemas import TransactionSummaryPeriod
@@ -26,8 +27,12 @@ class TransactionRelatedEntity(BaseModel):
     }
 
 
+class AccountRelatedEntity(TransactionRelatedEntity):
+    type: Optional[AccountType] = None
+
+
 class TransactionBase(BaseModel):
-    account: TransactionRelatedEntity
+    account: AccountRelatedEntity
     category: CategoryResponseBase
     concept: Optional[TransactionRelatedEntity] = None
     tags: Optional[List[TransactionRelatedEntity]] = None
