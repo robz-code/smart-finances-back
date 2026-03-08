@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.entities.account import Account
 from app.entities.category import Category
 from app.entities.transaction import Transaction
 from app.repository.base_repository import BaseRepository
@@ -16,11 +17,19 @@ class CategoryRepository(BaseRepository[Category]):
         super().__init__(db, Category)
 
     def count_transactions(self, category_id: UUID) -> int:
-        """Return the number of transactions that belong to this category."""
+        """Return the number of visible transactions that belong to this category.
+
+        Excludes transactions from soft-deleted accounts, consistent with the
+        soft-delete strategy where those transactions are invisible to the user.
+        """
         logger.debug(f"DB count_transactions: category_id={category_id}")
         return (
             self.db.query(Transaction)
-            .filter(Transaction.category_id == category_id)
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(
+                Transaction.category_id == category_id,
+                Account.is_deleted == False,  # noqa: E712
+            )
             .count()
         )
 

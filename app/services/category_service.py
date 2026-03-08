@@ -106,6 +106,13 @@ class CategoryService(BaseService[Category]):
                 status_code=403, detail="You do not own the target category"
             )
 
+        # Reject self-migration — nothing would be reassigned and delete would still 409
+        if source_id == target_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Source and target categories must be different.",
+            )
+
         # Type must match — cannot migrate expense transactions into an income category
         if source.type != target.type:
             raise HTTPException(

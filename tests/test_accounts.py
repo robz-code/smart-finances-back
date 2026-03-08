@@ -176,7 +176,7 @@ class TestAccountSoftDelete:
         finally:
             db2.close()
 
-    def test_delete_account_forbidden_if_not_owner(self, client, db_session_factory):
+    def test_delete_account_forbidden_if_not_owner(self, client):
         """A user cannot delete an account owned by another user."""
         # Create two separate users with their own JWT tokens
         user_a_id = uuid.uuid4()

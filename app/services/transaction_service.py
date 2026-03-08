@@ -493,7 +493,6 @@ class TransactionService(BaseService[Transaction]):
         return existing_transaction
 
     def delete(self, id: UUID, **kwargs: Any) -> Transaction:
-        self.before_delete(id, **kwargs)
         return super().delete(id, **kwargs)
 
     def delete_transfer(self, transfer_id: UUID, **kwargs: Any) -> None:
