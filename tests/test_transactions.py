@@ -1271,3 +1271,103 @@ class TestTagCascadeOnDelete:
         # Tag itself still exists
         r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
         assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — Transaction visibility filter for soft-deleted accounts
+# ---------------------------------------------------------------------------
+
+
+class TestTransactionVisibilityOnAccountSoftDelete:
+    """Transactions of soft-deleted accounts must be excluded from all queries."""
+
+    def _setup(self, client, auth_headers, acc_name="Vis Account"):
+        """Create user, account, category, and one transaction. Return ids."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name=acc_name)
+        category = _create_category(client, auth_headers)
+        tx = _create_transaction(
+            client, auth_headers, account["id"], category_id=category["id"]
+        )
+        return account["id"], category["id"], tx["id"]
+
+    def test_search_excludes_transactions_of_deleted_account(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """After soft-deleting an account, its transactions don't appear in search."""
+        acc_id, _cat_id, tx_id = self._setup(client, auth_headers)
+
+        # Transaction visible before soft-delete
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        ids_before = [t["id"] for t in r.json()["results"]]
+        assert tx_id in ids_before
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Transaction no longer visible in search
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        ids_after = [t["id"] for t in r.json()["results"]]
+        assert tx_id not in ids_after
+
+    def test_recent_transactions_excludes_deleted_account(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Recent transactions endpoint excludes transactions from soft-deleted accounts."""
+        acc_id, _cat_id, tx_id = self._setup(client, auth_headers, acc_name="Recent Acc")
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{acc_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Transaction absent from /recent
+        r = client.get("/api/v1/transactions/recent?limit=50", headers=auth_headers)
+        assert r.status_code == 200
+        ids = [t["id"] for t in r.json()["results"]]
+        assert tx_id not in ids
+
+    def test_cashflow_summary_excludes_deleted_account_transactions(
+        self, client: TestClient, auth_headers: dict
+    ):
+        """Cashflow summary ignores transactions from soft-deleted accounts."""
+        _create_user(client, auth_headers)
+        account = _create_account(client, auth_headers, name="CF Account")
+        category = _create_category(client, auth_headers)
+
+        # Create one expense of 100
+        r = client.post(
+            "/api/v1/transactions",
+            json={
+                "account_id": account["id"],
+                "category_id": category["id"],
+                "type": "expense",
+                "amount": "100.00",
+                "currency": "USD",
+                "date": "2026-01-15",
+            },
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+
+        # Confirm expense shows up in summary
+        r = client.get(
+            "/api/v1/reporting/cashflow-summary?date_from=2026-01-01&date_to=2026-01-31",
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert float(r.json()["expense"]) > 0
+
+        # Soft-delete the account
+        r = client.delete(f"/api/v1/accounts/{account['id']}", headers=auth_headers)
+        assert r.status_code == 204
+
+        # Cashflow summary should now show zero expense
+        r = client.get(
+            "/api/v1/reporting/cashflow-summary?date_from=2026-01-01&date_to=2026-01-31",
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert float(r.json()["expense"]) == 0.0

@@ -10,6 +10,7 @@ from sqlalchemy import Integer, case, cast, func, literal
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, selectinload
 
+from app.entities.account import Account
 from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
@@ -43,7 +44,8 @@ class TransactionRepository(BaseRepository[Transaction]):
                     TransactionTag.tag
                 ),
             )
-            .filter(Transaction.user_id == user_id)
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(Transaction.user_id == user_id, Account.is_deleted == False)  # noqa: E712
         )
 
         # Optional period filter (mutually exclusive with custom date range, validated in schema)
@@ -78,7 +80,8 @@ class TransactionRepository(BaseRepository[Transaction]):
                     TransactionTag.tag
                 ),
             )
-            .filter(Transaction.user_id == user_id)
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(Transaction.user_id == user_id, Account.is_deleted == False)  # noqa: E712
             .order_by(
                 Transaction.date.desc(),
                 Transaction.created_at.desc(),
@@ -220,10 +223,12 @@ class TransactionRepository(BaseRepository[Transaction]):
                 func.sum(net_amount).label("net_amount"),
                 func.count(Transaction.id).label("count"),
             )
+            .join(Account, Transaction.account_id == Account.id)
             .filter(
                 Transaction.user_id == user_id,
                 Transaction.date >= date_from,
                 Transaction.date <= date_to,
+                Account.is_deleted == False,  # noqa: E712
             )
             .group_by(Transaction.category_id)
         )
@@ -285,13 +290,18 @@ class TransactionRepository(BaseRepository[Transaction]):
             else_=0,
         )
 
-        query = self.db.query(
-            func.coalesce(func.sum(income_expr), 0).label("income"),
-            func.coalesce(func.sum(expense_expr), 0).label("expense"),
-        ).filter(
-            Transaction.user_id == user_id,
-            Transaction.date >= date_from,
-            Transaction.date <= date_to,
+        query = (
+            self.db.query(
+                func.coalesce(func.sum(income_expr), 0).label("income"),
+                func.coalesce(func.sum(expense_expr), 0).label("expense"),
+            )
+            .join(Account, Transaction.account_id == Account.id)
+            .filter(
+                Transaction.user_id == user_id,
+                Transaction.date >= date_from,
+                Transaction.date <= date_to,
+                Account.is_deleted == False,  # noqa: E712
+            )
         )
 
         if category_ids is not None:
@@ -385,10 +395,11 @@ class TransactionRepository(BaseRepository[Transaction]):
                 func.coalesce(func.sum(expense_expr), 0).label("expense_abs"),
             ).group_by(period_start_expr, Transaction.currency)
 
-        query = query.filter(
+        query = query.join(Account, Transaction.account_id == Account.id).filter(
             Transaction.user_id == user_id,
             Transaction.date >= date_from,
             Transaction.date <= date_to,
+            Account.is_deleted == False,  # noqa: E712
         )
 
         if account_id is not None:
