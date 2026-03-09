@@ -186,6 +186,27 @@ class BalanceSnapshotRepository(BaseRepository[BalanceSnapshot]):
             self.db.rollback()
             raise
 
+    def delete_all_for_account(self, account_id: UUID) -> int:
+        """
+        Delete all snapshots for the given account.
+
+        Used during account soft-delete to clean up cached data.
+        Does NOT commit — caller is responsible for the commit (e.g. soft_delete commits
+        both this deletion and the account flag update in one transaction).
+        """
+        logger.debug(
+            f"DB delete_all_for_account: BalanceSnapshot account_id={account_id}"
+        )
+        deleted = (
+            self.db.query(BalanceSnapshot)
+            .filter(BalanceSnapshot.account_id == account_id)
+            .delete(synchronize_session=False)
+        )
+        logger.info(
+            f"Queued deletion of {deleted} BalanceSnapshot(s) for account_id={account_id}"
+        )
+        return deleted
+
     def delete_future_snapshots(self, account_id: UUID, from_date: date) -> int:
         """
         Delete snapshots for account where snapshot_date >= from_date.

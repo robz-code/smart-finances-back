@@ -27,7 +27,11 @@ class Transaction(Base):
     category_id = Column(
         UUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
-    concept_id = Column(UUID(as_uuid=True), ForeignKey("concepts.id"), nullable=True)
+    concept_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("concepts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     transfer_id = Column(UUID(as_uuid=True))
     type = Column(Text, nullable=False)
     amount = Column(NUMERIC, nullable=False)
