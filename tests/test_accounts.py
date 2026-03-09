@@ -191,11 +191,12 @@ class TestAccountSoftDelete:
         }
 
         # Register user A and create an account
-        client.post(
+        r = client.post(
             "/api/v1/users",
             json={"name": "User A", "email": "a@example.com"},
             headers=headers_a,
         )
+        assert r.status_code == 200
         r = client.post(
             "/api/v1/accounts",
             json={
@@ -210,11 +211,12 @@ class TestAccountSoftDelete:
         acc_id = r.json()["id"]
 
         # Register user B
-        client.post(
+        r = client.post(
             "/api/v1/users",
             json={"name": "User B", "email": "b@example.com"},
             headers=headers_b,
         )
+        assert r.status_code == 200
 
         # User B tries to delete user A's account → 403
         r = client.delete(f"/api/v1/accounts/{acc_id}", headers=headers_b)

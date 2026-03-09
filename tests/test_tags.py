@@ -157,11 +157,12 @@ class TestTagHardDeleteCascade:
 
         # Second user tries to delete first user's tag
         other_headers = _make_other_headers()
-        client.post(
+        r = client.post(
             "/api/v1/users",
             json={"name": "Sneaky User", "email": "sneaky@example.com"},
             headers=other_headers,
         )
+        assert r.status_code == 200
 
         r = client.delete(f"/api/v1/tags/{owned_tag['id']}", headers=other_headers)
         assert r.status_code == 403

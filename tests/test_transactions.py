@@ -1223,6 +1223,12 @@ class TestTagCascadeOnDelete:
         r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
         assert r.status_code == 200
 
+        # Verify junction rows were actually cleaned up: no transactions reference this tag
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        for t in r.json()["results"]:
+            assert tag_id not in [tg["id"] for tg in t.get("tags", [])]
+
     def test_delete_transfer_removes_tags(self, client: TestClient, auth_headers: dict):
         """Deleting a transfer cascades and removes tag associations for both legs."""
         _create_user(client, auth_headers)
@@ -1283,6 +1289,12 @@ class TestTagCascadeOnDelete:
         # Tag itself still exists
         r = client.get(f"/api/v1/tags/{tag_id}", headers=auth_headers)
         assert r.status_code == 200
+
+        # Verify junction rows were actually cleaned up: no transactions reference this tag
+        r = client.get("/api/v1/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        for t in r.json()["results"]:
+            assert tag_id not in [tg["id"] for tg in t.get("tags", [])]
 
 
 # ---------------------------------------------------------------------------

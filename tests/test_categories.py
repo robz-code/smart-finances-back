@@ -211,7 +211,7 @@ class TestCategoryDeleteGuardAndMigrate:
         account = self._create_account(client, auth_headers)
         source = self._create_category(client, auth_headers, name="Old Category")
         target = self._create_category(client, auth_headers, name="New Category")
-        self._create_transaction(client, auth_headers, account["id"], source["id"])
+        tx = self._create_transaction(client, auth_headers, account["id"], source["id"])
 
         # Before migrate: delete blocked with 409
         r = client.delete(f"/api/v1/categories/{source['id']}", headers=auth_headers)
@@ -224,6 +224,11 @@ class TestCategoryDeleteGuardAndMigrate:
             headers=auth_headers,
         )
         assert r.status_code == 204
+
+        # Verify the transaction now points at the target category
+        r = client.get(f"/api/v1/transactions/{tx['id']}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["category"]["id"] == target["id"]
 
         # After migrate: delete now succeeds
         r = client.delete(f"/api/v1/categories/{source['id']}", headers=auth_headers)
