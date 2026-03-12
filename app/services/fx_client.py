@@ -1,5 +1,5 @@
 """
-HTTP client for the FastForex currency exchange rate API.
+HTTP client for the ExchangeRate-API currency exchange rate API.
 
 Fetches live exchange rates. Used by FxService for currency conversion.
 """
@@ -13,10 +13,12 @@ logger = logging.getLogger(__name__)
 
 
 class FxClient:
-    """Thin HTTP wrapper around the FastForex API."""
+    """Thin HTTP wrapper around the ExchangeRate-API v6."""
 
     def __init__(
-        self, api_key: str, base_url: str = "https://api.fastforex.io"
+        self,
+        api_key: str,
+        base_url: str = "https://v6.exchangerate-api.com/v6",
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url
@@ -25,22 +27,17 @@ class FxClient:
         """
         Fetch the exchange rate for a single currency pair.
 
-        Calls: GET /fetch-one?from={from}&to={to}&api_key={key}
+        Calls: GET /v6/{api_key}/pair/{from}/{to}
         Returns the rate as a Decimal.
 
         Raises httpx.HTTPStatusError on non-2xx responses.
         """
-        url = f"{self._base_url}/fetch-one"
-        params = {
-            "from": from_currency,
-            "to": to_currency,
-            "api_key": self._api_key,
-        }
+        url = f"{self._base_url}/{self._api_key}/pair/{from_currency}/{to_currency}"
 
-        response = httpx.get(url, params=params, timeout=10)
+        response = httpx.get(url, timeout=10)
         response.raise_for_status()
 
         data = response.json()
-        rate = data["result"][to_currency]
+        rate = data["conversion_rate"]
         logger.debug("FX rate fetched: %s/%s = %s", from_currency, to_currency, rate)
         return Decimal(str(rate))

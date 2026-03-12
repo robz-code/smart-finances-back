@@ -26,7 +26,7 @@ from app.services.transaction_service import TransactionService
 
 
 def get_fx_service() -> FxService:
-    """FX service backed by FastForex API (falls back to 1:1 if no key configured)."""
+    """FX service backed by ExchangeRate-API (falls back to 1:1 if no key configured)."""
     settings = get_settings()
     client = None
     if settings.FX_API_KEY:

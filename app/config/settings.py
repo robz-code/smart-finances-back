@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     # CORS settings
     BACKEND_CORS_ORIGINS: List[str] = []
 
-    # FX API settings (FastForex)
+    # FX API settings (ExchangeRate-API v6)
     FX_API_KEY: str = ""
-    FX_API_BASE_URL: str = "https://api.fastforex.io"
+    FX_API_BASE_URL: str = "https://v6.exchangerate-api.com/v6"
 
     # Security settings
     SECRET_KEY: str = ""
