@@ -16,10 +16,7 @@ from app.repository.transaction_repository import TransactionRepository
 from app.schemas.base_schemas import SearchResponse
 from app.schemas.category_schemas import CategoryResponseBase
 from app.schemas.concept_schemas import ConceptTransactionCreate
-from app.schemas.reporting_schemas import (
-    CategoryAggregationData,
-    TransactionSummaryPeriod,
-)
+from app.schemas.reporting_schemas import TransactionSummaryPeriod
 from app.schemas.tag_schemas import TagTransactionCreate
 from app.schemas.transaction_schemas import (
     AccountRelatedEntity,
@@ -117,26 +114,11 @@ class TransactionService(BaseService[Transaction]):
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
         source: Optional[str] = None,
-    ) -> Dict[UUID, CategoryAggregationData]:
+    ) -> List[tuple]:
         """
-        Get net-signed transaction amounts and counts grouped by category_id in a single query.
+        Get net-signed transaction amounts and counts grouped by (category_id, currency).
 
-        This method provides both aggregation and count data for category summaries efficiently.
-        Net-signed means: income transactions add to the total, expense transactions subtract.
-
-        Args:
-            user_id: User ID to filter transactions
-            date_from: Start date (inclusive)
-            date_to: End date (inclusive)
-            category_ids: Optional list of category IDs to filter by. If None, includes all categories.
-            account_id: Optional filter by account
-            currency: Optional filter by currency
-            amount_min: Optional minimum amount
-            amount_max: Optional maximum amount
-            source: Optional filter by source
-
-        Returns:
-            Dictionary mapping category_id to CategoryAggregationData DTO
+        Returns list of (category_id, currency, net_amount, count) tuples.
         """
         return self.repository.get_net_signed_amounts_and_counts_by_category(
             user_id=user_id,
@@ -162,11 +144,10 @@ class TransactionService(BaseService[Transaction]):
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
         source: Optional[str] = None,
-    ) -> tuple[Decimal, Decimal, Decimal]:
+    ) -> List[tuple]:
         """
-        Get income, expense, and total (income - expense) for a date range.
-        Uses the same filters as get_net_signed_amounts_and_counts_by_category.
-        Returns (income, expense, total).
+        Get income and expense for a date range, grouped by currency.
+        Returns list of (currency, income, expense) tuples.
         """
         return self.repository.get_cashflow_summary(
             user_id=user_id,

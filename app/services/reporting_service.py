@@ -69,20 +69,13 @@ class ReportingService:
         self,
         user_id: UUID,
         parameters: ReportingParameters,
+        base_currency: str,
     ) -> SearchResponse[CategorySummaryResponse]:
         """
         Get categories with their transaction amounts for a given period or date range.
 
-        Uses period (day/week/month/year) OR date_from/date_to. Period takes precedence.
-        Applies all optional filters from parameters: account_id, category_id, category_type,
-        transaction_type, currency, amount_min, amount_max, source.
-
-        Args:
-            user_id: User ID to filter categories and transactions
-            parameters: Reporting parameters including date range and optional filters
-
-        Returns:
-            SearchResponse containing CategorySummaryResponse objects with transaction amounts
+        When no ``currency`` filter is set, amounts from different currencies are converted
+        to ``base_currency`` before aggregation.
         """
         # 1. Resolve date range: period takes precedence over date_from/date_to
         if parameters.period is not None:
@@ -108,36 +101,51 @@ class ReportingService:
             if not categories:
                 return SearchResponse(total=0, results=[])
 
-        # 3. Get aggregated transaction amounts and counts via TransactionService (single query)
+        # 3. Get aggregated transaction amounts and counts via TransactionService
+        #    Returns list of (category_id, currency, net_amount, count) tuples.
         category_ids = [cat.id for cat in categories]
-        amounts_and_counts_by_category = (
-            self.transaction_service.get_net_signed_amounts_and_counts_by_category(
-                user_id=user_id,
-                date_from=date_from,
-                date_to=date_to,
-                category_ids=category_ids if category_ids else None,
-                account_id=parameters.account_id,
-                currency=parameters.currency,
-                amount_min=parameters.amount_min,
-                amount_max=parameters.amount_max,
-                source=parameters.source,
-            )
+        rows = self.transaction_service.get_net_signed_amounts_and_counts_by_category(
+            user_id=user_id,
+            date_from=date_from,
+            date_to=date_to,
+            category_ids=category_ids if category_ids else None,
+            account_id=parameters.account_id,
+            currency=parameters.currency,
+            amount_min=parameters.amount_min,
+            amount_max=parameters.amount_max,
+            source=parameters.source,
         )
 
-        # 4. Merge and return enriched response
+        # 4. Convert and merge per-category: sum converted amounts across currencies
+        output_currency = parameters.currency or base_currency
+        as_of = date_to or date.today()
+        category_aggregates: dict[UUID, CategoryAggregationData] = {}
+        for category_id, row_currency, net_amount, count in rows:
+            if parameters.currency is None:
+                from_currency = row_currency or output_currency
+                net_amount = self.fx_service.convert(
+                    net_amount, from_currency, output_currency, as_of
+                )
+            agg = category_aggregates.get(category_id)
+            if agg is None:
+                category_aggregates[category_id] = CategoryAggregationData(
+                    net_signed_amount=net_amount, transaction_count=count
+                )
+            else:
+                agg.net_signed_amount += net_amount
+                agg.transaction_count += count
+
+        # 5. Merge and return enriched response
         category_summaries = []
         for cat in categories:
-            aggregation_data = amounts_and_counts_by_category.get(
+            aggregation_data = category_aggregates.get(
                 cat.id,
                 CategoryAggregationData(
                     net_signed_amount=Decimal("0"), transaction_count=0
                 ),
             )
             # When full_list is False, skip categories with no transactions
-            if (
-                not parameters.full_list
-                and cat.id not in amounts_and_counts_by_category
-            ):
+            if not parameters.full_list and cat.id not in category_aggregates:
                 continue
             category_summaries.append(
                 CategorySummaryResponse(
@@ -157,10 +165,13 @@ class ReportingService:
         self,
         user_id: UUID,
         parameters: ReportingParameters,
+        base_currency: str,
     ) -> CashflowSummaryResponse:
         """
         Get income, expense, and total for a period or date range.
-        Reuses the same filters as categories-summary.
+
+        When no ``currency`` filter is set, per-currency rows are converted to
+        ``base_currency`` before summing.
         """
         if parameters.period is not None:
             date_from, date_to = calculate_period_dates(parameters.period)
@@ -182,7 +193,7 @@ class ReportingService:
                 categories = [c for c in categories if c.id == parameters.category_id]
             category_ids = [c.id for c in categories] if categories else []
 
-        income, expense, total = self.transaction_service.get_cashflow_summary(
+        rows = self.transaction_service.get_cashflow_summary(
             user_id=user_id,
             date_from=date_from,
             date_to=date_to,
@@ -193,12 +204,34 @@ class ReportingService:
             amount_max=parameters.amount_max,
             source=parameters.source,
         )
-        return CashflowSummaryResponse(income=income, expense=expense, total=total)
+
+        output_currency = parameters.currency or base_currency
+        as_of = date_to or date.today()
+        total_income = Decimal("0")
+        total_expense = Decimal("0")
+        for row_currency, income, expense in rows:
+            if parameters.currency is None:
+                from_currency = row_currency or output_currency
+                income = self.fx_service.convert(
+                    income, from_currency, output_currency, as_of
+                )
+                expense = self.fx_service.convert(
+                    expense, from_currency, output_currency, as_of
+                )
+            total_income += income
+            total_expense += expense
+
+        return CashflowSummaryResponse(
+            income=total_income,
+            expense=total_expense,
+            total=total_income - total_expense,
+        )
 
     def get_period_comparison(
         self,
         user_id: UUID,
         parameters: PeriodComparisonParameters,
+        base_currency: str,
     ) -> PeriodComparisonResponse:
         """
         Compare current period vs previous equivalent period.
@@ -235,21 +268,45 @@ class ReportingService:
             amount_max=parameters.amount_max,
             source=parameters.source,
         )
-        income_curr, expense_curr, total_curr = (
-            self.transaction_service.get_cashflow_summary(
-                user_id=user_id,
-                date_from=current_start,
-                date_to=current_end,
-                **filter_kwargs,
-            )
+
+        output_currency = parameters.currency or base_currency
+
+        def _aggregate_cashflow(
+            rows: List[tuple], as_of: date
+        ) -> tuple[Decimal, Decimal, Decimal]:
+            total_income = Decimal("0")
+            total_expense = Decimal("0")
+            for row_currency, income, expense in rows:
+                if parameters.currency is None:
+                    from_currency = row_currency or output_currency
+                    income = self.fx_service.convert(
+                        income, from_currency, output_currency, as_of
+                    )
+                    expense = self.fx_service.convert(
+                        expense, from_currency, output_currency, as_of
+                    )
+                total_income += income
+                total_expense += expense
+            return total_income, total_expense, total_income - total_expense
+
+        current_rows = self.transaction_service.get_cashflow_summary(
+            user_id=user_id,
+            date_from=current_start,
+            date_to=current_end,
+            **filter_kwargs,
         )
-        income_prev, expense_prev, total_prev = (
-            self.transaction_service.get_cashflow_summary(
-                user_id=user_id,
-                date_from=previous_start,
-                date_to=previous_end,
-                **filter_kwargs,
-            )
+        income_curr, expense_curr, total_curr = _aggregate_cashflow(
+            current_rows, current_end
+        )
+
+        previous_rows = self.transaction_service.get_cashflow_summary(
+            user_id=user_id,
+            date_from=previous_start,
+            date_to=previous_end,
+            **filter_kwargs,
+        )
+        income_prev, expense_prev, total_prev = _aggregate_cashflow(
+            previous_rows, previous_end
         )
 
         # 5. Build summary

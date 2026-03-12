@@ -1,7 +1,7 @@
 import logging
 from datetime import date
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -15,10 +15,7 @@ from app.entities.tag import Tag
 from app.entities.transaction import Transaction, TransactionType
 from app.entities.transaction_tag import TransactionTag
 from app.repository.base_repository import BaseRepository
-from app.schemas.reporting_schemas import (
-    CategoryAggregationData,
-    TransactionSummaryPeriod,
-)
+from app.schemas.reporting_schemas import TransactionSummaryPeriod
 from app.schemas.transaction_schemas import TransactionSearch
 from app.shared.helpers.date_helper import calculate_period_dates
 
@@ -189,26 +186,19 @@ class TransactionRepository(BaseRepository[Transaction]):
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
         source: Optional[str] = None,
-    ) -> Dict[UUID, CategoryAggregationData]:
+    ) -> List[tuple]:
         """
-        Get net-signed transaction amounts and counts grouped by category_id in a single query.
+        Get net-signed transaction amounts and counts grouped by (category_id, currency).
 
         Net-signed means: income transactions add to the total, expense transactions subtract.
         This method combines both amount and count calculations in one database query for efficiency.
 
-        Args:
-            user_id: User ID to filter transactions
-            date_from: Start date (inclusive)
-            date_to: End date (inclusive)
-            category_ids: Optional list of category IDs to filter by. If None, includes all categories.
-            account_id: Optional filter by account
-            currency: Optional filter by currency
-            amount_min: Optional minimum amount
-            amount_max: Optional maximum amount
-            source: Optional filter by source
+        When ``currency`` filter is provided, rows are grouped by category_id only (single
+        currency). Otherwise rows are grouped by (category_id, currency) so that the caller
+        can convert each currency slice to the user's base currency before re-aggregating.
 
         Returns:
-            Dictionary mapping category_id to CategoryAggregationData DTO
+            List of (category_id, currency, net_amount, count) tuples.
         """
         logger.debug(
             f"DB get_net_signed_amounts_and_counts_by_category: user_id={user_id} "
@@ -221,21 +211,40 @@ class TransactionRepository(BaseRepository[Transaction]):
             else_=-Transaction.amount,
         )
 
-        query = (
-            self.db.query(
-                Transaction.category_id,
-                func.sum(net_amount).label("net_amount"),
-                func.count(Transaction.id).label("count"),
+        if currency is not None:
+            query = (
+                self.db.query(
+                    Transaction.category_id,
+                    literal(currency).label("currency"),
+                    func.sum(net_amount).label("net_amount"),
+                    func.count(Transaction.id).label("count"),
+                )
+                .join(Account, Transaction.account_id == Account.id)
+                .filter(
+                    Transaction.user_id == user_id,
+                    Transaction.date >= date_from,
+                    Transaction.date <= date_to,
+                    Account.is_deleted == False,  # noqa: E712
+                )
+                .group_by(Transaction.category_id)
             )
-            .join(Account, Transaction.account_id == Account.id)
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.date >= date_from,
-                Transaction.date <= date_to,
-                Account.is_deleted == False,  # noqa: E712
+        else:
+            query = (
+                self.db.query(
+                    Transaction.category_id,
+                    Transaction.currency.label("currency"),
+                    func.sum(net_amount).label("net_amount"),
+                    func.count(Transaction.id).label("count"),
+                )
+                .join(Account, Transaction.account_id == Account.id)
+                .filter(
+                    Transaction.user_id == user_id,
+                    Transaction.date >= date_from,
+                    Transaction.date <= date_to,
+                    Account.is_deleted == False,  # noqa: E712
+                )
+                .group_by(Transaction.category_id, Transaction.currency)
             )
-            .group_by(Transaction.category_id)
-        )
 
         if category_ids is not None:
             query = query.filter(Transaction.category_id.in_(category_ids))
@@ -252,16 +261,19 @@ class TransactionRepository(BaseRepository[Transaction]):
 
         results = query.all()
 
-        # Convert to dictionary with DTOs, defaulting to (Decimal('0'), 0) for categories with no transactions
-        return {
-            category_id: CategoryAggregationData(
-                net_signed_amount=(
-                    Decimal(str(net_amount)) if net_amount is not None else Decimal("0")
+        return [
+            (
+                row.category_id,
+                row.currency,
+                (
+                    Decimal(str(row.net_amount))
+                    if row.net_amount is not None
+                    else Decimal("0")
                 ),
-                transaction_count=int(count) if count is not None else 0,
+                int(row.count) if row.count is not None else 0,
             )
-            for category_id, net_amount, count in results
-        }
+            for row in results
+        ]
 
     def get_cashflow_summary(
         self,
@@ -275,12 +287,15 @@ class TransactionRepository(BaseRepository[Transaction]):
         amount_min: Optional[Decimal] = None,
         amount_max: Optional[Decimal] = None,
         source: Optional[str] = None,
-    ) -> tuple[Decimal, Decimal, Decimal]:
+    ) -> List[tuple]:
         """
-        Get income, expense, and total (income - expense) for a date range.
+        Get income and expense for a date range, grouped by currency.
 
-        Uses the same filters as get_net_signed_amounts_and_counts_by_category.
-        Returns (income, expense, total).
+        When ``currency`` filter is provided, returns a single row for that currency.
+        Otherwise returns one row per transaction currency so the caller can convert
+        each to the user's base currency before summing.
+
+        Returns list of (currency, income, expense) tuples.
         """
         logger.debug(
             f"DB get_cashflow_summary: user_id={user_id} date_from={date_from} date_to={date_to}"
@@ -294,18 +309,24 @@ class TransactionRepository(BaseRepository[Transaction]):
             else_=0,
         )
 
-        query = (
-            self.db.query(
+        if currency is not None:
+            query = self.db.query(
+                literal(currency).label("currency"),
                 func.coalesce(func.sum(income_expr), 0).label("income"),
                 func.coalesce(func.sum(expense_expr), 0).label("expense"),
             )
-            .join(Account, Transaction.account_id == Account.id)
-            .filter(
-                Transaction.user_id == user_id,
-                Transaction.date >= date_from,
-                Transaction.date <= date_to,
-                Account.is_deleted == False,  # noqa: E712
-            )
+        else:
+            query = self.db.query(
+                Transaction.currency.label("currency"),
+                func.coalesce(func.sum(income_expr), 0).label("income"),
+                func.coalesce(func.sum(expense_expr), 0).label("expense"),
+            ).group_by(Transaction.currency)
+
+        query = query.join(Account, Transaction.account_id == Account.id).filter(
+            Transaction.user_id == user_id,
+            Transaction.date >= date_from,
+            Transaction.date <= date_to,
+            Account.is_deleted == False,  # noqa: E712
         )
 
         if category_ids is not None:
@@ -321,11 +342,15 @@ class TransactionRepository(BaseRepository[Transaction]):
         if source is not None:
             query = query.filter(Transaction.source == source)
 
-        row = query.first()
-        income = Decimal(str(row.income)) if row and row.income else Decimal("0")
-        expense = Decimal(str(row.expense)) if row and row.expense else Decimal("0")
-        total = income - expense
-        return (income, expense, total)
+        rows = query.all()
+        return [
+            (
+                row.currency,
+                Decimal(str(row.income)) if row.income else Decimal("0"),
+                Decimal(str(row.expense)) if row.expense else Decimal("0"),
+            )
+            for row in rows
+        ]
 
     def _build_period_start_expr(self, period: TransactionSummaryPeriod):
         """Build DB-specific period bucket expression."""

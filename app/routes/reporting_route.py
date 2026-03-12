@@ -1,5 +1,5 @@
 from datetime import date
-from typing import List, Optional, cast
+from typing import Optional, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -33,35 +33,18 @@ def get_categories_summary(
     parameters: ReportingParameters = Depends(),
     service: ReportingService = Depends(get_reporting_service),
     current_user: User = Depends(get_current_user),
+    base_currency: str = Depends(get_user_base_currency),
 ) -> SearchResponse[CategorySummaryResponse]:
     """
     Get categories with their transaction amounts for a specified period or date range.
 
-    This endpoint requires authentication via JWT token.
-    Include the token in the Authorization header as: `Bearer <your_token>`
-
-    Date range: Provide EITHER `period` OR both `date_from` and `date_to`.
-    If `period` is set, date filters are ignored.
-
-    Query parameters:
-    - `period` (optional): Time period for aggregation. Options: `day`, `week`, `month`, `year`
-    - `date_from` (optional): Start date (use with `date_to`, ignored when `period` is set)
-    - `date_to` (optional): End date (use with `date_from`, ignored when `period` is set)
-    - `type` (optional): Filter categories by type (`income` or `expense`)
-    - `category_id` (optional): Filter to a single category
-    - `account_id` (optional): Filter transactions by account
-    - `transaction_type` (optional): Filter transactions by type (`income` or `expense`)
-    - `currency` (optional): Filter by currency
-    - `amount_min` (optional): Minimum transaction amount
-    - `amount_max` (optional): Maximum transaction amount
-    - `source` (optional): Filter by transaction source
-    - `full_list` (optional, default true): If true, return all categories including those with 0 transactions. If false, return only categories that have matching transactions.
-
-    Returns categories with a `transaction_amount` field containing the net-signed sum
-    (income adds, expense subtracts) for the specified period.
+    When no ``currency`` filter is set, multi-currency amounts are converted to the
+    user's base currency before aggregation.
     """
     user_id = cast(UUID, current_user.id)
-    return service.get_categories_summary(user_id=user_id, parameters=parameters)
+    return service.get_categories_summary(
+        user_id=user_id, parameters=parameters, base_currency=base_currency
+    )
 
 
 @router.get("/cashflow-summary", response_model=CashflowSummaryResponse)
@@ -69,16 +52,18 @@ def get_cashflow_summary(
     parameters: ReportingParameters = Depends(),
     service: ReportingService = Depends(get_reporting_service),
     current_user: User = Depends(get_current_user),
+    base_currency: str = Depends(get_user_base_currency),
 ) -> CashflowSummaryResponse:
     """
     Get income, expense, and total (net cashflow) for a period or date range.
 
-    Reuses the same query parameters as categories-summary:
-    - `period` or `date_from`/`date_to`
-    - `type`, `category_id`, `account_id`, `currency`, `amount_min`, `amount_max`, `source`
+    When no ``currency`` filter is set, multi-currency amounts are converted to the
+    user's base currency before aggregation.
     """
     user_id = cast(UUID, current_user.id)
-    return service.get_cashflow_summary(user_id=user_id, parameters=parameters)
+    return service.get_cashflow_summary(
+        user_id=user_id, parameters=parameters, base_currency=base_currency
+    )
 
 
 @router.get("/period-comparison", response_model=PeriodComparisonResponse)
@@ -86,16 +71,18 @@ def get_period_comparison(
     parameters: PeriodComparisonParameters = Depends(),
     service: ReportingService = Depends(get_reporting_service),
     current_user: User = Depends(get_current_user),
+    base_currency: str = Depends(get_user_base_currency),
 ) -> PeriodComparisonResponse:
     """
     Compare financial performance of current period vs previous equivalent period.
 
-    Use either `period` (week|month|year) for predefined periods, or `date_from` and
-    `date_to` for a custom range. Optional filters: account_id, category_id, currency,
-    amount_min, amount_max, source.
+    When no ``currency`` filter is set, multi-currency amounts are converted to the
+    user's base currency before aggregation.
     """
     user_id = cast(UUID, current_user.id)
-    return service.get_period_comparison(user_id=user_id, parameters=parameters)
+    return service.get_period_comparison(
+        user_id=user_id, parameters=parameters, base_currency=base_currency
+    )
 
 
 @router.get("/cashflow/history", response_model=CashflowHistoryResponse)

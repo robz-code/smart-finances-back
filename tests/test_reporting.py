@@ -10,7 +10,7 @@ def _create_user(
     auth_headers: dict,
     name="Report Owner",
     email="report@example.com",
-    currency=None,
+    currency="USD",
 ):
     """Helper function to create a user for testing"""
     payload = {"name": name, "email": email}
@@ -409,7 +409,7 @@ def test_get_balance_history(client, auth_headers):
 
 def test_get_balance_no_currency_returns_422(client, auth_headers):
     """Test that balance endpoints return 422 when user has no currency set"""
-    _create_user(client, auth_headers)  # No currency
+    _create_user(client, auth_headers, currency=None)  # No currency
 
     r = client.get("/api/v1/reporting/balance", headers=auth_headers)
     assert r.status_code == 422
@@ -928,3 +928,229 @@ def test_period_comparison_trend_up(client, auth_headers):
     )
     assert r.status_code == 200
     assert r.json()["summary"]["trend"] == "up"
+
+
+# -------------------------------------------------------------------------
+# Multi-currency FX conversion tests
+# -------------------------------------------------------------------------
+
+
+def test_categories_summary_without_currency_converts_to_base(client, auth_headers):
+    """When no currency filter is set, amounts are converted to user base currency."""
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    expense_category = _create_category(client, auth_headers, "Food", "expense")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        expense_category["id"],
+        "100.00",
+        "expense",
+        "2026-01-15",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        expense_category["id"],
+        "10.00",
+        "expense",
+        "2026-01-15",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/categories-summary"
+        "?date_from=2026-01-01&date_to=2026-01-31",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    results = data["results"]
+    food = next(c for c in results if c["name"] == "Food")
+    # -100 USD + (-10 EUR * 0.90) = -109.00 (net-signed: expenses are negative)
+    assert food["transaction_amount"] == "-109.00"
+    assert food["transaction_count"] == 2
+
+
+def test_categories_summary_with_currency_filter_skips_conversion(client, auth_headers):
+    """When currency filter is set, no FX conversion happens."""
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    expense_category = _create_category(client, auth_headers, "Food", "expense")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        expense_category["id"],
+        "100.00",
+        "expense",
+        "2026-01-15",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        expense_category["id"],
+        "10.00",
+        "expense",
+        "2026-01-15",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/categories-summary"
+        "?date_from=2026-01-01&date_to=2026-01-31&currency=USD",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    results = r.json()["results"]
+    food = next(c for c in results if c["name"] == "Food")
+    # Only USD transactions, no conversion
+    assert food["transaction_amount"] == "-100.00"
+    assert food["transaction_count"] == 1
+
+
+def test_cashflow_summary_without_currency_converts_to_base(client, auth_headers):
+    """When no currency filter is set, cashflow amounts are converted to base currency."""
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    income_category = _create_category(client, auth_headers, "Salary", "income")
+    expense_category = _create_category(client, auth_headers, "Food", "expense")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "100.00",
+        "income",
+        "2026-01-15",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        expense_category["id"],
+        "10.00",
+        "expense",
+        "2026-01-15",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow-summary" "?date_from=2026-01-01&date_to=2026-01-31",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    # 100 USD income, no conversion needed
+    assert data["income"] == "100.00"
+    # 10 EUR * 0.90 = 9.00 USD expense
+    assert data["expense"] == "9.00"
+    # total = income - expense = 100 - 9 = 91
+    assert data["total"] == "91.00"
+
+
+def test_cashflow_summary_with_currency_filter_skips_conversion(client, auth_headers):
+    """When currency filter is set, no FX conversion happens."""
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    income_category = _create_category(client, auth_headers, "Salary", "income")
+
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "100.00",
+        "income",
+        "2026-01-15",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        income_category["id"],
+        "10.00",
+        "income",
+        "2026-01-15",
+        currency="EUR",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/cashflow-summary"
+        "?date_from=2026-01-01&date_to=2026-01-31&currency=EUR",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    # Only EUR transactions, no conversion
+    assert data["income"] == "10.00"
+    assert data["expense"] == "0.00"
+
+
+def test_period_comparison_without_currency_converts_to_base(client, auth_headers):
+    """When no currency filter is set, period comparison converts to base currency."""
+    _create_user(client, auth_headers, currency="USD")
+    usd_account = _create_account(client, auth_headers, name="USD Acc", currency="USD")
+    eur_account = _create_account(client, auth_headers, name="EUR Acc", currency="EUR")
+    income_category = _create_category(client, auth_headers, "Salary", "income")
+
+    # Current period: Jan 2026
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "100.00",
+        "income",
+        "2026-01-15",
+        currency="USD",
+    )
+    _create_transaction(
+        client,
+        auth_headers,
+        eur_account["id"],
+        income_category["id"],
+        "10.00",
+        "income",
+        "2026-01-15",
+        currency="EUR",
+    )
+
+    # Previous period: Dec 2025
+    _create_transaction(
+        client,
+        auth_headers,
+        usd_account["id"],
+        income_category["id"],
+        "50.00",
+        "income",
+        "2025-12-15",
+        currency="USD",
+    )
+
+    r = client.get(
+        "/api/v1/reporting/period-comparison"
+        "?date_from=2026-01-01&date_to=2026-01-31",
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    data = r.json()
+    # Current: 100 USD + (10 EUR * 0.90) = 109.00
+    assert data["current_period"]["income"] == "109.00"
+    # Previous: 50 USD (no conversion needed, single currency)
+    assert data["previous_period"]["income"] == "50.00"
+    assert data["summary"]["trend"] == "up"

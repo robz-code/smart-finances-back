@@ -11,11 +11,13 @@ def _create_user(
     auth_headers: dict,
     name="Transaction Owner",
     email="owner@example.com",
+    currency="USD",
 ):
     """Helper function to create a user for testing"""
-    return client.post(
-        "/api/v1/users", json={"name": name, "email": email}, headers=auth_headers
-    )
+    payload = {"name": name, "email": email}
+    if currency is not None:
+        payload["currency"] = currency
+    return client.post("/api/v1/users", json=payload, headers=auth_headers)
 
 
 def _create_account(

@@ -45,11 +45,17 @@ class FxService:
                 return Decimal("1")
             self._cache[key] = self._client.fetch_rate(from_currency, to_currency)
             logger.info(
-                "FX rate cached: %s→%s = %s", from_currency, to_currency, self._cache[key]
+                "FX rate cached: %s→%s = %s",
+                from_currency,
+                to_currency,
+                self._cache[key],
             )
         else:
             logger.info(
-                "FX rate cache hit: %s→%s = %s", from_currency, to_currency, self._cache[key]
+                "FX rate cache hit: %s→%s = %s",
+                from_currency,
+                to_currency,
+                self._cache[key],
             )
         return self._cache[key]
 
