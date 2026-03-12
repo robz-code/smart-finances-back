@@ -38,14 +38,10 @@ app = FastAPI(
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-import os
-
 # Log application startup details
 db_type = "Postgres" if "postgres" in settings.DATABASE_URL.lower() else "SQLite"
 logger.info(
-    f"Starting {settings.PROJECT_NAME} v1.0.0 (DEBUG={settings.DEBUG}, "
-    f"ENV={'Vercel' if os.environ.get('VERCEL') else 'Local'}, "
-    f"DB={db_type})"
+    f"Starting {settings.PROJECT_NAME} v1.0.0 (DEBUG={settings.DEBUG}, DB={db_type})"
 )
 
 
