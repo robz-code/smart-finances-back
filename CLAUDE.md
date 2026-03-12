@@ -12,7 +12,7 @@ This document is the primary reference for AI assistants working on this codebas
 - **ORM**: SQLAlchemy 2.x
 - **Database**: SQLite (dev/test) or PostgreSQL (production)
 - **Auth**: JWT (HS256) via Supabase
-- **Deployment**: Vercel (serverless Python)
+- **Deployment**: Render (Python web service)
 
 ---
 
@@ -43,7 +43,7 @@ smart-finances-back/
 ├── pyproject.toml              # Python project config (Black, isort, mypy, pytest)
 ├── requirements.txt            # Production dependencies
 ├── requirements-dev.txt        # Development/test dependencies
-└── vercel.json                 # Vercel serverless deployment config
+└── render.yaml                 # Render deployment config
 ```
 
 ---
@@ -322,7 +322,7 @@ Coverage reports uploaded to Codecov.
 
 ### Deployment
 
-Deployed to Vercel as a Python serverless function. `vercel.json` routes all traffic to `app/__init__.py`.
+Deployed to Render as a Python web service. `render.yaml` defines the service configuration, build command, and environment variables.
 
 ---
 
