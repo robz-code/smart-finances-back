@@ -98,6 +98,27 @@ def _reset_database_state(db_engine):
     yield
 
 
+class _StubFxClient:
+    """Deterministic FX client for tests (same rates as the old hardcoded service)."""
+
+    _RATES = {
+        ("USD", "MXN"): "17.5",
+        ("MXN", "USD"): "0.057",
+        ("USD", "EUR"): "1.10",
+        ("EUR", "USD"): "0.90",
+        ("MXN", "EUR"): "0.050",
+        ("EUR", "MXN"): "20.00",
+    }
+
+    def fetch_rate(self, from_currency: str, to_currency: str):
+        from decimal import Decimal
+
+        rate = self._RATES.get((from_currency, to_currency))
+        if rate is None:
+            return Decimal("1")
+        return Decimal(rate)
+
+
 @pytest.fixture(scope="session")
 def client(db_session_factory):
     """FastAPI test client configured to use the test database."""
@@ -111,13 +132,21 @@ def client(db_session_factory):
         finally:
             db.close()
 
+    from app.dependencies.balance_dependencies import get_fx_service
+    from app.services.fx_client import FxClient
+    from app.services.fx_service import FxService
+
     fastapi_app.dependency_overrides[get_db] = _get_test_db
+    fastapi_app.dependency_overrides[get_fx_service] = lambda: FxService(
+        fx_client=_StubFxClient()
+    )
     test_client = TestClient(fastapi_app)
     try:
         yield test_client
     finally:
         test_client.close()
         fastapi_app.dependency_overrides.pop(get_db, None)
+        fastapi_app.dependency_overrides.pop(get_fx_service, None)
 
 
 @pytest.fixture()

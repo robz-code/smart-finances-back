@@ -2,6 +2,7 @@
 
 from fastapi import Depends
 
+from app.config.settings import get_settings
 from app.dependencies.account_dependencies import (
     get_account_repository,
     get_account_service,
@@ -18,14 +19,22 @@ from app.repository.account_repository import AccountRepository
 from app.repository.balance_snapshot_repository import BalanceSnapshotRepository
 from app.repository.transaction_repository import TransactionRepository
 from app.services.account_service import AccountService
+from app.services.fx_client import FxClient
 from app.services.fx_service import FxService
 from app.services.snapshot_service import SnapshotService
 from app.services.transaction_service import TransactionService
 
 
 def get_fx_service() -> FxService:
-    """Stub FX service; replace with real implementation when needed."""
-    return FxService()
+    """FX service backed by FastForex API (falls back to 1:1 if no key configured)."""
+    settings = get_settings()
+    client = None
+    if settings.FX_API_KEY:
+        client = FxClient(
+            api_key=settings.FX_API_KEY,
+            base_url=settings.FX_API_BASE_URL,
+        )
+    return FxService(fx_client=client)
 
 
 def get_balance_engine(
